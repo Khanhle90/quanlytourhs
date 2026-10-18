@@ -1,379 +1,1481 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <title>Quản Lý Xe Tour</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hệ Thống Quản Lý Tour Dã Ngoại Học Sinh</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f1f5f9;
+    }
+    /* Cố định cột Số xe (Sticky Column) khi vuốt ngang trên điện thoại */
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 20;
+      background-color: #ffffff;
+      box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.15);
+    }
+    thead .sticky-col {
+      background-color: #1e293b;
+      z-index: 30;
+    }
+    tr:nth-child(even) .sticky-col {
+      background-color: #f8fafc;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 pb-16 font-sans antialiased">
-  <script>
-    // DÁN ĐƯỜNG LINK WEB APP GOOGLE VÀO ĐÂY:
-const API_URL = "https://script.google.com/macros/s/AKfycbzgdcvyo08oIL16jqR3deYl7h-jRk7kPsDtIatAQ2LHqnF1Vtpb1eWfhCVEjlJ9IO598A/exec";  </script>
+<body class="min-h-screen pb-12 text-slate-800">
 
-  <div class="max-w-lg mx-auto p-4">
-    <!-- Header -->
-    <header class="bg-blue-600 text-white p-4 rounded-2xl shadow-md mb-4 flex justify-between items-center">
-      <div>
-        <h1 class="font-bold text-lg leading-tight">ĐIỀU HÀNH SĨ SỐ XE</h1>
-        <p class="text-xs text-blue-100">Cập nhật nhanh lộ trình & quân số</p>
+  <!-- HEADER & THANH ĐIỀU HƯỚNG 3 TAB -->
+  <header class="bg-blue-700 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-3 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div class="flex items-center justify-between">
+        <h1 class="text-lg font-bold tracking-wide flex items-center gap-2">
+          <span>🚌</span> QUẢN LÝ TOUR DÃ NGOẠI
+        </h1>
+        <span id="deviceLockBadge" class="hidden text-xs bg-emerald-500 text-white font-semibold px-2.5 py-1 rounded-full shadow">
+          🔒 Máy đã nhớ xe
+        </span>
       </div>
-      <button type="button" onclick="promptAdmin()" class="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold text-xs px-3.5 py-2 rounded-xl shadow border border-amber-300 flex items-center gap-1 transition-all active:scale-95">
-        <span>🛡️ Admin</span>
-      </button>
-    </header>
 
-    <!-- FORM DÀNH CHO HDV -->
-    <div id="userSection">
-      <form id="carForm" onsubmit="submitData(event)" class="space-y-4">
-        <!-- Khối Tour & Số xe / Tên lớp -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-          <div>
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Chương Trình</label>
-            <select id="tour" required onchange="handleTourChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none">
-              <option value="">-- Đang tải chương trình --</option>
-            </select>
-          </div>
-
-          <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="text-xs font-bold text-slate-500 uppercase">Số Xe Hoặc Tên Lớp</label>
-              <span id="lockBadge" class="hidden text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Máy đã nhớ xe</span>
-            </div>
-            <input type="text" id="carInput" required 
-                   placeholder="Nhập 01 (tự thêm Xe), nhập 12A1 (tự thêm Lớp)..." 
-                   onblur="normalizeCarInput(this)" 
-                   onchange="handleCarChange()" 
-                   class="w-full border border-slate-300 rounded-xl p-2.5 text-sm font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50">
-            <p class="text-[11px] text-slate-400 mt-1">Gõ số tự thêm chữ <b>Xe</b>, gõ chữ tự thêm chữ <b>Lớp</b>.</p>
-          </div>
-        </div>
-
-        <!-- Khối Nhân Sự -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Thông Tin Xe & Nhân Sự</h2>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-medium text-slate-600">Tên HDV</label>
-              <input type="text" id="guide" required class="w-full mt-1 border border-slate-300 rounded-xl p-2 text-sm">
-            </div>
-            <div>
-              <label class="text-xs font-medium text-slate-600">Biển Số Xe</label>
-              <input type="text" id="plate" placeholder="29B-123.45" class="w-full mt-1 border border-slate-300 rounded-xl p-2 text-sm">
-            </div>
-            <div>
-              <label class="text-xs font-medium text-slate-600">Họ Tên Lái Xe</label>
-              <input type="text" id="driver" class="w-full mt-1 border border-slate-300 rounded-xl p-2 text-sm">
-            </div>
-            <div>
-              <label class="text-xs font-medium text-slate-600">SĐT Lái Xe</label>
-              <input type="tel" id="driverPhone" class="w-full mt-1 border border-slate-300 rounded-xl p-2 text-sm">
-            </div>
-          </div>
-        </div>
-
-        <!-- Sĩ số Lớp 1 -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-          <div class="flex items-center justify-between border-b pb-2">
-            <span class="text-xs font-bold text-blue-600 uppercase">Lớp Thứ Nhất</span>
-            <input type="text" id="c1_name" placeholder="Tên lớp (12A1)" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium w-36">
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="text-[11px] text-slate-500 block text-center mb-1">Học Sinh</label>
-              <input type="number" id="c1_hs" value="0" min="0" oninput="calcTotal()" class="w-full border border-slate-300 rounded-xl p-2 text-center text-sm font-bold">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-500 block text-center mb-1">Phụ Huynh</label>
-              <input type="number" id="c1_ph" value="0" min="0" oninput="calcTotal()" class="w-full border border-slate-300 rounded-xl p-2 text-center text-sm font-bold">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-500 block text-center mb-1">Trẻ Em Đi Kèm</label>
-              <input type="number" id="c1_te" value="0" min="0" oninput="calcTotal()" class="w-full border border-slate-300 rounded-xl p-2 text-center text-sm font-bold">
-            </div>
-          </div>
-        </div>
-
-        <!-- Sĩ số Lớp 2 -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-          <div class="flex items-center justify-between border-b pb-2">
-            <span class="text-xs font-bold text-emerald-600 uppercase">Lớp Thứ Hai (Nếu có)</span>
-            <input type="text" id="c2_name" placeholder="Tên lớp ghép" class="border border-slate-300 rounded-lg px-2.5 py-1 text-xs font-medium w-36">
-          </div>
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <label class="text-[11px] text-slate-500 block text-center mb-1">Học Sinh</label>
-              <input type="number" id="c2_hs" value="0" min="0" oninput="calcTotal()" class="w-full border border-slate-300 rounded-xl p-2 text-center text-sm font-bold">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-500 block text-center mb-1">Phụ Huynh</label>
-              <input type="number" id="c2_ph" value="0" min="0" oninput="calcTotal()" class="w-full border border-slate-300 rounded-xl p-2 text-center text-sm font-bold">
-            </div>
-            <div>
-              <label class="text-[11px] text-slate-500 block text-center mb-1">Trẻ Em Đi Kèm</label>
-              <input type="number" id="c2_te" value="0" min="0" oninput="calcTotal()" class="w-full border border-slate-300 rounded-xl p-2 text-center text-sm font-bold">
-            </div>
-          </div>
-        </div>
-
-        <!-- Giáo viên & Trạng thái -->
-        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-medium text-slate-600">Số Lượng Giáo Viên</label>
-              <input type="number" id="teachers" value="0" min="0" oninput="calcTotal()" class="w-full mt-1 border border-slate-300 rounded-xl p-2 text-sm font-bold">
-            </div>
-            <div>
-              <label class="text-xs font-medium text-slate-600">Trạng Thái Xe</label>
-              <select id="status" class="w-full mt-1 border border-slate-300 rounded-xl p-2 text-sm font-medium bg-slate-50">
-                <option value="Đang xuất phát">Đang xuất phát</option>
-                <option value="Đã nhận phòng">Đã nhận phòng</option>
-                <option value="Đã trả phòng">Đã trả phòng</option>
-                <option value="Đã về tới trường">Đã về tới trường</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="bg-blue-50 p-3.5 rounded-xl flex justify-between items-center border border-blue-100">
-            <span class="text-xs font-bold text-blue-900 uppercase">TỔNG SĨ SỐ TOÀN XE:</span>
-            <span id="displayTotal" class="text-2xl font-black text-blue-600">0</span>
-          </div>
-        </div>
-
-        <!-- Nút Lưu -->
-        <button type="submit" id="btnSubmit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
-          LƯU & CẬP NHẬT
+      <!-- 3 TAB CHÍNH -->
+      <nav class="grid grid-cols-3 gap-1 bg-blue-800 p-1 rounded-lg text-xs sm:text-sm font-semibold">
+        <button id="tabBtnHDV" onclick="switchTab('hdv')" class="py-2 px-3 rounded-md bg-white text-blue-800 shadow transition">
+          🧑‍✈️ Hướng dẫn viên
         </button>
-      </form>
+        <button id="tabBtnSummary" onclick="switchTab('summary')" class="py-2 px-3 rounded-md text-blue-100 hover:bg-blue-700 transition">
+          📊 Tổng hợp
+        </button>
+        <button id="tabBtnAdmin" onclick="switchTab('admin')" class="py-2 px-3 rounded-md text-blue-100 hover:bg-blue-700 transition">
+          ⚙️ Quản trị
+        </button>
+      </nav>
     </div>
+  </header>
 
-    <!-- MÀN HÌNH ADMIN -->
-    <div id="adminSection" class="hidden space-y-4">
-      <div class="bg-slate-800 text-white p-4 rounded-2xl flex justify-between items-center shadow-lg">
-        <div>
-          <h2 class="font-bold text-base text-amber-400">TRANG QUẢN TRỊ VIÊN</h2>
-          <p id="adminTourName" class="text-xs text-slate-300">Đang xem tổng hợp cả đoàn</p>
-        </div>
-        <button onclick="exitAdmin()" class="bg-slate-700 hover:bg-slate-600 text-xs px-3 py-1.5 rounded-lg border border-slate-500 font-medium">
-          ← Về form nhập
-        </button>
-      </div>
-
-      <div id="adminTotalBox" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <div class="text-xs text-slate-500 font-bold uppercase">Tổng Quân Số Cả Đoàn</div>
-        <div id="adminTotalNumber" class="text-3xl font-black text-blue-600 mt-1">0 người</div>
-      </div>
-
-      <div id="adminCarList" class="space-y-3"></div>
+  <!-- KHUNG THÔNG BÁO TOAST -->
+  <div id="toastBox" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-96 z-50 hidden">
+    <div id="toastContent" class="p-3.5 rounded-xl shadow-lg text-white font-medium text-sm flex items-center justify-between">
+      <span id="toastText"></span>
+      <button onclick="hideToast()" class="ml-3 font-bold text-lg leading-none">&times;</button>
     </div>
   </div>
 
+  <main class="max-w-6xl mx-auto px-3 pt-4">
+
+    <!-- ==========================================
+         TAB 1: PHÂN HỆ HƯỚNG DẪN VIÊN (NHẬP LIỆU)
+         ========================================== -->
+    <section id="sectionHDV" class="space-y-4 max-w-2xl mx-auto">
+
+      <!-- Banner Thông báo từ Admin cho chương trình đang vận hành -->
+      <div id="adminNoticeBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-r-xl shadow-sm">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-start gap-2">
+            <span class="text-lg">📢</span>
+            <div>
+              <p class="text-xs font-bold uppercase text-amber-800">Thông báo từ Điều hành / Admin:</p>
+              <p id="adminNoticeText" class="text-sm font-medium text-slate-800 mt-0.5 whitespace-pre-line line-clamp-2"></p>
+            </div>
+          </div>
+          <button type="button" onclick="openCurrentNoticeModal()" class="text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold px-2.5 py-1.5 rounded-lg shrink-0 shadow">
+            Xem lại
+          </button>
+        </div>
+      </div>
+
+      <!-- Khối 1: Chọn Chương trình & Khóa Số Xe -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between border-b pb-2">
+          <h2 class="font-bold text-slate-800 text-base">1. Chương trình & Định danh Xe</h2>
+          <button type="button" onclick="loadActivePrograms()" class="text-xs text-blue-600 font-semibold hover:underline">
+            🔄 Tải lại tour
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Chương trình đang diễn ra *</label>
+          <select id="hdvProgramSelect" onchange="onProgramChange()" class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-semibold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">-- Đang tải danh sách chương trình... --</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Số Xe / Lớp *</label>
+            <div class="flex gap-2">
+              <input type="text" id="hdvVehicleInput" onblur="handleVehicleBlur()" placeholder="VD: 01, 2, 12A1..."
+                class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none" />
+              <button type="button" id="unlockVehicleBtn" onclick="unlockVehicleForCurrentTour()"
+                class="hidden px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold shrink-0"
+                title="Đổi số xe khác cho chương trình này">
+                Đổi xe
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Gõ số (01) tự thành <b>Xe 01</b>; gõ lớp (12A1) tự thành <b>Lớp 12A1</b>.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Họ và tên HDV đăng nhập *</label>
+            <input type="text" id="hdvNameInput" oninput="syncHdvName()" placeholder="Nhập họ tên Hướng dẫn viên..."
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối 2: Khung ⚡ Trạng thái xe (Viền vàng nổi bật ngay dưới ô Số xe) -->
+      <div class="bg-amber-50 p-4 rounded-xl shadow-sm border-2 border-amber-400 space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-sm font-extrabold text-amber-900 flex items-center gap-1.5">
+            <span>⚡</span> TRẠNG THÁI XE HIỆN TẠI
+          </label>
+          <span id="lastSavedTime" class="text-[11px] text-amber-800 font-medium"></span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2">
+          <select id="hdvStatusSelect" class="flex-1 rounded-lg border-2 border-amber-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
+            <option value="🚩 Đang xuất phát">🚩 Đang xuất phát</option>
+            <option value="Đã đến bảo tàng/di tích">🏛️ Đã đến bảo tàng/di tích</option>
+            <option value="🏨 Đã nhận phòng">🏨 Đã nhận phòng</option>
+            <option value="🔑 Đã trả phòng">🔑 Đã trả phòng</option>
+            <option value="Đang về trường">🚌 Đang về trường</option>
+            <option value="🏫 Đã về tới trường">🏫 Đã về tới trường</option>
+          </select>
+
+          <button type="button" id="btnQuickStatus" onclick="saveQuickStatus()"
+            class="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm shadow shrink-0 transition">
+            ⚡ Lưu trạng thái
+          </button>
+        </div>
+        <p class="text-[11px] text-amber-800">Chỉ cần chọn mốc mới và bấm <b>Lưu trạng thái</b> ngay bên cạnh mà không cần cuộn trang.</p>
+      </div>
+
+      <!-- Khối 3: Quản lý Nhân sự & Trưởng xe (Ưu tiên nhập trước) -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <h2 class="font-bold text-slate-800 text-base border-b pb-2">2. Quản lý Nhân sự & Trưởng xe</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Số điện thoại HDV</label>
+            <input type="tel" id="hdvPhoneInput" placeholder="VD: 0912345678"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Tổng số Giáo viên trên xe</label>
+            <input type="number" min="0" id="teacherCountInput" value="0" oninput="calculateRealtimeTotals()"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Họ tên GVCN / Trưởng xe</label>
+            <input type="text" id="leaderNameInput" placeholder="Tên GVCN hoặc Trưởng xe"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">SĐT GVCN / Trưởng xe</label>
+            <input type="tel" id="leaderPhoneInput" placeholder="SĐT GVCN / Trưởng xe"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
+        <!-- Tích chọn Hiệu trưởng, Hiệu phó, Trưởng đoàn (có thể tích cả 3) -->
+        <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Ban Giám Hiệu / Trưởng đoàn đi trên xe (Có thể tích cả 3):</label>
+          <div class="flex flex-wrap gap-4 text-sm font-medium text-slate-800">
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chkHieuTruong" value="Hiệu trưởng" class="w-4 h-4 text-blue-600 rounded" />
+              <span>Hiệu trưởng</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chkHieuPho" value="Hiệu phó" class="w-4 h-4 text-blue-600 rounded" />
+              <span>Hiệu phó</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="chkTruongDoan" value="Trưởng đoàn" class="w-4 h-4 text-blue-600 rounded" />
+              <span>Trưởng đoàn</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Biển số xe</label>
+            <input type="text" id="licensePlateInput" placeholder="VD: 29B-123.45"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Họ tên Lái xe</label>
+            <input type="text" id="driverNameInput" placeholder="Tên bác tài"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">SĐT Lái xe</label>
+            <input type="tel" id="driverPhoneInput" placeholder="SĐT lái xe"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối 4: Quản lý Sĩ số Học sinh (Hỗ trợ xe đơn & xe ghép) -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between border-b pb-2">
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">3. Quản lý Sĩ số Học sinh theo Lớp</h2>
+            <p class="text-xs text-slate-500">Hỗ trợ xe đơn và xe ghép nhiều lớp (Bấm dấu + để thêm lớp)</p>
+          </div>
+          <button type="button" onclick="addClassRow()"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-lg shadow flex items-center gap-1">
+            <span class="text-base leading-none">+</span> Thêm lớp ghép
+          </button>
+        </div>
+
+        <div id="classListContainer" class="space-y-3"></div>
+      </div>
+
+      <!-- Khối 5: Tổng quân số toàn xe theo thời gian thực & Nút Lưu -->
+      <div class="bg-blue-900 text-white p-4 rounded-xl shadow-md space-y-3">
+        <div class="flex items-center justify-between border-b border-blue-700 pb-2">
+          <span class="text-sm font-bold uppercase tracking-wider text-blue-200">Tổng quân số toàn xe (Tự động):</span>
+          <span id="realtimeTotalAll" class="text-2xl font-extrabold text-amber-300">0 người</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-2 text-center text-xs bg-blue-800/80 p-2.5 rounded-lg">
+          <div>
+            <p class="text-blue-200">Học sinh</p>
+            <p id="rtStudents" class="font-bold text-base text-white">0</p>
+          </div>
+          <div>
+            <p class="text-blue-200">Giáo viên</p>
+            <p id="rtTeachers" class="font-bold text-base text-white">0</p>
+          </div>
+          <div>
+            <p class="text-blue-200">Phụ huynh</p>
+            <p id="rtParents" class="font-bold text-base text-white">0</p>
+          </div>
+          <div>
+            <p class="text-blue-200">Trẻ em</p>
+            <p id="rtChildren" class="font-bold text-base text-white">0</p>
+          </div>
+        </div>
+
+        <button type="button" id="btnSaveAll" onclick="submitFullVehicleForm()"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-base shadow-lg transition">
+          💾 LƯU & CẬP NHẬT TOÀN BỘ THÔNG TIN XE
+        </button>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 2: PHÂN HỆ TỔNG HỢP (BẢNG ĐIỀU HÀNH)
+         ========================================== -->
+    <section id="sectionSummary" class="hidden space-y-4">
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex-1">
+          <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn Chương trình xem báo cáo</label>
+          <select id="summaryProgramSelect" onchange="loadSummaryDashboard()" class="w-full sm:max-w-md rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-800">
+            <option value="">-- Chọn chương trình --</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="loadSummaryDashboard()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2.5 rounded-lg text-sm shadow flex items-center gap-1.5">
+            <span>🔄</span> Làm mới dữ liệu
+          </button>
+        </div>
+      </div>
+
+      <!-- 6 THẺ CHỈ SỐ TỔNG HỢP TOÀN ĐOÀN (TÁCH RIÊNG PHỤ HUYNH VÀ TRẺ EM) -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <!-- 1. Tổng Quân Số -->
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-3.5 rounded-xl shadow">
+          <p class="text-xs font-semibold uppercase text-blue-100">1. Tổng Quân Số</p>
+          <p id="sumCardTotalPeople" class="text-2xl font-extrabold mt-1">0</p>
+          <p class="text-[11px] text-blue-200 mt-0.5">Toàn bộ đoàn</p>
+        </div>
+
+        <!-- 2. Tổng Học Sinh -->
+        <div class="bg-white p-3.5 rounded-xl shadow border-l-4 border-emerald-500">
+          <p class="text-xs font-bold uppercase text-slate-500">2. Tổng Học Sinh</p>
+          <p id="sumCardStudents" class="text-2xl font-extrabold text-emerald-600 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Tất cả các xe</p>
+        </div>
+
+        <!-- 3. Tổng Giáo Viên -->
+        <div class="bg-white p-3.5 rounded-xl shadow border-l-4 border-indigo-500">
+          <p class="text-xs font-bold uppercase text-slate-500">3. Tổng Giáo Viên</p>
+          <p id="sumCardTeachers" class="text-2xl font-extrabold text-indigo-600 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Giáo viên & BGH</p>
+        </div>
+
+        <!-- 4. Tổng Phụ Huynh (Màu Cam) -->
+        <div class="bg-white p-3.5 rounded-xl shadow border-l-4 border-orange-500">
+          <p class="text-xs font-bold uppercase text-slate-500">4. Tổng Phụ Huynh</p>
+          <p id="sumCardParents" class="text-2xl font-extrabold text-orange-600 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Phụ huynh đi kèm</p>
+        </div>
+
+        <!-- 5. Tổng Trẻ Em (Màu Hồng) -->
+        <div class="bg-white p-3.5 rounded-xl shadow border-l-4 border-pink-500">
+          <p class="text-xs font-bold uppercase text-slate-500">5. Tổng Trẻ Em</p>
+          <p id="sumCardChildren" class="text-2xl font-extrabold text-pink-600 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Trẻ em đi kèm</p>
+        </div>
+
+        <!-- 6. Tổng Số Xe -->
+        <div class="bg-white p-3.5 rounded-xl shadow border-l-4 border-rose-500">
+          <p class="text-xs font-bold uppercase text-slate-500">6. Tổng Số Xe</p>
+          <p id="sumCardVehicles" class="text-2xl font-extrabold text-rose-600 mt-1">0</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Đã gửi báo cáo</p>
+        </div>
+      </div>
+
+      <!-- BẢNG THỐNG KÊ CHI TIẾT TỪNG XE (15 CỘT + STICKY COLUMN SỐ XE) -->
+      <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+        <div class="p-3 bg-slate-50 border-b flex items-center justify-between">
+          <h3 class="font-bold text-sm text-slate-700">Bảng thống kê chi tiết từng xe (Vuốt ngang để xem đầy đủ, cột Số xe được ghim cố định)</h3>
+          <span id="summaryCountText" class="text-xs font-semibold text-slate-500"></span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs sm:text-sm whitespace-nowrap">
+            <thead>
+              <tr class="bg-slate-800 text-white font-bold">
+                <th class="py-3 px-3 sticky-col">Số xe</th>
+                <th class="py-3 px-3">Trạng thái xe</th>
+                <th class="py-3 px-3 text-center">Tổng số HS</th>
+                <th class="py-3 px-3">Chi tiết lớp</th>
+                <th class="py-3 px-3 text-center">Số lượng GV</th>
+                <th class="py-3 px-3 text-center text-orange-400">Số lượng PH</th>
+                <th class="py-3 px-3 text-center text-pink-400">Số lượng Trẻ em</th>
+                <th class="py-3 px-3 text-center bg-slate-700">Tổng số người</th>
+                <th class="py-3 px-3">HDV</th>
+                <th class="py-3 px-3">SĐT HDV</th>
+                <th class="py-3 px-3">GV/Trưởng xe</th>
+                <th class="py-3 px-3">SĐT GV/Trưởng xe</th>
+                <th class="py-3 px-3">Lái xe</th>
+                <th class="py-3 px-3">SĐT lái xe</th>
+                <th class="py-3 px-3">Biển số xe</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTableBody" class="divide-y divide-slate-200">
+              <tr>
+                <td colspan="15" class="py-8 text-center text-slate-400">Chưa có dữ liệu xe báo cáo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 3: PHÂN HỆ QUẢN TRỊ (ADMIN)
+         ========================================== -->
+    <section id="sectionAdmin" class="hidden space-y-5 max-w-4xl mx-auto">
+
+      <!-- Cấu hình kết nối Google Apps Script API URL -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-2">
+        <h2 class="font-bold text-slate-800 text-sm uppercase">🔗 Cấu hình Máy chủ Google Apps Script (Web App URL)</h2>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="url" id="apiEndpointInput" placeholder="https://script.google.com/macros/s/.../exec"
+            class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
+          <button type="button" onclick="saveApiEndpoint()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-lg">
+            Lưu URL API
+          </button>
+        </div>
+      </div>
+
+      <!-- Khối Tạo chương trình mới -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <h2 class="font-bold text-slate-800 text-base border-b pb-2">➕ Tạo Chương Trình Tour Mới</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 mb-1">Tên chương trình *</label>
+            <input type="text" id="newProgName" placeholder="VD: THPT Thực Nghiệm"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Ngày thực hiện *</label>
+            <input type="date" id="newProgDate"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Chế độ khởi tạo:</label>
+            <select id="newProgStatus" class="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold">
+              <option value="Đang diễn ra">🟢 Đang diễn ra (Hiển thị ngay cho HDV)</option>
+              <option value="Sắp diễn ra">🟡 Sắp diễn ra (Tạm ẩn với HDV)</option>
+            </select>
+          </div>
+          <button type="button" id="btnCreateProgram" onclick="handleCreateProgram()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-lg text-sm shadow">
+            Tạo chương trình
+          </button>
+        </div>
+      </div>
+
+      <!-- Khối Phát thông báo của Admin cho tất cả HDV trong chương trình đang vận hành -->
+      <div class="bg-amber-50 p-4 rounded-xl shadow-sm border border-amber-300 space-y-3">
+        <h2 class="font-bold text-amber-900 text-base border-b border-amber-200 pb-2">📢 Phát Thông Báo Đến Tất Cả HDV Trong Chương Trình</h2>
+        <div>
+          <label class="block text-xs font-bold text-amber-900 mb-1">Chọn chương trình đang vận hành:</label>
+          <select id="adminNoticeProgSelect" onchange="syncNoticeTextarea()" class="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-bold">
+            <option value="">-- Chọn chương trình --</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-amber-900 mb-1">Nội dung thông báo (Để trống nếu muốn tắt thông báo):</label>
+          <textarea id="adminNoticeInput" rows="2" placeholder="VD: 11h30 toàn đoàn tập trung ăn trưa tại Nhà hàng Sen Việt..."
+            class="w-full rounded-lg border border-amber-300 p-2.5 text-sm focus:ring-2 focus:ring-amber-500 outline-none"></textarea>
+        </div>
+        <div class="flex justify-end">
+          <button type="button" onclick="handleSendNotice()"
+            class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-5 py-2 rounded-lg text-sm shadow">
+            Gửi / Cập nhật thông báo
+          </button>
+        </div>
+      </div>
+
+      <!-- Danh sách Quản lý các chương trình (Bắt đầu / Kết thúc / Mở lại) -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between border-b pb-2">
+          <h2 class="font-bold text-slate-800 text-base">📋 Danh Sách Quản Lý Chương Trình</h2>
+          <button type="button" onclick="loadAdminPrograms()" class="text-xs text-blue-600 font-bold hover:underline">
+            🔄 Làm mới
+          </button>
+        </div>
+        <div id="adminProgramList" class="divide-y divide-slate-200 text-sm"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==========================================
+       CỬA SỔ POP-UP THÔNG BÁO TỪ ĐIỀU HÀNH ADMIN
+       (HDV BẮT BUỘC BẤM "ĐÃ ĐỌC VÀ HIỂU THÔNG BÁO!")
+       ========================================== -->
+  <div id="adminNoticeModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border-t-8 border-amber-500 space-y-4 text-center">
+      <div class="w-14 h-14 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-3xl shadow-inner">
+        📢
+      </div>
+      <div>
+        <h3 class="text-lg font-extrabold text-slate-800 uppercase tracking-wide">Thông Báo Từ Điều Hành</h3>
+        <p class="text-xs text-slate-500 mt-1">Yêu cầu tất cả Hướng dẫn viên đọc kỹ nội dung dưới đây</p>
+      </div>
+      <div class="bg-amber-50/80 rounded-xl p-4 text-left border border-amber-200 text-amber-950 font-medium text-sm max-h-64 overflow-y-auto whitespace-pre-line shadow-inner" id="modalNoticeContent">
+      </div>
+      <div>
+        <button type="button" onclick="acknowledgeNotice()"
+          class="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 font-extrabold text-white text-sm sm:text-base shadow-lg transition">
+          ✅ Đã đọc và hiểu thông báo!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NHẬP MÃ PIN BẢO VỆ (8888) -->
+  <div id="pinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto text-2xl">
+        🔐
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-800">Bảo Mật Dành Cho Quản Lý</h3>
+        <p class="text-xs text-slate-500 mt-1">Vui lòng nhập mật mã PIN để truy cập Bảng điều hành toàn đoàn</p>
+      </div>
+      <input type="password" id="pinInputBox" maxlength="8" placeholder="Nhập mã PIN..."
+        onkeydown="if(event.key==='Enter') confirmPinModal()"
+        class="w-full text-center text-xl tracking-widest font-extrabold border-2 border-slate-300 rounded-xl py-2.5 focus:border-blue-600 outline-none" />
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" onclick="closePinModal()" class="py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 font-semibold text-sm text-slate-700">
+          Hủy
+        </button>
+        <button type="button" onclick="confirmPinModal()" class="py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 font-bold text-sm text-white shadow">
+          Xác nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       JAVASCRIPT XỬ LÝ NGHIỆP VỤ
+       ========================================== -->
   <script>
-    var isSubmitting = false;
+    // ĐƯỜNG DẪN WEB APP GOOGLE APPS SCRIPT ĐÃ ĐƯỢC CẤU HÌNH SẴN KÈM HẬU TỐ /exec
+    const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzasdwBjDNmMBwKtDEQO80aqniOBLrVmKcHp3vB8uNGoUk9Wbd3r3pVioqs1Oy284tRtQ/exec';
+    const REQUIRED_PIN = '8888';
 
-    function formatCarName(val) {
-      val = (val || '').trim();
-      if (!val) return '';
-      if (/^xe\b/i.test(val) || /^xe\s+/i.test(val)) return val.replace(/^xe\s*/i, 'Xe ');
-      if (/^\d+$/.test(val)) return 'Xe ' + val;
-      if (/^lớp\b/i.test(val) || /^lớp\s+/i.test(val)) return val.replace(/^lớp\s*/i, 'Lớp ');
-      return 'Lớp ' + val;
+    // Các khóa lưu trữ localStorage trên thiết bị của HDV
+    const LS_API_URL = 'TOUR_APP_SCRIPT_URL';
+    const LS_HDV_NAME = 'TOUR_HDV_NAME';
+    const LS_LOCKED_VEHICLES = 'TOUR_LOCKED_VEHICLES_MAP'; // { [programId]: "Xe 01" }
+    const LS_LAST_PROGRAM = 'TOUR_LAST_PROGRAM_ID';
+    const LS_ACK_PREFIX = 'TOUR_ACK_NOTICE_'; // Tiền tố lưu nội dung thông báo đã đọc theo từng tour
+
+    let unlockedPinSession = false;
+    let pendingTargetTab = null;
+    let activeProgramsCache = [];
+    let adminProgramsCache = [];
+
+    // Tự động chuẩn hóa URL (Tự thêm /exec nếu người dùng copy thiếu)
+    function normalizeScriptUrl(url) {
+      let clean = String(url || '').trim();
+      if (!clean || !clean.startsWith('https://script.google.com/')) return '';
+      if (clean.endsWith('/')) {
+        clean = clean + 'exec';
+      } else if (!clean.endsWith('/exec') && !clean.endsWith('/dev')) {
+        clean = clean + '/exec';
+      }
+      return clean;
     }
 
-    function normalizeCarInput(inputEl) {
-      inputEl.value = formatCarName(inputEl.value);
+    function getApiUrl() {
+      const saved = normalizeScriptUrl(localStorage.getItem(LS_API_URL));
+      if (saved) return saved;
+      return normalizeScriptUrl(DEFAULT_SCRIPT_URL);
     }
 
-    window.onload = function() {
-      fetch(API_URL + "?action=getActiveTours")
-        .then(res => res.json())
-        .then(res => {
-          var tours = res.data || [];
-          var select = document.getElementById('tour');
-          select.innerHTML = '';
-          if (tours.length === 0) {
-            select.innerHTML = '<option value="">Chưa có tour Đang/Sắp diễn ra</option>';
-            return;
-          }
-          tours.forEach(t => {
-            var opt = document.createElement('option');
-            opt.value = t;
-            opt.innerText = t;
-            select.appendChild(opt);
-          });
-
-          var savedTour = localStorage.getItem('user_tour');
-          var savedCar = localStorage.getItem('user_car');
-          if (savedTour && tours.includes(savedTour)) select.value = savedTour;
-          if (savedCar) {
-            document.getElementById('carInput').value = savedCar;
-            document.getElementById('lockBadge').classList.remove('hidden');
-            loadSavedCarData();
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          alert("Lỗi kết nối máy chủ API!");
-        });
-    };
-
-    function handleTourChange() { loadSavedCarData(); }
-    function handleCarChange() { loadSavedCarData(); }
-
-    function loadSavedCarData() {
-      var tour = document.getElementById('tour').value;
-      var carVal = document.getElementById('carInput').value.trim();
-      if (!tour || !carVal) return;
-
-      var fullCarName = formatCarName(carVal);
-      document.getElementById('carInput').value = fullCarName;
-
-      fetch(API_URL + "?action=getVehicleData&tour=" + encodeURIComponent(tour) + "&car=" + encodeURIComponent(fullCarName))
-        .then(res => res.json())
-        .then(res => {
-          var data = res.data;
-          if (data) {
-            document.getElementById('plate').value = data.plate || '';
-            document.getElementById('driver').value = data.driver || '';
-            document.getElementById('driverPhone').value = data.driverPhone || '';
-            document.getElementById('guide').value = data.guide || '';
-            document.getElementById('c1_name').value = data.c1_name || '';
-            document.getElementById('c1_hs').value = data.c1_hs || 0;
-            document.getElementById('c1_ph').value = data.c1_ph || 0;
-            document.getElementById('c1_te').value = data.c1_te || 0;
-            document.getElementById('c2_name').value = data.c2_name || '';
-            document.getElementById('c2_hs').value = data.c2_hs || 0;
-            document.getElementById('c2_ph').value = data.c2_ph || 0;
-            document.getElementById('c2_te').value = data.c2_te || 0;
-            document.getElementById('teachers').value = data.teachers || 0;
-            document.getElementById('status').value = data.status || 'Đang xuất phát';
-            calcTotal();
-          }
-        });
+    function saveApiEndpoint() {
+      const rawVal = document.getElementById('apiEndpointInput').value.trim();
+      const val = normalizeScriptUrl(rawVal);
+      if (!val) {
+        showToast('Vui lòng nhập link Google Apps Script hợp lệ (bắt đầu bằng https://script.google.com/...)', 'error');
+        return;
+      }
+      document.getElementById('apiEndpointInput').value = val;
+      localStorage.setItem(LS_API_URL, val);
+      showToast('Đã lưu cấu hình API URL thành công! Đang tải dữ liệu...', 'success');
+      loadActivePrograms();
+      loadAdminPrograms();
     }
 
-    function calcTotal() {
-      var c1 = (Number(document.getElementById('c1_hs').value)||0) + (Number(document.getElementById('c1_ph').value)||0) + (Number(document.getElementById('c1_te').value)||0);
-      var c2 = (Number(document.getElementById('c2_hs').value)||0) + (Number(document.getElementById('c2_ph').value)||0) + (Number(document.getElementById('c2_te').value)||0);
-      var gv = Number(document.getElementById('teachers').value)||0;
-      document.getElementById('displayTotal').innerText = c1 + c2 + gv;
+    // ----------------------------------------------------
+    // 1. CHUẨN HÓA TÊN XE / LỚP TỰ ĐỘNG (AUTO-FORMATTING)
+    // ----------------------------------------------------
+    function formatVehicleOrClassName(rawInput) {
+      if (!rawInput) return '';
+      let s = rawInput.trim().replace(/\s+/g, ' ');
+      if (!s) return '';
+
+      // Trường hợp 1: Chỉ gõ số (VD: 01, 2, 15) -> Xe 01, Xe 2, Xe 15
+      if (/^\d+$/.test(s)) {
+        return 'Xe ' + s;
+      }
+
+      // Trường hợp 2: Đã gõ sẵn chữ Xe ở đầu -> Chuẩn hóa chữ hoa đầu và khoảng trắng
+      if (/^xe(\s+|$)/i.test(s)) {
+        let rest = s.replace(/^xe\s*/i, '').trim();
+        return rest ? ('Xe ' + rest) : 'Xe';
+      }
+
+      // Trường hợp 3: Đã có sẵn chữ Lớp ở đầu -> Giữ nguyên không thêm lặp
+      if (/^(lớp|lop)(\s+|$)/i.test(s)) {
+        let rest = s.replace(/^(lớp|lop)\s*/i, '').trim();
+        return rest ? ('Lớp ' + rest) : 'Lớp';
+      }
+
+      // Trường hợp 4: Không có chữ Xe nhưng có chữ cái (VD: 12A1, 6A, Chuyên Văn) -> Tự thêm "Lớp "
+      return 'Lớp ' + s;
     }
 
-    function submitData(e) {
-      e.preventDefault();
-      if (isSubmitting) return;
+    function handleVehicleBlur() {
+      const input = document.getElementById('hdvVehicleInput');
+      const formatted = formatVehicleOrClassName(input.value);
+      input.value = formatted;
 
-      var btn = document.getElementById('btnSubmit');
-      isSubmitting = true;
-      btn.disabled = true;
-      btn.innerText = "Đang lưu qua API...";
-
-      var fullCarName = formatCarName(document.getElementById('carInput').value);
-      document.getElementById('carInput').value = fullCarName;
-
-      var payload = {
-        action: 'saveVehicleData',
-        data: {
-          tour: document.getElementById('tour').value,
-          carNumber: fullCarName,
-          plate: document.getElementById('plate').value,
-          driver: document.getElementById('driver').value,
-          driverPhone: document.getElementById('driverPhone').value,
-          guide: document.getElementById('guide').value,
-          c1_name: document.getElementById('c1_name').value,
-          c1_hs: document.getElementById('c1_hs').value,
-          c1_ph: document.getElementById('c1_ph').value,
-          c1_te: document.getElementById('c1_te').value,
-          c2_name: document.getElementById('c2_name').value,
-          c2_hs: document.getElementById('c2_hs').value,
-          c2_ph: document.getElementById('c2_ph').value,
-          c2_te: document.getElementById('c2_te').value,
-          teachers: document.getElementById('teachers').value,
-          status: document.getElementById('status').value
-        }
-      };
-
-      fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      })
-      .then(res => res.json())
-      .then(res => {
-        isSubmitting = false;
-        btn.disabled = false;
-        btn.innerText = "LƯU & CẬP NHẬT";
-        if (res.success) {
-          localStorage.setItem('user_tour', payload.data.tour);
-          localStorage.setItem('user_car', fullCarName);
-          document.getElementById('lockBadge').classList.remove('hidden');
-          alert("Đã cập nhật thành công! Tổng sĩ số: " + res.total + " người.");
-        } else {
-          alert("Lỗi: " + res.message);
-        }
-      })
-      .catch(err => {
-        isSubmitting = false;
-        btn.disabled = false;
-        btn.innerText = "LƯU & CẬP NHẬT";
-        alert("Lỗi kết nối khi gửi dữ liệu!");
-      });
-    }
-
-    function promptAdmin() {
-      var pin = prompt("Vui lòng nhập mã số Quản lý Admin:");
-      if (!pin) return;
-      if (pin === "8888") {
-        switchToAdminView(pin);
-      } else {
-        alert("Mã số Admin không đúng!");
+      const progId = document.getElementById('hdvProgramSelect').value;
+      if (progId && formatted) {
+        fetchExistingVehicleInfo(progId, formatted);
       }
     }
 
-    function switchToAdminView(pin) {
-      var tour = document.getElementById('tour').value;
-      fetch(API_URL + "?action=getAdminReport&tour=" + encodeURIComponent(tour) + "&pin=" + encodeURIComponent(pin))
-        .then(res => res.json())
-        .then(res => {
-          if (!res.success) {
-            alert(res.message);
-            return;
-          }
-          var list = res.data || [];
-          document.getElementById('userSection').classList.add('hidden');
-          document.getElementById('adminSection').classList.remove('hidden');
-          document.getElementById('adminTourName').innerText = "Tour: " + (tour || "Toàn bộ");
-
-          var totalAll = list.reduce((sum, item) => sum + Number(item.total), 0);
-          document.getElementById('adminTotalNumber').innerText = totalAll + " người (" + list.length + " xe/lớp)";
-
-          var container = document.getElementById('adminCarList');
-          var html = '';
-          if (list.length === 0) {
-            html = '<div class="text-center py-6 text-slate-400 text-sm">Chưa có xe nào cập nhật dữ liệu.</div>';
-          } else {
-            list.forEach(x => {
-              html += '<div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 text-xs shadow-sm">' +
-                      '<div class="flex justify-between items-center font-bold text-sm text-slate-800">' +
-                      '<span>' + x.carNumber + ' (' + (x.plate || 'Chưa có biển') + ')</span>' +
-                      '<span class="text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full font-black text-sm border border-blue-100">' + x.total + ' người</span>' +
-                      '</div>' +
-                      '<div>Trạng thái: <span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold text-[11px]">' + x.status + '</span></div>' +
-                      '<div>HDV: <b>' + x.guide + '</b> | TX: ' + x.driver + ' (<a href="tel:' + x.driverPhone + '" class="text-blue-600 font-bold underline">' + x.driverPhone + '</a>)</div>' +
-                      '<div class="text-slate-500 bg-slate-50 p-2 rounded-lg">' + x.c1 + ' | ' + x.c2 + ' | GV: ' + x.teachers + '</div>' +
-                      '<div class="text-[10px] text-slate-400">Cập nhật lúc: ' + x.time + '</div>' +
-                      '</div>';
-            });
-          }
-          container.innerHTML = html;
-        })
-        .catch(() => alert("Không thể tải báo cáo từ máy chủ!"));
+    // ----------------------------------------------------
+    // 2. CƠ CHẾ NHỚ XE THEO THIẾT BỊ & KHÓA SỐ XE THEO TOUR
+    // ----------------------------------------------------
+    function getLockedMap() {
+      try {
+        return JSON.parse(localStorage.getItem(LS_LOCKED_VEHICLES) || '{}');
+      } catch (e) {
+        return {};
+      }
     }
 
-    function exitAdmin() {
-      document.getElementById('adminSection').classList.add('hidden');
-      document.getElementById('userSection').classList.remove('hidden');
+    function setLockedVehicleForTour(progId, vehicleName) {
+      if (!progId || !vehicleName) return;
+      const map = getLockedMap();
+      map[progId] = vehicleName;
+      localStorage.setItem(LS_LOCKED_VEHICLES, JSON.stringify(map));
+      localStorage.setItem(LS_LAST_PROGRAM, progId);
+      applyLockUiState(progId);
     }
+
+    function applyLockUiState(progId) {
+      const map = getLockedMap();
+      const lockedVehicle = map[progId] || '';
+      const vehicleInput = document.getElementById('hdvVehicleInput');
+      const badge = document.getElementById('deviceLockBadge');
+      const unlockBtn = document.getElementById('unlockVehicleBtn');
+
+      if (lockedVehicle) {
+        vehicleInput.value = lockedVehicle;
+        vehicleInput.readOnly = true;
+        vehicleInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+        badge.classList.remove('hidden');
+        badge.textContent = '🔒 Máy đã nhớ: ' + lockedVehicle;
+        unlockBtn.classList.remove('hidden');
+      } else {
+        vehicleInput.readOnly = false;
+        vehicleInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+        badge.classList.add('hidden');
+        unlockBtn.classList.add('hidden');
+      }
+    }
+
+    function unlockVehicleForCurrentTour() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      if (!progId) return;
+      if (!confirm('Bạn có chắc muốn mở khóa để đổi sang số xe khác cho chương trình này?')) return;
+      const map = getLockedMap();
+      delete map[progId];
+      localStorage.setItem(LS_LOCKED_VEHICLES, JSON.stringify(map));
+      applyLockUiState(progId);
+      document.getElementById('hdvVehicleInput').focus();
+    }
+
+    function syncHdvName() {
+      const name = document.getElementById('hdvNameInput').value.trim();
+      localStorage.setItem(LS_HDV_NAME, name);
+    }
+
+    // ----------------------------------------------------
+    // 3. QUẢN LÝ SĨ SỐ HỌC SINH (XE ĐƠN & XE GHÉP) + TÍNH TỔNG REALTIME
+    // ----------------------------------------------------
+    function renderClassRows(classesData) {
+      const container = document.getElementById('classListContainer');
+      container.innerHTML = '';
+      const list = (classesData && classesData.length > 0)
+        ? classesData
+        : [{ className: '', students: 0, parents: 0, children: 0 }];
+
+      list.forEach((cls, idx) => {
+        appendSingleClassRow(cls, idx);
+      });
+      calculateRealtimeTotals();
+    }
+
+    function appendSingleClassRow(cls = { className: '', students: 0, parents: 0, children: 0 }, idx = null) {
+      const container = document.getElementById('classListContainer');
+      const rowIndex = idx !== null ? idx : container.children.length;
+
+      const div = document.createElement('div');
+      div.className = 'class-item-row bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2';
+      div.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-blue-800 uppercase class-row-title">Lớp thứ ${rowIndex + 1}</span>
+          ${rowIndex > 0 ? `<button type="button" onclick="removeClassRow(this)" class="text-xs text-red-600 font-bold hover:underline">&times; Xóa lớp này</button>` : ''}
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <div class="col-span-2 sm:col-span-1">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tên lớp *</label>
+            <input type="text" placeholder="VD: 11C, 12D3" value="${escapeHtml(cls.className || '')}"
+              class="cls-name w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số Học sinh</label>
+            <input type="number" min="0" value="${Number(cls.students || 0)}" oninput="calculateRealtimeTotals()"
+              class="cls-students w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-bold text-emerald-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số Phụ huynh</label>
+            <input type="number" min="0" value="${Number(cls.parents || 0)}" oninput="calculateRealtimeTotals()"
+              class="cls-parents w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-bold text-orange-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Trẻ em đi kèm</label>
+            <input type="number" min="0" value="${Number(cls.children || 0)}" oninput="calculateRealtimeTotals()"
+              class="cls-children w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-bold text-pink-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+
+    function addClassRow() {
+      appendSingleClassRow({ className: '', students: 0, parents: 0, children: 0 });
+      refreshClassRowTitles();
+      calculateRealtimeTotals();
+    }
+
+    function removeClassRow(btn) {
+      const row = btn.closest('.class-item-row');
+      if (row) row.remove();
+      refreshClassRowTitles();
+      calculateRealtimeTotals();
+    }
+
+    function refreshClassRowTitles() {
+      const rows = document.querySelectorAll('#classListContainer .class-item-row');
+      rows.forEach((r, idx) => {
+        const titleEl = r.querySelector('.class-row-title');
+        if (titleEl) titleEl.textContent = 'Lớp thứ ' + (idx + 1);
+      });
+    }
+
+    function collectClassesAndTotals() {
+      const rows = document.querySelectorAll('#classListContainer .class-item-row');
+      let totalStudents = 0;
+      let totalParents = 0;
+      let totalChildren = 0;
+      const classes = [];
+      const classSummaryParts = [];
+
+      rows.forEach((r) => {
+        const cName = r.querySelector('.cls-name').value.trim();
+        const st = Math.max(0, parseInt(r.querySelector('.cls-students').value, 10) || 0);
+        const pa = Math.max(0, parseInt(r.querySelector('.cls-parents').value, 10) || 0);
+        const ch = Math.max(0, parseInt(r.querySelector('.cls-children').value, 10) || 0);
+
+        totalStudents += st;
+        totalParents += pa;
+        totalChildren += ch;
+
+        classes.push({ className: cName, students: st, parents: pa, children: ch });
+        if (cName || st > 0) {
+          classSummaryParts.push(`${cName || 'Lớp'} (${st})`);
+        }
+      });
+
+      const teacherCount = Math.max(0, parseInt(document.getElementById('teacherCountInput').value, 10) || 0);
+      const totalPeople = totalStudents + teacherCount + totalParents + totalChildren;
+
+      return {
+        classes,
+        classSummary: classSummaryParts.join(', '),
+        totalStudents,
+        teacherCount,
+        parentCount: totalParents,
+        childCount: totalChildren,
+        totalPeople
+      };
+    }
+
+    function calculateRealtimeTotals() {
+      const t = collectClassesAndTotals();
+      document.getElementById('rtStudents').textContent = t.totalStudents;
+      document.getElementById('rtTeachers').textContent = t.teacherCount;
+      document.getElementById('rtParents').textContent = t.parentCount;
+      document.getElementById('rtChildren').textContent = t.childCount;
+      document.getElementById('realtimeTotalAll').textContent = t.totalPeople + ' người';
+    }
+
+    // ----------------------------------------------------
+    // 4. KẾT NỐI API GOOGLE APPS SCRIPT
+    // ----------------------------------------------------
+    async function callApi(payload) {
+      const url = getApiUrl();
+      if (!url) {
+        throw new Error('Chưa cấu hình link Google Apps Script Web App URL!');
+      }
+      const res = await fetch(url, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    // Tải danh sách chương trình Đang diễn ra cho HDV
+    async function loadActivePrograms() {
+      try {
+        const result = await callApi({ action: 'getInitData' });
+        if (!result.success) throw new Error(result.message);
+
+        activeProgramsCache = result.programs || [];
+        const select = document.getElementById('hdvProgramSelect');
+        select.innerHTML = '';
+
+        if (activeProgramsCache.length === 0) {
+          select.innerHTML = '<option value="">-- Hiện không có chương trình nào Đang diễn ra --</option>';
+          document.getElementById('adminNoticeBanner').classList.add('hidden');
+          return;
+        }
+
+        activeProgramsCache.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.name} (${p.date || 'Chưa rõ ngày'})`;
+          select.appendChild(opt);
+        });
+
+        const savedProgId = localStorage.getItem(LS_LAST_PROGRAM);
+        if (savedProgId && activeProgramsCache.some(p => p.id === savedProgId)) {
+          select.value = savedProgId;
+        } else {
+          select.value = activeProgramsCache[0].id;
+        }
+
+        onProgramChange();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Khi HDV chuyển chương trình: kiểm tra thông báo & bật Pop-up bắt buộc nếu chưa đọc
+    function onProgramChange() {
+      const select = document.getElementById('hdvProgramSelect');
+      const progId = select.value;
+      if (!progId) return;
+
+      localStorage.setItem(LS_LAST_PROGRAM, progId);
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+
+      // Xử lý thông báo từ Điều hành
+      const banner = document.getElementById('adminNoticeBanner');
+      const noticeText = document.getElementById('adminNoticeText');
+
+      if (progObj && progObj.notice && progObj.notice.trim() !== '') {
+        noticeText.textContent = progObj.notice;
+        banner.classList.remove('hidden');
+
+        // Kiểm tra xem HDV đã đọc thông báo này chưa
+        const lastAck = localStorage.getItem(LS_ACK_PREFIX + progId) || '';
+        if (lastAck !== progObj.notice.trim()) {
+          showAdminNoticeModal(progObj.notice);
+        }
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      // Kiểm tra xe đã khóa trên thiết bị
+      const map = getLockedMap();
+      const lockedVehicle = map[progId] || '';
+      applyLockUiState(progId);
+
+      if (lockedVehicle) {
+        fetchExistingVehicleInfo(progId, lockedVehicle);
+      } else {
+        resetVehicleFormFields();
+      }
+    }
+
+    // Hiển thị Pop-up thông báo bắt buộc HDV ấn đọc
+    function showAdminNoticeModal(content) {
+      document.getElementById('modalNoticeContent').textContent = content;
+      const modal = document.getElementById('adminNoticeModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function openCurrentNoticeModal() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      if (progObj && progObj.notice && progObj.notice.trim() !== '') {
+        showAdminNoticeModal(progObj.notice);
+      }
+    }
+
+    // Khi HDV nhấn "Đã đọc và hiểu thông báo!"
+    function acknowledgeNotice() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      if (progId && progObj && progObj.notice) {
+        localStorage.setItem(LS_ACK_PREFIX + progId, progObj.notice.trim());
+      }
+      const modal = document.getElementById('adminNoticeModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      showToast('Đã xác nhận đọc thông báo từ Điều hành!', 'success');
+    }
+
+    function resetVehicleFormFields() {
+      document.getElementById('hdvVehicleInput').value = '';
+      document.getElementById('hdvStatusSelect').value = '🚩 Đang xuất phát';
+      document.getElementById('lastSavedTime').textContent = '';
+      document.getElementById('hdvPhoneInput').value = '';
+      document.getElementById('teacherCountInput').value = '0';
+      document.getElementById('leaderNameInput').value = '';
+      document.getElementById('leaderPhoneInput').value = '';
+      document.getElementById('chkHieuTruong').checked = false;
+      document.getElementById('chkHieuPho').checked = false;
+      document.getElementById('chkTruongDoan').checked = false;
+      document.getElementById('licensePlateInput').value = '';
+      document.getElementById('driverNameInput').value = '';
+      document.getElementById('driverPhoneInput').value = '';
+      renderClassRows([]);
+    }
+
+    // Gọi dữ liệu đã lưu của xe từ Google Sheets đổ lại lên màn hình
+    async function fetchExistingVehicleInfo(progId, vehicleName) {
+      try {
+        const res = await callApi({
+          action: 'getVehicleData',
+          programId: progId,
+          vehicleName: vehicleName
+        });
+
+        if (res.success && res.found && res.data) {
+          const d = res.data;
+          document.getElementById('hdvVehicleInput').value = d.vehicleName || vehicleName;
+          document.getElementById('hdvStatusSelect').value = d.status || '🚩 Đang xuất phát';
+          document.getElementById('lastSavedTime').textContent = d.updatedAt ? ('Cập nhật: ' + d.updatedAt) : '';
+
+          if (d.hdvName) {
+            document.getElementById('hdvNameInput').value = d.hdvName;
+            localStorage.setItem(LS_HDV_NAME, d.hdvName);
+          }
+          document.getElementById('hdvPhoneInput').value = d.hdvPhone || '';
+          document.getElementById('teacherCountInput').value = d.teacherCount || 0;
+          document.getElementById('leaderNameInput').value = d.leaderName || '';
+          document.getElementById('leaderPhoneInput').value = d.leaderPhone || '';
+
+          const roles = d.vipRoles || '';
+          document.getElementById('chkHieuTruong').checked = roles.includes('Hiệu trưởng');
+          document.getElementById('chkHieuPho').checked = roles.includes('Hiệu phó');
+          document.getElementById('chkTruongDoan').checked = roles.includes('Trưởng đoàn');
+
+          document.getElementById('licensePlateInput').value = d.licensePlate || '';
+          document.getElementById('driverNameInput').value = d.driverName || '';
+          document.getElementById('driverPhoneInput').value = d.driverPhone || '';
+
+          renderClassRows(d.classes || []);
+          showToast('Đã tải lại thông tin của ' + d.vehicleName, 'info');
+        }
+      } catch (err) {
+        console.warn('Không thể tải dữ liệu xe:', err);
+      }
+    }
+
+    // Lưu nhanh riêng Trạng thái hành trình
+    async function saveQuickStatus() {
+      const progSelect = document.getElementById('hdvProgramSelect');
+      const progId = progSelect.value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const rawVehicle = document.getElementById('hdvVehicleInput').value;
+      const vehicleName = formatVehicleOrClassName(rawVehicle);
+      const hdvName = document.getElementById('hdvNameInput').value.trim();
+      const status = document.getElementById('hdvStatusSelect').value;
+
+      if (!progId) return showToast('Vui lòng chọn chương trình đang diễn ra!', 'error');
+      if (!vehicleName) return showToast('Vui lòng nhập Số xe trước khi lưu trạng thái!', 'error');
+      if (!hdvName) return showToast('Vui lòng nhập Họ tên HDV đăng nhập!', 'error');
+
+      document.getElementById('hdvVehicleInput').value = vehicleName;
+
+      const btn = document.getElementById('btnQuickStatus');
+      const oldText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Đang lưu...';
+
+      try {
+        const res = await callApi({
+          action: 'updateStatusOnly',
+          programId: progId,
+          programName: progObj ? progObj.name : '',
+          vehicleName: vehicleName,
+          status: status,
+          hdvName: hdvName
+        });
+
+        if (!res.success) throw new Error(res.message);
+
+        setLockedVehicleForTour(progId, vehicleName);
+        document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
+        showToast(res.message, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+      }
+    }
+
+    // Lưu toàn bộ biểu mẫu HDV (Chống bấm đúp + Ghi nhớ xe vào thiết bị)
+    async function submitFullVehicleForm() {
+      const progSelect = document.getElementById('hdvProgramSelect');
+      const progId = progSelect.value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+      const hdvName = document.getElementById('hdvNameInput').value.trim();
+
+      if (!progId) return showToast('Vui lòng chọn chương trình đang diễn ra!', 'error');
+      if (!vehicleName) return showToast('Vui lòng nhập Số xe / Lớp!', 'error');
+      if (!hdvName) return showToast('Vui lòng nhập Họ và tên HDV!', 'error');
+
+      document.getElementById('hdvVehicleInput').value = vehicleName;
+
+      const vipArr = [];
+      if (document.getElementById('chkHieuTruong').checked) vipArr.push('Hiệu trưởng');
+      if (document.getElementById('chkHieuPho').checked) vipArr.push('Hiệu phó');
+      if (document.getElementById('chkTruongDoan').checked) vipArr.push('Trưởng đoàn');
+
+      const totals = collectClassesAndTotals();
+
+      const payloadData = {
+        programId: progId,
+        programName: progObj ? progObj.name : '',
+        vehicleName: vehicleName,
+        status: document.getElementById('hdvStatusSelect').value,
+        hdvName: hdvName,
+        hdvPhone: document.getElementById('hdvPhoneInput').value.trim(),
+        leaderName: document.getElementById('leaderNameInput').value.trim(),
+        leaderPhone: document.getElementById('leaderPhoneInput').value.trim(),
+        vipRoles: vipArr.join(', '),
+        driverName: document.getElementById('driverNameInput').value.trim(),
+        driverPhone: document.getElementById('driverPhoneInput').value.trim(),
+        licensePlate: document.getElementById('licensePlateInput').value.trim(),
+        teacherCount: totals.teacherCount,
+        totalStudents: totals.totalStudents,
+        parentCount: totals.parentCount,
+        childCount: totals.childCount,
+        totalPeople: totals.totalPeople,
+        classSummary: totals.classSummary,
+        classes: totals.classes
+      };
+
+      // Chống bấm đúp trên giao diện
+      const btn = document.getElementById('btnSaveAll');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
+      btn.innerHTML = '⏳ Đang lưu...';
+
+      try {
+        const res = await callApi({
+          action: 'saveVehicleData',
+          data: payloadData
+        });
+        if (!res.success) throw new Error(res.message);
+
+        setLockedVehicleForTour(progId, vehicleName);
+        document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
+        showToast(res.message, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // ----------------------------------------------------
+    // 5. BẢO MẬT MÃ PIN (8888) & CHUYỂN TAB
+    // ----------------------------------------------------
+    function switchTab(tabName) {
+      if ((tabName === 'summary' || tabName === 'admin') && !unlockedPinSession) {
+        pendingTargetTab = tabName;
+        const modal = document.getElementById('pinModal');
+        document.getElementById('pinInputBox').value = '';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        setTimeout(() => document.getElementById('pinInputBox').focus(), 100);
+        return;
+      }
+      activateTabView(tabName);
+    }
+
+    function closePinModal() {
+      const modal = document.getElementById('pinModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      pendingTargetTab = null;
+    }
+
+    function confirmPinModal() {
+      const pinVal = document.getElementById('pinInputBox').value.trim();
+      if (pinVal === REQUIRED_PIN) {
+        unlockedPinSession = true;
+        const target = pendingTargetTab || 'summary';
+        closePinModal();
+        activateTabView(target);
+      } else {
+        showToast('Mật mã PIN không đúng! Vui lòng thử lại.', 'error');
+      }
+    }
+
+    function activateTabView(tabName) {
+      const sections = {
+        hdv: document.getElementById('sectionHDV'),
+        summary: document.getElementById('sectionSummary'),
+        admin: document.getElementById('sectionAdmin')
+      };
+      const buttons = {
+        hdv: document.getElementById('tabBtnHDV'),
+        summary: document.getElementById('tabBtnSummary'),
+        admin: document.getElementById('tabBtnAdmin')
+      };
+
+      Object.keys(sections).forEach(k => {
+        if (k === tabName) {
+          sections[k].classList.remove('hidden');
+          buttons[k].className = 'py-2 px-3 rounded-md bg-white text-blue-800 shadow transition';
+        } else {
+          sections[k].classList.add('hidden');
+          buttons[k].className = 'py-2 px-3 rounded-md text-blue-100 hover:bg-blue-700 transition';
+        }
+      });
+
+      if (tabName === 'hdv') {
+        loadActivePrograms();
+      } else if (tabName === 'summary') {
+        loadAdminProgramsForSummary();
+      } else if (tabName === 'admin') {
+        loadAdminPrograms();
+      }
+    }
+
+    // ----------------------------------------------------
+    // 6. PHÂN HỆ TAB TỔNG HỢP (6 THẺ CHỈ SỐ + BẢNG 15 CỘT)
+    // ----------------------------------------------------
+    async function loadAdminProgramsForSummary() {
+      try {
+        const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
+        if (!res.success) throw new Error(res.message);
+        adminProgramsCache = res.programs || [];
+
+        const sel = document.getElementById('summaryProgramSelect');
+        const currentVal = sel.value;
+        sel.innerHTML = '';
+
+        if (adminProgramsCache.length === 0) {
+          sel.innerHTML = '<option value="">-- Chưa có chương trình nào --</option>';
+          return;
+        }
+
+        adminProgramsCache.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `[${p.status}] ${p.name} (${p.date || ''})`;
+          sel.appendChild(opt);
+        });
+
+        if (currentVal && adminProgramsCache.some(p => p.id === currentVal)) {
+          sel.value = currentVal;
+        } else {
+          const activeOne = adminProgramsCache.find(p => p.status === 'Đang diễn ra');
+          sel.value = activeOne ? activeOne.id : adminProgramsCache[0].id;
+        }
+
+        loadSummaryDashboard();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Phân biệt 6 màu sắc theo Trạng thái xe
+    function getStatusBadgeHtml(statusText) {
+      const s = String(statusText || '');
+      let colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300'; // Đang xuất phát: Xanh lá cây
+
+      if (s.includes('bảo tàng') || s.includes('di tích')) {
+        colorClass = 'bg-amber-100 text-amber-800 border-amber-300'; // Đã đến bảo tàng/di tích: Vàng
+      } else if (s.includes('nhận phòng')) {
+        colorClass = 'bg-blue-100 text-blue-800 border-blue-300'; // Đã nhận phòng: Xanh dương
+      } else if (s.includes('trả phòng')) {
+        colorClass = 'bg-purple-100 text-purple-800 border-purple-300'; // Đã trả phòng: Tím
+      } else if (s.includes('Đang về trường')) {
+        colorClass = 'bg-orange-100 text-orange-800 border-orange-300'; // Đang về trường: Da cam
+      } else if (s.includes('Đã về tới trường')) {
+        colorClass = 'bg-red-100 text-red-800 border-red-300'; // Đã về tới trường: Đỏ
+      }
+
+      return `<span class="inline-block px-2.5 py-1 rounded-full text-xs font-bold border ${colorClass}">${escapeHtml(s)}</span>`;
+    }
+
+    // Tạo liên kết gọi điện 1 chạm (Click-to-Call)
+    function formatCallLink(phone) {
+      const clean = String(phone || '').trim();
+      if (!clean) return '<span class="text-slate-300">-</span>';
+      return `<a href="tel:${escapeHtml(clean)}" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold underline">📞 ${escapeHtml(clean)}</a>`;
+    }
+
+    async function loadSummaryDashboard() {
+      const progId = document.getElementById('summaryProgramSelect').value;
+      if (!progId) return;
+
+      try {
+        const res = await callApi({
+          action: 'getSummaryData',
+          pin: REQUIRED_PIN,
+          programId: progId
+        });
+        if (!res.success) throw new Error(res.message);
+
+        const list = res.vehicles || [];
+
+        // Sắp xếp thứ tự xe thông minh theo số tự nhiên (Xe 01, Xe 02, Xe 03... Xe 10)
+        list.sort((a, b) =>
+          String(a.vehicleName).localeCompare(String(b.vehicleName), 'vi', { numeric: true, sensitivity: 'base' })
+        );
+
+        let sumPeople = 0;
+        let sumStudents = 0;
+        let sumTeachers = 0;
+        let sumParents = 0;
+        let sumChildren = 0;
+
+        const tbody = document.getElementById('summaryTableBody');
+        tbody.innerHTML = '';
+
+        if (list.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="15" class="py-8 text-center text-slate-400">Chưa có xe nào gửi báo cáo trong chương trình này.</td></tr>`;
+        } else {
+          list.forEach(v => {
+            sumPeople += Number(v.totalPeople || 0);
+            sumStudents += Number(v.totalStudents || 0);
+            sumTeachers += Number(v.teacherCount || 0);
+            sumParents += Number(v.parentCount || 0);
+            sumChildren += Number(v.childCount || 0);
+
+            const vipTag = v.vipRoles
+              ? `<div class="text-[10px] text-rose-600 font-bold mt-0.5">(${escapeHtml(v.vipRoles)})</div>`
+              : '';
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-blue-50/40 transition';
+            tr.innerHTML = `
+              <td class="py-2.5 px-3 font-extrabold text-blue-900 sticky-col">${escapeHtml(v.vehicleName)}</td>
+              <td class="py-2.5 px-3">${getStatusBadgeHtml(v.status)}</td>
+              <td class="py-2.5 px-3 text-center font-extrabold text-emerald-700 text-sm">${v.totalStudents}</td>
+              <td class="py-2.5 px-3 font-semibold text-slate-700">${escapeHtml(v.classSummary || '-')}</td>
+              <td class="py-2.5 px-3 text-center font-bold text-indigo-700">${v.teacherCount}${vipTag}</td>
+              <td class="py-2.5 px-3 text-center font-bold text-orange-600">${v.parentCount}</td>
+              <td class="py-2.5 px-3 text-center font-bold text-pink-600">${v.childCount}</td>
+              <td class="py-2.5 px-3 text-center font-extrabold text-blue-900 bg-slate-100">${v.totalPeople}</td>
+              <td class="py-2.5 px-3 font-semibold">${escapeHtml(v.hdvName || '-')}</td>
+              <td class="py-2.5 px-3">${formatCallLink(v.hdvPhone)}</td>
+              <td class="py-2.5 px-3 font-medium">${escapeHtml(v.leaderName || '-')}</td>
+              <td class="py-2.5 px-3">${formatCallLink(v.leaderPhone)}</td>
+              <td class="py-2.5 px-3 font-medium">${escapeHtml(v.driverName || '-')}</td>
+              <td class="py-2.5 px-3">${formatCallLink(v.driverPhone)}</td>
+              <td class="py-2.5 px-3 font-bold uppercase text-slate-700">${escapeHtml(v.licensePlate || '-')}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // Cập nhật 6 Thẻ chỉ số tổng hợp toàn đoàn (Tách riêng PH và Trẻ em)
+        document.getElementById('sumCardTotalPeople').textContent = sumPeople;
+        document.getElementById('sumCardStudents').textContent = sumStudents;
+        document.getElementById('sumCardTeachers').textContent = sumTeachers;
+        document.getElementById('sumCardParents').textContent = sumParents;
+        document.getElementById('sumCardChildren').textContent = sumChildren;
+        document.getElementById('sumCardVehicles').textContent = list.length;
+        document.getElementById('summaryCountText').textContent = `Đã cập nhật ${list.length} xe`;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ----------------------------------------------------
+    // 7. PHÂN HỆ TAB QUẢN TRỊ (TẠO TOUR, BẮT ĐẦU/KẾT THÚC/MỞ LẠI, THÔNG BÁO)
+    // ----------------------------------------------------
+    async function loadAdminPrograms() {
+      try {
+        const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
+        if (!res.success) throw new Error(res.message);
+
+        adminProgramsCache = res.programs || [];
+        renderAdminProgramList();
+        populateAdminNoticeSelect();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function populateAdminNoticeSelect() {
+      const sel = document.getElementById('adminNoticeProgSelect');
+      sel.innerHTML = '';
+      const running = adminProgramsCache.filter(p => p.status === 'Đang diễn ra');
+
+      if (running.length === 0) {
+        sel.innerHTML = '<option value="">-- Không có chương trình Đang diễn ra --</option>';
+        document.getElementById('adminNoticeInput').value = '';
+        return;
+      }
+
+      running.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (${p.date || ''})`;
+        sel.appendChild(opt);
+      });
+      syncNoticeTextarea();
+    }
+
+    function syncNoticeTextarea() {
+      const progId = document.getElementById('adminNoticeProgSelect').value;
+      const prog = adminProgramsCache.find(p => p.id === progId);
+      document.getElementById('adminNoticeInput').value = prog ? (prog.notice || '') : '';
+    }
+
+    function renderAdminProgramList() {
+      const container = document.getElementById('adminProgramList');
+      container.innerHTML = '';
+
+      if (adminProgramsCache.length === 0) {
+        container.innerHTML = '<p class="py-6 text-center text-slate-400">Chưa có chương trình nào. Hãy tạo chương trình mới ở trên.</p>';
+        return;
+      }
+
+      adminProgramsCache.slice().reverse().forEach(p => {
+        let badgeClass = 'bg-amber-100 text-amber-800';
+        if (p.status === 'Đang diễn ra') badgeClass = 'bg-emerald-100 text-emerald-800';
+        if (p.status === 'Đã kết thúc') badgeClass = 'bg-slate-200 text-slate-700';
+
+        let actionBtns = '';
+        if (p.status === 'Sắp diễn ra') {
+          actionBtns = `<button onclick="changeProgramStatus('${p.id}', 'Đang diễn ra')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow">▶️ Bắt đầu</button>`;
+        } else if (p.status === 'Đang diễn ra') {
+          actionBtns = `<button onclick="changeProgramStatus('${p.id}', 'Đã kết thúc')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow">⏹️ Kết thúc</button>`;
+        } else if (p.status === 'Đã kết thúc') {
+          actionBtns = `<button onclick="changeProgramStatus('${p.id}', 'Đang diễn ra')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow">🔄 Mở lại chương trình</button>`;
+        }
+
+        const div = document.createElement('div');
+        div.className = 'py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2';
+        div.innerHTML = `
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${badgeClass}">${escapeHtml(p.status)}</span>
+              <span class="font-bold text-slate-800">${escapeHtml(p.name)}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Ngày thực hiện: <b>${escapeHtml(p.date || 'Chưa chọn')}</b> ${p.notice ? `| 📢 Có thông báo` : ''}</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            ${actionBtns}
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function handleCreateProgram() {
+      const name = document.getElementById('newProgName').value.trim();
+      const date = document.getElementById('newProgDate').value;
+      const status = document.getElementById('newProgStatus').value;
+
+      if (!name) return showToast('Vui lòng nhập Tên chương trình!', 'error');
+
+      const btn = document.getElementById('btnCreateProgram');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Đang tạo...';
+
+      try {
+        const res = await callApi({
+          action: 'createProgram',
+          pin: REQUIRED_PIN,
+          name,
+          date,
+          status
+        });
+        if (!res.success) throw new Error(res.message);
+
+        document.getElementById('newProgName').value = '';
+        showToast(res.message, 'success');
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    async function changeProgramStatus(programId, newStatus) {
+      try {
+        const res = await callApi({
+          action: 'updateProgramStatus',
+          pin: REQUIRED_PIN,
+          programId,
+          status: newStatus
+        });
+        if (!res.success) throw new Error(res.message);
+        showToast(res.message, 'success');
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleSendNotice() {
+      const programId = document.getElementById('adminNoticeProgSelect').value;
+      const notice = document.getElementById('adminNoticeInput').value.trim();
+      if (!programId) return showToast('Vui lòng chọn một chương trình đang vận hành!', 'error');
+
+      try {
+        const res = await callApi({
+          action: 'updateProgramNotice',
+          pin: REQUIRED_PIN,
+          programId,
+          notice
+        });
+        if (!res.success) throw new Error(res.message);
+        showToast(res.message, 'success');
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // ----------------------------------------------------
+    // TIỆN ÍCH HIỂN THỊ & KHỞI ĐỘNG
+    // ----------------------------------------------------
+    function showToast(msg, type = 'info') {
+      const box = document.getElementById('toastBox');
+      const content = document.getElementById('toastContent');
+      const text = document.getElementById('toastText');
+
+      let bg = 'bg-slate-800';
+      if (type === 'success') bg = 'bg-emerald-600';
+      if (type === 'error') bg = 'bg-rose-600';
+
+      content.className = `p-3.5 rounded-xl shadow-lg text-white font-medium text-sm flex items-center justify-between ${bg}`;
+      text.textContent = msg;
+      box.classList.remove('hidden');
+
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(hideToast, 4000);
+    }
+
+    function hideToast() {
+      document.getElementById('toastBox').classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // Khôi phục tên HDV đã nhập từ trước trên máy
+      const savedHdv = localStorage.getItem(LS_HDV_NAME) || '';
+      document.getElementById('hdvNameInput').value = savedHdv;
+
+      // Hiển thị sẵn API URL đang dùng lên ô cấu hình
+      const activeUrl = getApiUrl();
+      document.getElementById('apiEndpointInput').value = activeUrl;
+
+      // Mặc định tạo 1 dòng lớp đầu tiên
+      renderClassRows([]);
+
+      // Tự động tải danh sách chương trình ngay khi mở trang
+      if (activeUrl) {
+        loadActivePrograms();
+      }
+    });
   </script>
 </body>
 </html>
