@@ -902,7 +902,6 @@
     const REQUIRED_PIN = '8888';
     const DRIVE_ROOT_FOLDER_ID = '1GzfsEUmBb2x91aPZIgFdBNeg1XHsHVm7';
 
-    const DEFAULT_GEMINI_API_KEY = (typeof atob === 'function') ? atob('QVEuQWI4Uk42SVFYM2p0ZzJ4djIxWTkteXQwX3M1eFh5Z0tWRjFTenl6M3RMbE1ubWN3anc=') : ['AQ.', 'Ab8RN6IQX3jtg2xv', '21Y9-yt0_s5xXyg', 'KVF1Szyz3tLlMnmcwjw'].join('');
     const LS_API_URL = 'TOUR_APP_SCRIPT_URL';
     const LS_HDV_NAME = 'TOUR_HDV_NAME';
     const LS_HDV_PHONE = 'TOUR_HDV_PHONE';
@@ -1367,7 +1366,7 @@
     }
 
     function getGeminiApiKey() {
-      return localStorage.getItem(LS_GEMINI_KEY) || DEFAULT_GEMINI_API_KEY;
+      return localStorage.getItem(LS_GEMINI_KEY) || '';
     }
 
     // GỌI TRỰC TIẾP GEMINI API TỪ TRÌNH DUYỆT (TỰ ĐỘNG THỬ CÁC MODEL TƯƠNG THÍCH MỚI NHẤT)
@@ -1427,13 +1426,15 @@
       // Danh sách các model ưu tiên thử theo thứ tự tương thích mới nhất của Google
       const cachedModel = localStorage.getItem('GEMINI_WORKING_MODEL');
       const candidateModels = [
+        'gemini-3.1-flash-lite',
+        'gemini-3.5-flash-lite',
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-image',
+        'gemini-flash-latest',
+        'gemini-flash-lite-latest',
+        'gemini-2.5-flash-lite',
         'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash-latest',
-        'gemini-2.0-flash-exp',
-        'gemini-1.5-flash-8b',
-        'gemini-1.5-flash',
-        'gemini-pro'
+        'gemini-1.5-flash-latest'
       ];
       if (cachedModel) {
         const cIdx = candidateModels.indexOf(cachedModel);
@@ -1641,8 +1642,8 @@
         serverRes = { success: false, message: err.message };
       }
 
-      // 2. Nếu Backend đã cập nhật và thành công
-      if (serverRes && serverRes.success) {
+      // 2. Nếu Backend đã cập nhật và phân tích thành công có danh sách
+      if (serverRes && serverRes.success && serverRes.students && serverRes.students.length > 0) {
         existingVehicleAttendanceRecord = {
           updatedAt: new Date().toLocaleString('vi-VN'),
           programId: progId,
@@ -1656,6 +1657,11 @@
           warning: serverRes.warning || ''
         };
         return existingVehicleAttendanceRecord;
+      }
+
+      // Nếu server báo lỗi cụ thể
+      if (serverRes && !serverRes.success && serverRes.message) {
+        throw new Error(serverRes.message);
       }
 
       // 3. NẾU BACKEND BÁO LỖI (Ví dụ chưa cập nhật script trên Google hoặc mạng nghẽn):
@@ -2714,14 +2720,27 @@
           vehicleName: vehicleName
         });
 
-        const progObj = (adminProgramsCache || []).find(p => p.id === programId) || {};
-        const vehObj = (summaryVehiclesCache || []).find(v => v.vehicleName === vehicleName) || {};
+        const progObj = (activeProgramsCache || []).find(p => p.id === programId) ||
+                        (adminProgramsCache || []).find(p => p.id === programId) || {};
+        let currentTourName = progObj.name || '';
+        if (!currentTourName) {
+          const sumSel = document.getElementById('summaryProgramSelect');
+          if (sumSel && sumSel.selectedOptions[0]) {
+            currentTourName = sumSel.selectedOptions[0].text.replace(/^\[.*?\]\s*/, '').trim();
+          }
+        }
+        if (!currentTourName) currentTourName = 'Tour học sinh';
+
+        const vehObj = (summaryVehiclesCache || []).find(v => 
+          v.vehicleName === vehicleName || 
+          formatVehicleOrClassName(v.vehicleName) === formatVehicleOrClassName(vehicleName)
+        ) || {};
 
         if (res.success && res.found && res.record) {
           const rec = res.record;
           openAttendanceDetailModal({
             vehicleName: vehicleName,
-            programName: progObj.name || '',
+            programName: currentTourName,
             updatedAt: rec.updatedAt || '',
             totalStudents: rec.students ? rec.students.length : (rec.presentCount + rec.absentCount),
             presentCount: rec.presentCount || 0,
@@ -2748,7 +2767,7 @@
 
           openAttendanceDetailModal({
             vehicleName: vehicleName,
-            programName: progObj.name || '',
+            programName: currentTourName,
             updatedAt: 'Chưa có ảnh chụp điểm danh',
             totalStudents: list.length,
             presentCount: 0,
