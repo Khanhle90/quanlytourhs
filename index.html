@@ -1194,7 +1194,7 @@
       return localStorage.getItem(LS_GEMINI_KEY) || '';
     }
 
-    // GỌI TRỰC TIẾP GEMINI API TỪ TRÌNH DUYỆT (FALLBACK VƯỢT MỌI LỖI MÁY CHỦ/DEPLOY)
+    // GỌI TRỰC TIẾP GEMINI API TỪ TRÌNH DUYỆT (TỰ ĐỘNG THỬ CÁC MODEL TƯƠNG THÍCH MỚI NHẤT)
     async function callGeminiOcrDirect(imagesBase64, apiKey) {
       if (!apiKey) {
         apiKey = getGeminiApiKey();
@@ -1240,33 +1240,115 @@
         });
       });
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: parts }],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json"
-          }
-        })
+      const payloadBody = JSON.stringify({
+        contents: [{ parts: parts }],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json"
+        }
       });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Lỗi từ Gemini API (${res.status}): ${errText}`);
+      // Danh sách các model ưu tiên thử theo thứ tự tương thích mới nhất của Google
+      const cachedModel = localStorage.getItem('GEMINI_WORKING_MODEL');
+      const candidateModels = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-2.0-flash-exp',
+        'gemini-1.5-flash-8b',
+        'gemini-1.5-flash',
+        'gemini-pro'
+      ];
+      if (cachedModel) {
+        const cIdx = candidateModels.indexOf(cachedModel);
+        if (cIdx !== -1) candidateModels.splice(cIdx, 1);
+        candidateModels.unshift(cachedModel);
       }
 
-      const resJson = await res.json();
-      const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error('Gemini không phản hồi dữ liệu.');
+      let lastError = null;
 
-      let clean = rawText.trim();
-      if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-      else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+      for (const modelName of candidateModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payloadBody
+          });
 
-      return JSON.parse(clean);
+          if (res.status === 404) {
+            console.warn(`Model ${modelName} báo 404, tự động chuyển sang model tiếp theo...`);
+            continue;
+          }
+
+          if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Lỗi từ Gemini API (${res.status}): ${errText}`);
+          }
+
+          const resJson = await res.json();
+          const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (!rawText) throw new Error('Gemini không phản hồi dữ liệu.');
+
+          let clean = rawText.trim();
+          if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+          else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+
+          localStorage.setItem('GEMINI_WORKING_MODEL', modelName);
+          console.log(`Đã phân tích thành công với model: ${modelName}`);
+          return JSON.parse(clean);
+        } catch (err) {
+          lastError = err;
+          if (err.message && err.message.includes('404')) {
+            continue;
+          } else {
+            throw err;
+          }
+        }
+      }
+
+      // NẾU TẤT CẢ CANDIDATE BỊ 404: Tự động truy vấn ModelService.ListModels từ Google để tìm model khả dụng
+      try {
+        console.log('Đang tự động khám phá danh sách model khả dụng cho API Key từ Google...');
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+        if (listRes.ok) {
+          const listData = await listRes.json();
+          if (listData.models && Array.isArray(listData.models)) {
+            const dynamicModels = listData.models
+              .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+              .map(m => m.name.replace(/^models\//, ''));
+            for (const dynModel of dynamicModels) {
+              if (candidateModels.includes(dynModel)) continue;
+              try {
+                const dynUrl = `https://generativelanguage.googleapis.com/v1beta/models/${dynModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
+                const dynRes = await fetch(dynUrl, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: payloadBody
+                });
+                if (dynRes.ok) {
+                  const dynJson = await dynRes.json();
+                  const dynText = dynJson.candidates?.[0]?.content?.parts?.[0]?.text;
+                  if (dynText) {
+                    let clean = dynText.trim();
+                    if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+                    else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+                    localStorage.setItem('GEMINI_WORKING_MODEL', dynModel);
+                    console.log(`Đã phân tích thành công với model tự động khám phá: ${dynModel}`);
+                    return JSON.parse(clean);
+                  }
+                }
+              } catch (e) {
+                console.warn(`Thử model ${dynModel} thất bại:`, e);
+              }
+            }
+          }
+        }
+      } catch (listErr) {
+        console.warn('Lỗi khi gọi ListModels:', listErr);
+      }
+
+      throw lastError || new Error('Không tìm thấy model Gemini phù hợp với API Key của bạn.');
     }
 
     // ĐỐI CHIẾU DANH SÁCH TẠI TRÌNH DUYỆT (HỌC SINH KHÔNG DẤU & TRÙNG TÊN)
