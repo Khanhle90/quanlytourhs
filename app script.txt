@@ -1,28 +1,46 @@
 /**
- * BACKEND API GOOGLE APPS SCRIPT CHO ZALO MINI APP / WEB APP
+ * BACKEND API GOOGLE APPS SCRIPT CHO ZALO MINI APP / WEB APP QUẢN LÝ TOUR DÃ NGOẠI
  * - Tự động đồng bộ cấu hình trạng thái xe tùy biến từ Admin
  * - Tối ưu hóa API cập nhật GPS liên tục 15s không bị nghẽn
- * - Khắc phục triệt để lỗi Google Sheets tự biến dấu chấm thập phân tọa độ thành số hàng nghìn
+ * - Tự động lưu trữ ảnh danh sách học sinh vào Google Drive theo folder tour
+ * - Phân tích ảnh danh sách bằng Gemini API, nhận diện đánh dấu điểm danh (v, x, -)
+ * - Đối chiếu danh sách học sinh không dấu, phát hiện học sinh trùng tên
+ * - Quản trị tour: Upload Excel, tự động xác định tên lớp & cột học sinh
+ * - Vượt mọi tường lửa và hạn chế bảo mật đọc/ghi file Google Drive
  */
 
 const SHEET_PROGRAMS = 'DanhSachChuongTrinh';
 const SHEET_DATA = 'TongHopDuLieu';
 const SHEET_STATUSES = 'DanhSachTrangThai';
+const SHEET_STUDENT_LISTS = 'DanhSachHocSinhGoc';
+const SHEET_ATTENDANCE = 'DiemDanhAnh';
 const ADMIN_PIN = '8888';
+const ROOT_DRIVE_FOLDER_ID = '1GzfsEUmBb2x91aPZIgFdBNeg1XHsHVm7';
 
-// 1. Tự động khởi tạo và chuẩn hóa cấu trúc 3 Sheets
+// 1. Tự động khởi tạo và chuẩn hóa cấu trúc 5 Sheets
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
-  // Sheet 1: Danh sách chương trình
+  // Sheet 1: Danh sách chương trình / Quản trị tour
   let progSheet = ss.getSheetByName(SHEET_PROGRAMS);
   if (!progSheet) {
     progSheet = ss.insertSheet(SHEET_PROGRAMS);
     progSheet.appendRow([
       'Mã Chương Trình', 'Tên Chương Trình', 'Ngày Thực Hiện',
-      'Trạng Thái', 'Thông Báo Admin', 'Ngày Tạo'
+      'Trạng Thái', 'Thông Báo Admin', 'Ngày Tạo',
+      'Điều Hành Tour', 'Phụ Trách Hậu Cần', 'Folder Drive ID', 'Folder Drive Link'
     ]);
-    progSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#d9ead3');
+    progSheet.getRange('A1:J1').setFontWeight('bold').setBackground('#d9ead3');
+  } else {
+    const lastCol = Math.max(progSheet.getLastColumn(), 10);
+    const headers = progSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    if (headers.length < 10 || !headers[6]) {
+      progSheet.getRange(1, 7).setValue('Điều Hành Tour');
+      progSheet.getRange(1, 8).setValue('Phụ Trách Hậu Cần');
+      progSheet.getRange(1, 9).setValue('Folder Drive ID');
+      progSheet.getRange(1, 10).setValue('Folder Drive Link');
+      progSheet.getRange('G1:J1').setFontWeight('bold').setBackground('#d9ead3');
+    }
   }
 
   // Sheet 2: Danh sách trạng thái xe (Admin có thể thêm mới)
@@ -67,6 +85,28 @@ function initSheets() {
       dataSheet.getRange('U1:W1').setFontWeight('bold').setBackground('#cfe2f3');
     }
   }
+
+  // Sheet 4: Danh sách học sinh gốc tải từ Excel của Admin
+  let studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  if (!studentSheet) {
+    studentSheet = ss.insertSheet(SHEET_STUDENT_LISTS);
+    studentSheet.appendRow([
+      'Mã Chương Trình', 'Tên Lớp / Tên Xe', 'STT', 'Họ Và Tên', 'Tên Không Dấu', 'Ghi Chú'
+    ]);
+    studentSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#fff2cc');
+  }
+
+  // Sheet 5: Dữ liệu ảnh điểm danh và kết quả phân tích Gemini
+  let attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  if (!attSheet) {
+    attSheet = ss.insertSheet(SHEET_ATTENDANCE);
+    attSheet.appendRow([
+      'Thời Gian Gửi', 'Mã Chương Trình', 'Tên Lớp / Tên Xe', 'Danh Sách File ID',
+      'Danh Sách URL Ảnh', 'Tổng Có Mặt', 'Tổng Vắng', 'Chi Tiết Điểm Danh (JSON)'
+    ]);
+    attSheet.getRange('A1:H1').setFontWeight('bold').setBackground('#d0e0e3');
+  }
+
   return ss;
 }
 
@@ -74,7 +114,28 @@ function normalizeVehicleKey(str) {
   return String(str || '').trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
-function doGet(e) { return handleRequest(e); }
+function removeVietnameseTones(str) {
+  let s = String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  s = s.replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D');
+  return s.trim();
+}
+
+function doGet(e) {
+  try {
+    if (e && e.parameter && e.parameter.action === 'getDriveImage') {
+      const fileId = e.parameter.fileId;
+      if (!fileId) return ContentService.createTextOutput('Missing fileId');
+      const file = DriveApp.getFileById(fileId);
+      const blob = file.getBlob();
+      return ContentService.createTextOutput(Utilities.base64Encode(blob.getBytes()))
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+  } catch (err) {
+    return ContentService.createTextOutput('Lỗi đọc ảnh: ' + err.toString());
+  }
+  return handleRequest(e);
+}
+
 function doPost(e) { return handleRequest(e); }
 
 function handleRequest(e) {
@@ -87,11 +148,10 @@ function handleRequest(e) {
       params = e.parameter;
     }
 
-    // --- CHÈN ĐOẠN ĐÓN WEBHOOK VÀO ĐÂY (NGAY SAU DÒNG 88) ---
+    // Đón Webhook Zalo hoặc Revoke Consent
     if (params.event_name === 'user_revoke_consent' || !params.action) {
       return jsonResponse({ error: 0, message: 'Đã tiếp nhận yêu cầu xóa dữ liệu' });
     }
-    // --------------------------------------------------------
 
     const action = params.action || 'getInitData';
 
@@ -99,6 +159,10 @@ function handleRequest(e) {
     if (action === 'getInitData') return jsonResponse(getInitData(ss, params));
     if (action === 'getVehicleData') return jsonResponse(getVehicleData(ss, params));
     if (action === 'getSummaryData') return jsonResponse(getSummaryData(ss, params));
+    if (action === 'getTourDetails') return jsonResponse(getTourDetails(ss, params));
+    if (action === 'getClassStudentList') return jsonResponse(getClassStudentList(ss, params));
+    if (action === 'getAttendanceRecord') return jsonResponse(getAttendanceRecord(ss, params));
+    if (action === 'getGeminiApiKeyStatus') return jsonResponse(getGeminiApiKeyStatus(ss, params));
 
     // Riêng tác vụ ping GPS tự động 15s: dùng lock ngắn 5s để tránh nghẽn hàng đợi
     if (action === 'updateGpsAuto15s') {
@@ -131,6 +195,16 @@ function handleRequest(e) {
         result = updateProgramStatus(ss, params);
       } else if (action === 'updateProgramNotice') {
         result = updateProgramNotice(ss, params);
+      } else if (action === 'updateTourDetails') {
+        result = updateTourDetails(ss, params);
+      } else if (action === 'saveTourClassLists') {
+        result = saveTourClassLists(ss, params);
+      } else if (action === 'uploadAndAnalyzeAttendanceImage') {
+        result = uploadAndAnalyzeAttendanceImage(ss, params);
+      } else if (action === 'renameVehicle') {
+        result = renameVehicle(ss, params);
+      } else if (action === 'saveGeminiApiKey') {
+        result = saveGeminiApiKey(ss, params);
       } else if (action === 'addCustomStatus') {
         result = addCustomStatus(ss, params);
       } else if (action === 'deleteCustomStatus') {
@@ -153,7 +227,56 @@ function jsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// Lấy danh sách tour và danh mục trạng thái xe (bao gồm trạng thái Admin tạo thêm)
+// ==============================================================
+// 2. GOOGLE DRIVE: QUẢN LÝ THƯ MỤC VÀ FILE TỰ ĐỘNG
+// ==============================================================
+function getOrCreateTourFolder(programName, programDate) {
+  let rootFolder;
+  try {
+    rootFolder = DriveApp.getFolderById(ROOT_DRIVE_FOLDER_ID);
+  } catch (e) {
+    rootFolder = DriveApp.getRootFolder();
+  }
+
+  let dateStr = 'NgayChuaRo';
+  if (programDate) {
+    const d = new Date(programDate);
+    if (!isNaN(d.getTime())) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      dateStr = `${yyyy}.${mm}.${dd}`;
+    } else {
+      dateStr = String(programDate).replace(/[^\w.-]/g, '.');
+    }
+  }
+
+  const cleanProgName = String(programName || 'Tour').replace(/[\\/:*?"<>|]/g, '_').trim();
+  const folderName = `${dateStr}_${cleanProgName}`;
+
+  const folders = rootFolder.getFoldersByName(folderName);
+  let tourFolder;
+  if (folders.hasNext()) {
+    tourFolder = folders.next();
+  } else {
+    tourFolder = rootFolder.createFolder(folderName);
+    try {
+      tourFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (err) {
+      console.warn('Set sharing error:', err);
+    }
+  }
+
+  return {
+    id: tourFolder.getId(),
+    name: folderName,
+    url: tourFolder.getUrl()
+  };
+}
+
+// ==============================================================
+// 3. ĐỌC VÀ LẤY DỮ LIỆU CƠ BẢN
+// ==============================================================
 function getInitData(ss, params) {
   const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
   const rows = progSheet.getDataRange().getValues();
@@ -169,7 +292,11 @@ function getInitData(ss, params) {
       date: r[2] ? Utilities.formatDate(new Date(r[2]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '',
       status: String(r[3] || 'Sắp diễn ra'),
       notice: String(r[4] || ''),
-      createdAt: r[5] || ''
+      createdAt: r[5] || '',
+      coordinator: String(r[6] || ''),
+      logistics: String(r[7] || ''),
+      driveFolderId: String(r[8] || ''),
+      driveFolderLink: String(r[9] || '')
     };
     if (isAdmin || prog.status === 'Đang diễn ra') {
       programs.push(prog);
@@ -207,6 +334,10 @@ function getVehicleData(ss, params) {
     if (String(r[1]) === progId && normalizeVehicleKey(r[3]) === targetKey) {
       let classes = [];
       try { classes = JSON.parse(r[19] || '[]'); } catch (e) { classes = []; }
+      
+      // Tìm xem xe này đã gửi ảnh điểm danh chưa
+      const attRecord = getAttendanceRecord(ss, { programId: progId, vehicleName: vehicleName });
+
       return {
         success: true,
         found: true,
@@ -233,15 +364,84 @@ function getVehicleData(ss, params) {
           classes: classes,
           lat: String(r[20] || '').replace(/^'+/, ''),
           lng: String(r[21] || '').replace(/^'+/, ''),
-          gpsTime: r[22] || ''
+          gpsTime: r[22] || '',
+          attendance: attRecord.found ? attRecord.record : null
         }
       };
     }
   }
-  return { success: true, found: false };
+
+  // Nếu chưa có báo cáo chi tiết xe, kiểm tra xem có ảnh điểm danh chưa
+  const attRecord = getAttendanceRecord(ss, { programId: progId, vehicleName: vehicleName });
+  return {
+    success: true,
+    found: false,
+    attendance: attRecord.found ? attRecord.record : null
+  };
 }
 
-// Lưu toàn bộ biểu mẫu xe (Thêm dấu ' để Sheets lưu dạng chuỗi tọa độ chuẩn)
+// Báo cáo tổng hợp toàn đoàn kèm tọa độ GPS
+function getSummaryData(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  const rows = dataSheet.getDataRange().getValues();
+
+  // Load attendance map to quickly attach attendance stats to summary
+  const attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  const attRows = attSheet.getDataRange().getValues();
+  const attMap = {};
+  for (let k = 1; k < attRows.length; k++) {
+    const ar = attRows[k];
+    if (ar[1] && (!progId || String(ar[1]) === progId)) {
+      const key = String(ar[1]) + '__' + normalizeVehicleKey(ar[2]);
+      attMap[key] = {
+        time: ar[0],
+        fileIds: String(ar[3] || '').split(',').filter(Boolean),
+        imageUrls: String(ar[4] || '').split(',').filter(Boolean),
+        presentCount: Number(ar[5] || 0),
+        absentCount: Number(ar[6] || 0)
+      };
+    }
+  }
+
+  const latestMap = {};
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[1] || (progId && String(r[1]) !== progId)) continue;
+    const vKey = String(r[1]) + '__' + normalizeVehicleKey(r[3]);
+    latestMap[vKey] = {
+      updatedAt: r[0],
+      programId: String(r[1]),
+      programName: String(r[2]),
+      vehicleName: String(r[3]),
+      status: String(r[4] || '🚩 Đang xuất phát'),
+      totalStudents: Number(r[5] || 0),
+      classSummary: String(r[6] || ''),
+      teacherCount: Number(r[7] || 0),
+      parentCount: Number(r[8] || 0),
+      childCount: Number(r[9] || 0),
+      totalPeople: Number(r[10] || 0),
+      hdvName: String(r[11] || ''),
+      hdvPhone: String(r[12] || '').replace(/^'+/, ''),
+      leaderName: String(r[13] || ''),
+      leaderPhone: String(r[14] || '').replace(/^'+/, ''),
+      vipRoles: String(r[15] || ''),
+      driverName: String(r[16] || ''),
+      driverPhone: String(r[17] || '').replace(/^'+/, ''),
+      licensePlate: String(r[18] || ''),
+      lat: String(r[20] || '').replace(/^'+/, ''),
+      lng: String(r[21] || '').replace(/^'+/, ''),
+      gpsTime: r[22] || '',
+      attendance: attMap[vKey] || null
+    };
+  }
+
+  return { success: true, vehicles: Object.keys(latestMap).map(k => latestMap[k]) };
+}
+
+// ==============================================================
+// 4. LƯU THÔNG TIN XE & CẬP NHẬT GPS TỰ ĐỘNG 15S
+// ==============================================================
 function saveVehicleData(ss, params) {
   const d = params.data || {};
   const progId = String(d.programId || '').trim();
@@ -300,7 +500,6 @@ function saveVehicleData(ss, params) {
   return { success: true, message: 'Đã lưu & đồng bộ vị trí GPS cho ' + vehicleName, updatedAt: nowStr };
 }
 
-// Cập nhật trạng thái hoặc ping GPS tự động mỗi 15s
 function updateStatusAndGps(ss, params, isAutoPing) {
   const progId = String(params.programId || '').trim();
   const progName = String(params.programName || '').trim();
@@ -348,47 +547,676 @@ function updateStatusAndGps(ss, params, isAutoPing) {
   return { success: true, message: isAutoPing ? 'Ping GPS 15s OK' : 'Đã cập nhật trạng thái!', updatedAt: nowStr };
 }
 
-// Báo cáo tổng hợp toàn đoàn (Không cần mã PIN)
-function getSummaryData(ss, params) {
+// ==============================================================
+// 5. QUẢN TRỊ TOUR: CHI TIẾT TOUR & FOLDER DRIVE & EXCEL
+// ==============================================================
+function getTourDetails(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
   const progId = String(params.programId || '').trim();
-  const dataSheet = ss.getSheetByName(SHEET_DATA);
-  const rows = dataSheet.getDataRange().getValues();
+  const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  const rows = progSheet.getDataRange().getValues();
 
-  const latestMap = {};
+  let tour = null;
+  let rowIndex = -1;
   for (let i = 1; i < rows.length; i++) {
-    const r = rows[i];
-    if (!r[1] || (progId && String(r[1]) !== progId)) continue;
-    const vKey = String(r[1]) + '__' + normalizeVehicleKey(r[3]);
-    latestMap[vKey] = {
-      updatedAt: r[0],
-      programId: String(r[1]),
-      programName: String(r[2]),
-      vehicleName: String(r[3]),
-      status: String(r[4] || '🚩 Đang xuất phát'),
-      totalStudents: Number(r[5] || 0),
-      classSummary: String(r[6] || ''),
-      teacherCount: Number(r[7] || 0),
-      parentCount: Number(r[8] || 0),
-      childCount: Number(r[9] || 0),
-      totalPeople: Number(r[10] || 0),
-      hdvName: String(r[11] || ''),
-      hdvPhone: String(r[12] || '').replace(/^'+/, ''),
-      leaderName: String(r[13] || ''),
-      leaderPhone: String(r[14] || '').replace(/^'+/, ''),
-      vipRoles: String(r[15] || ''),
-      driverName: String(r[16] || ''),
-      driverPhone: String(r[17] || '').replace(/^'+/, ''),
-      licensePlate: String(r[18] || ''),
-      lat: String(r[20] || '').replace(/^'+/, ''),
-      lng: String(r[21] || '').replace(/^'+/, ''),
-      gpsTime: r[22] || ''
+    if (String(rows[i][0]) === progId) {
+      rowIndex = i + 1;
+      tour = {
+        id: String(rows[i][0]),
+        name: String(rows[i][1]),
+        date: rows[i][2] ? Utilities.formatDate(new Date(rows[i][2]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '',
+        status: String(rows[i][3] || 'Đang diễn ra'),
+        notice: String(rows[i][4] || ''),
+        coordinator: String(rows[i][6] || ''),
+        logistics: String(rows[i][7] || ''),
+        driveFolderId: String(rows[i][8] || ''),
+        driveFolderLink: String(rows[i][9] || '')
+      };
+      break;
+    }
+  }
+
+  if (!tour) return { success: false, message: 'Không tìm thấy tour!' };
+
+  // Tự động đảm bảo đã tạo Folder Google Drive cho Tour
+  if (!tour.driveFolderId || !tour.driveFolderLink) {
+    try {
+      const folderInfo = getOrCreateTourFolder(tour.name, tour.date);
+      tour.driveFolderId = folderInfo.id;
+      tour.driveFolderLink = folderInfo.url;
+      progSheet.getRange(rowIndex, 9).setValue(folderInfo.id);
+      progSheet.getRange(rowIndex, 10).setValue(folderInfo.url);
+    } catch (err) {
+      console.warn('Lỗi tạo folder Drive:', err);
+    }
+  }
+
+  // Lấy danh sách lớp và học sinh đã tải lên
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  const stuRows = studentSheet.getDataRange().getValues();
+  const classSummaryMap = {};
+
+  for (let j = 1; j < stuRows.length; j++) {
+    if (String(stuRows[j][0]) === progId) {
+      const cName = String(stuRows[j][1]);
+      if (!classSummaryMap[cName]) {
+        classSummaryMap[cName] = { className: cName, count: 0, sampleStudents: [] };
+      }
+      classSummaryMap[cName].count++;
+      if (classSummaryMap[cName].sampleStudents.length < 5) {
+        classSummaryMap[cName].sampleStudents.push(String(stuRows[j][3]));
+      }
+    }
+  }
+
+  return {
+    success: true,
+    tour: tour,
+    classes: Object.keys(classSummaryMap).map(k => classSummaryMap[k])
+  };
+}
+
+function updateTourDetails(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progId = String(params.programId || '').trim();
+  const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  const rows = progSheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === progId) {
+      const rowIdx = i + 1;
+      if (params.name) progSheet.getRange(rowIdx, 2).setValue(params.name);
+      if (params.date) progSheet.getRange(rowIdx, 3).setValue(params.date);
+      if (params.coordinator !== undefined) progSheet.getRange(rowIdx, 7).setValue(params.coordinator);
+      if (params.logistics !== undefined) progSheet.getRange(rowIdx, 8).setValue(params.logistics);
+
+      // Cập nhật hoặc đảm bảo folder Google Drive
+      const curProgName = params.name || rows[i][1];
+      const curProgDate = params.date || rows[i][2];
+      try {
+        const folderInfo = getOrCreateTourFolder(curProgName, curProgDate);
+        progSheet.getRange(rowIdx, 9).setValue(folderInfo.id);
+        progSheet.getRange(rowIdx, 10).setValue(folderInfo.url);
+      } catch (e) {}
+
+      return { success: true, message: 'Đã cập nhật thông tin quản trị tour thành công!' };
+    }
+  }
+  return { success: false, message: 'Không tìm thấy tour để cập nhật!' };
+}
+
+// Lưu danh sách học sinh theo lớp trích xuất từ file Excel
+function saveTourClassLists(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progId = String(params.programId || '').trim();
+  const classes = params.classes || [];
+  if (!progId || classes.length === 0) {
+    return { success: false, message: 'Không có dữ liệu lớp hoặc học sinh để lưu!' };
+  }
+
+  // Lưu file Excel gốc lên Google Drive của tour nếu có
+  if (params.excelFiles && params.excelFiles.length > 0) {
+    try {
+      const tourDetails = getTourDetails(ss, { pin: ADMIN_PIN, programId: progId });
+      const folderId = tourDetails.tour && tourDetails.tour.driveFolderId;
+      if (folderId) {
+        const folder = DriveApp.getFolderById(folderId);
+        params.excelFiles.forEach(f => {
+          if (f.base64 && f.name) {
+            const cleanBase = f.base64.replace(/^data:[^;]+;base64,/, '');
+            const blob = Utilities.newBlob(Utilities.base64Decode(cleanBase), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f.name);
+            const savedFile = folder.createFile(blob);
+            try { savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Lưu file Excel lên Drive thất bại:', e);
+    }
+  }
+
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  const rows = studentSheet.getDataRange().getValues();
+
+  // Xác định các lớp cần ghi đè
+  const targetClassKeys = new Set(classes.map(c => normalizeVehicleKey(c.className)));
+
+  // Xóa danh sách cũ của các lớp tương ứng trong chương trình này (từ dưới lên trên)
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][0]) === progId && targetClassKeys.has(normalizeVehicleKey(rows[i][1]))) {
+      studentSheet.deleteRow(i + 1);
+    }
+  }
+
+  // Thêm dữ liệu học sinh mới
+  let totalSaved = 0;
+  classes.forEach(c => {
+    const cName = String(c.className || '').trim();
+    const stuList = c.students || [];
+    stuList.forEach(s => {
+      const stuName = String(s.name || '').trim();
+      const cleanName = removeVietnameseTones(stuName).toLowerCase();
+      studentSheet.appendRow([
+        progId,
+        cName,
+        s.stt || (totalSaved + 1),
+        stuName,
+        cleanName,
+        ''
+      ]);
+      totalSaved++;
+    });
+  });
+
+  return {
+    success: true,
+    message: `Đã nạp thành công ${classes.length} lớp (${totalSaved} học sinh)!`,
+    totalClasses: classes.length,
+    totalStudents: totalSaved
+  };
+}
+
+// Lấy danh sách học sinh gốc của lớp / xe để đối chiếu
+function getClassStudentList(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const vehicleOrClassName = String(params.className || params.vehicleName || '').trim();
+  if (!progId || !vehicleOrClassName) return { success: false, students: [] };
+
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  const rows = studentSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(vehicleOrClassName);
+
+  const students = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === progId && normalizeVehicleKey(rows[i][1]) === targetKey) {
+      students.push({
+        stt: Number(rows[i][2] || (students.length + 1)),
+        name: String(rows[i][3]),
+        cleanName: String(rows[i][4])
+      });
+    }
+  }
+
+  return { success: true, students: students };
+}
+
+// ==============================================================
+// 6. CHỤP ẢNH, LƯU GOOGLE DRIVE & GEMINI API PHÂN TÍCH ĐIỂM DANH
+// ==============================================================
+function uploadAndAnalyzeAttendanceImage(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const progName = String(params.programName || '').trim();
+  const tourDate = String(params.tourDate || '').trim();
+  const vehicleName = String(params.vehicleName || '').trim();
+  const images = params.images || []; // Mảng 1 hoặc 2 base64 strings
+
+  if (!progId || !vehicleName) {
+    return { success: false, message: 'Thiếu thông tin chương trình hoặc số xe!' };
+  }
+  if (images.length === 0) {
+    return { success: false, message: 'Vui lòng cung cấp ít nhất 1 ảnh danh sách!' };
+  }
+  if (images.length > 2) {
+    return { success: false, message: 'Mỗi lượt gửi chỉ được tối đa 2 ảnh!' };
+  }
+
+  // 1. Lấy hoặc tạo Folder Google Drive cho Tour
+  let tourFolderInfo;
+  let tourFolder;
+  try {
+    tourFolderInfo = getOrCreateTourFolder(progName, tourDate);
+    tourFolder = DriveApp.getFolderById(tourFolderInfo.id);
+  } catch (err) {
+    return { success: false, message: 'Lỗi truy cập thư mục Google Drive: ' + err.toString() };
+  }
+
+  // 2. Định dạng tên file: [tên xe/lớp]_[Tên chương trình/tên trường]_[Ngày thực hiện]
+  let datePart = tourDate ? tourDate.replace(/[^\w.-]/g, '.') : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy.MM.dd');
+  const cleanVehicle = vehicleName.replace(/[\\/:*?"<>|]/g, '_').trim();
+  const cleanProg = progName.replace(/[\\/:*?"<>|]/g, '_').trim();
+  const baseFileName = `${cleanVehicle}_${cleanProg}_${datePart}`;
+
+  // 3. Lưu ảnh vào Google Drive & Cấp quyền xem công khai vượt tường lửa
+  const fileIds = [];
+  const imageUrls = [];
+
+  for (let idx = 0; idx < images.length; idx++) {
+    const rawBase64 = images[idx];
+    const cleanBase64 = rawBase64.replace(/^data:[^;]+;base64,/, '');
+    const fileName = images.length > 1 ? `${baseFileName}_${idx + 1}.jpg` : `${baseFileName}.jpg`;
+
+    const blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), 'image/jpeg', fileName);
+    const savedFile = tourFolder.createFile(blob);
+    try {
+      savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {
+      console.warn('Set sharing image error:', e);
+    }
+
+    const fid = savedFile.getId();
+    fileIds.push(fid);
+    // Link xem ảnh trực tiếp chất lượng cao qua Google Thumbnail API (không bị chặn cookie Google trên Safari/iOS)
+    const directUrl = 'https://drive.google.com/thumbnail?id=' + fid + '&sz=w1600';
+    imageUrls.push(directUrl);
+  }
+
+  // 4. Phân tích ảnh bằng Gemini API
+  let geminiApiKey = params.geminiApiKey || PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+  let ocrStudents = [];
+  try {
+    ocrStudents = callGeminiForAttendance(images, geminiApiKey);
+  } catch (ocrErr) {
+    console.warn('Gemini OCR lỗi:', ocrErr);
+    // Nếu Gemini lỗi, ta vẫn lưu ảnh và thông báo cho người dùng
+    saveAttendanceRecordInSheet(ss, progId, vehicleName, fileIds, imageUrls, 0, 0, []);
+    return {
+      success: true,
+      warning: 'Đã lưu ảnh vào Google Drive, nhưng Gemini API chưa hoàn tất phân tích: ' + ocrErr.message,
+      imageUrls: imageUrls,
+      fileIds: fileIds,
+      students: [],
+      presentCount: 0,
+      absentCount: 0
     };
   }
 
-  return { success: true, vehicles: Object.keys(latestMap).map(k => latestMap[k]) };
+  // 5. Đối chiếu kết quả OCR với danh sách học sinh gốc từ Excel (so sánh không dấu, giải quyết trùng tên)
+  const officialRes = getClassStudentList(ss, { programId: progId, vehicleName: vehicleName });
+  const officialStudents = officialRes.students || [];
+
+  const matched = matchAttendanceWithOfficialList(officialStudents, ocrStudents);
+
+  // 6. Lưu kết quả điểm danh vào Sheet DiemDanhAnh (Ghi đè nếu đã tồn tại)
+  saveAttendanceRecordInSheet(
+    ss,
+    progId,
+    vehicleName,
+    fileIds,
+    imageUrls,
+    matched.presentCount,
+    matched.absentCount,
+    matched.students
+  );
+
+  // Đồng thời cập nhật tổng sĩ số học sinh cho xe ở Sheet TongHopDuLieu nếu đã có dòng xe
+  updateVehicleStudentCountIfFound(ss, progId, vehicleName, matched.students.length);
+
+  return {
+    success: true,
+    message: `Điểm danh thành công: ${matched.presentCount}/${matched.totalStudents} học sinh có mặt!`,
+    imageUrls: imageUrls,
+    fileIds: fileIds,
+    totalStudents: matched.totalStudents,
+    presentCount: matched.presentCount,
+    absentCount: matched.absentCount,
+    students: matched.students
+  };
 }
 
-// Admin: Thêm trạng thái xe mới tùy biến
+// Gọi Gemini API để nhận diện danh sách học sinh và dấu tích điểm danh
+function callGeminiForAttendance(imagesBase64, apiKey) {
+  if (!apiKey) {
+    apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+  }
+  if (!apiKey) {
+    throw new Error('Chưa cấu hình Gemini API Key. Vui lòng nhập API Key trong phần Quản trị!');
+  }
+
+  const parts = [
+    {
+      text: "Bạn là chuyên gia phân tích danh sách học sinh từ ảnh chụp bảng điểm danh lớp học đi dã ngoại.\n" +
+            "Nhiệm vụ của bạn: Đọc toàn bộ danh sách học sinh trong tất cả các ảnh và xác định học sinh nào CÓ MẶT, học sinh nào VẮNG MẶT.\n\n" +
+            "QUY TẮC NHẬN DIỆN CỰC KỲ QUAN TRỌNG:\n" +
+            "1. Hướng dẫn viên điểm danh bằng cách đánh dấu cùng hàng với tên học sinh: có thể là dấu tích 'v', đánh 'x', gạch ngang '-', khoanh tròn hoặc dấu bất kỳ ở trước hoặc sau tên.\n" +
+            "2. Bất kỳ học sinh nào có đánh dấu cùng hàng tên -> ĐANG CÓ MẶT (present: true).\n" +
+            "3. Học sinh nào KHÔNG CÓ ĐÁNH DẤU gì cùng hàng tên -> MẶC ĐỊNH LÀ VẮNG MẶT (present: false).\n" +
+            "4. Đọc chuẩn xác họ và tên tiếng Việt (họ tên đầy đủ có dấu nếu đọc được), và số thứ tự (stt).\n" +
+            "5. Nếu có nhiều ảnh, hãy ghép toàn bộ học sinh của các ảnh thành MỘT danh sách duy nhất không trùng lặp theo đúng thứ tự.\n\n" +
+            "Hãy trả về kết quả ĐÚNG ĐỊNH DẠNG JSON sau (chỉ trả về JSON thuần, không bọc markdown ```json):\n" +
+            "[\n" +
+            "  {\"stt\": 1, \"name\": \"Nguyễn Văn An\", \"present\": true},\n" +
+            "  {\"stt\": 2, \"name\": \"Trần Thị Bình\", \"present\": false}\n" +
+            "]"
+    }
+  ];
+
+  imagesBase64.forEach(img => {
+    let mime = 'image/jpeg';
+    let data = img;
+    const match = img.match(/^data:([^;]+);base64,(.+)$/);
+    if (match) {
+      mime = match[1];
+      data = match[2];
+    }
+    parts.push({
+      inlineData: {
+        mimeType: mime,
+        data: data
+      }
+    });
+  });
+
+  const payload = {
+    contents: [{ parts: parts }],
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: "application/json"
+    }
+  };
+
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + encodeURIComponent(apiKey);
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  const code = response.getResponseCode();
+  const text = response.getContentText();
+  if (code !== 200) {
+    throw new Error('Lỗi từ Gemini API (Mã ' + code + '): ' + text);
+  }
+
+  const resJson = JSON.parse(text);
+  const rawContent = resJson.candidates && resJson.candidates[0] && resJson.candidates[0].content && resJson.candidates[0].content.parts && resJson.candidates[0].content.parts[0] && resJson.candidates[0].content.parts[0].text;
+  if (!rawContent) {
+    throw new Error('Gemini không phản hồi dữ liệu');
+  }
+
+  let cleanJson = rawContent.trim();
+  if (cleanJson.startsWith('```json')) cleanJson = cleanJson.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+  else if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+
+  return JSON.parse(cleanJson);
+}
+
+// Thuật toán đối chiếu thông minh: So sánh không dấu, xử lý trùng tên
+function matchAttendanceWithOfficialList(officialStudents, ocrStudents) {
+  function cleanStr(s) {
+    return removeVietnameseTones(s).toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  // Nếu chưa có danh sách chính thức từ Excel, dùng trực tiếp danh sách OCR của Gemini
+  if (!officialStudents || officialStudents.length === 0) {
+    let pCount = 0, aCount = 0;
+    const directList = (ocrStudents || []).map((o, idx) => {
+      const isPres = Boolean(o.present);
+      if (isPres) pCount++; else aCount++;
+      return {
+        stt: o.stt !== undefined ? Number(o.stt) : (idx + 1),
+        name: o.name || ('Học sinh ' + (idx + 1)),
+        cleanName: cleanStr(o.name || ''),
+        present: isPres
+      };
+    });
+    return {
+      students: directList,
+      totalStudents: directList.length,
+      presentCount: pCount,
+      absentCount: aCount
+    };
+  }
+
+  // Xử lý danh sách OCR
+  const ocrList = (ocrStudents || []).map((o, idx) => ({
+    rawName: o.name || '',
+    cleanName: cleanStr(o.name || ''),
+    present: Boolean(o.present),
+    stt: o.stt !== undefined ? Number(o.stt) : (idx + 1),
+    used: false
+  }));
+
+  // Đếm tần suất tên không dấu trong danh sách chính thức để nhận diện học sinh trùng tên
+  const officialNameCount = {};
+  officialStudents.forEach(s => {
+    const c = cleanStr(s.name);
+    officialNameCount[c] = (officialNameCount[c] || 0) + 1;
+  });
+
+  const result = [];
+  let presentCount = 0;
+  let absentCount = 0;
+
+  officialStudents.forEach(stu => {
+    const cName = cleanStr(stu.name);
+    const stuStt = Number(stu.stt);
+    const isDuplicate = (officialNameCount[cName] > 1);
+
+    let matchedOcr = null;
+
+    // Chiến lược 1: Nếu trùng tên, ưu tiên khớp theo cả STT gần nhất
+    if (isDuplicate) {
+      matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName && Math.abs(o.stt - stuStt) <= 1);
+    }
+
+    // Chiến lược 2: Khớp chính xác tên không dấu chưa dùng
+    if (!matchedOcr) {
+      matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName);
+    }
+
+    // Chiến lược 3: Tìm kiếm theo từ khóa họ tên tương tự (> 80% khớp ký tự)
+    if (!matchedOcr) {
+      let maxSim = 0;
+      let candidate = null;
+      ocrList.filter(o => !o.used).forEach(o => {
+        const sim = calcTextSimilarity(cName, o.cleanName);
+        if (sim >= 0.8 && sim > maxSim) {
+          maxSim = sim;
+          candidate = o;
+        }
+      });
+      if (candidate) matchedOcr = candidate;
+    }
+
+    let isPresent = false;
+    let ocrFoundName = '';
+    if (matchedOcr) {
+      matchedOcr.used = true;
+      isPresent = Boolean(matchedOcr.present);
+      ocrFoundName = matchedOcr.rawName;
+    } else {
+      // Học sinh không đánh dấu mặc định là vắng
+      isPresent = false;
+    }
+
+    if (isPresent) presentCount++;
+    else absentCount++;
+
+    result.push({
+      stt: stu.stt,
+      name: stu.name, // Giữ nguyên tên chuẩn có dấu từ Excel
+      cleanName: cName,
+      present: isPresent,
+      ocrName: ocrFoundName
+    });
+  });
+
+  return {
+    students: result,
+    totalStudents: result.length,
+    presentCount: presentCount,
+    absentCount: absentCount
+  };
+}
+
+function calcTextSimilarity(s1, s2) {
+  if (s1 === s2) return 1.0;
+  if (!s1 || !s2) return 0.0;
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  if (longer.includes(shorter)) return shorter.length / longer.length;
+  
+  // Bigram Dice similarity
+  const getBigrams = str => {
+    const s = new Set();
+    for (let i = 0; i < str.length - 1; i++) s.add(str.substr(i, 2));
+    return s;
+  };
+  const b1 = getBigrams(s1);
+  const b2 = getBigrams(s2);
+  let intersection = 0;
+  b1.forEach(bg => { if (b2.has(bg)) intersection++; });
+  return (2.0 * intersection) / (b1.size + b2.size || 1);
+}
+
+// Lưu hoặc cập nhật bản ghi điểm danh
+function saveAttendanceRecordInSheet(ss, progId, vehicleName, fileIds, imageUrls, presentCount, absentCount, students) {
+  const attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  const rows = attSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(vehicleName);
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+
+  const fileIdsStr = fileIds.join(',');
+  const imageUrlsStr = imageUrls.join(',');
+  const studentsJson = JSON.stringify(students || []);
+
+  let foundRowIdx = -1;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][2]) === targetKey) {
+      foundRowIdx = i + 1;
+      break;
+    }
+  }
+
+  const rowValues = [
+    nowStr,
+    progId,
+    vehicleName,
+    fileIdsStr,
+    imageUrlsStr,
+    Number(presentCount || 0),
+    Number(absentCount || 0),
+    studentsJson
+  ];
+
+  if (foundRowIdx !== -1) {
+    attSheet.getRange(foundRowIdx, 1, 1, rowValues.length).setValues([rowValues]);
+  } else {
+    attSheet.appendRow(rowValues);
+  }
+}
+
+function getAttendanceRecord(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const vehicleName = String(params.vehicleName || params.className || '').trim();
+  if (!progId || !vehicleName) return { success: false, found: false };
+
+  const attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  const rows = attSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(vehicleName);
+
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][2]) === targetKey) {
+      let stuList = [];
+      try { stuList = JSON.parse(rows[i][7] || '[]'); } catch (e) { stuList = []; }
+      return {
+        success: true,
+        found: true,
+        record: {
+          updatedAt: rows[i][0],
+          programId: String(rows[i][1]),
+          vehicleName: String(rows[i][2]),
+          fileIds: String(rows[i][3] || '').split(',').filter(Boolean),
+          imageUrls: String(rows[i][4] || '').split(',').filter(Boolean),
+          presentCount: Number(rows[i][5] || 0),
+          absentCount: Number(rows[i][6] || 0),
+          students: stuList
+        }
+      };
+    }
+  }
+  return { success: true, found: false };
+}
+
+function updateVehicleStudentCountIfFound(ss, progId, vehicleName, totalStudents) {
+  try {
+    const dataSheet = ss.getSheetByName(SHEET_DATA);
+    const rows = dataSheet.getDataRange().getValues();
+    const targetKey = normalizeVehicleKey(vehicleName);
+    for (let i = rows.length - 1; i >= 1; i--) {
+      if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][3]) === targetKey) {
+        dataSheet.getRange(i + 1, 6).setValue(totalStudents);
+        break;
+      }
+    }
+  } catch (e) {}
+}
+
+// ==============================================================
+// 7. SỬA TÊN XE DÀNH CHO QUẢN TRỊ & CẤU HÌNH GEMINI
+// ==============================================================
+function renameVehicle(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progId = String(params.programId || '').trim();
+  const oldName = String(params.oldVehicleName || '').trim();
+  const newName = String(params.newVehicleName || '').trim();
+
+  if (!progId || !oldName || !newName) {
+    return { success: false, message: 'Vui lòng cung cấp đầy đủ tên xe cũ và mới!' };
+  }
+
+  const oldKey = normalizeVehicleKey(oldName);
+  let updatedAny = false;
+
+  // 1. Cập nhật trong Sheet TongHopDuLieu
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  const dataRows = dataSheet.getDataRange().getValues();
+  for (let i = 1; i < dataRows.length; i++) {
+    if (String(dataRows[i][1]) === progId && normalizeVehicleKey(dataRows[i][3]) === oldKey) {
+      dataSheet.getRange(i + 1, 4).setValue(newName);
+      updatedAny = true;
+    }
+  }
+
+  // 2. Cập nhật trong Sheet DanhSachHocSinhGoc
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  const stuRows = studentSheet.getDataRange().getValues();
+  for (let j = 1; j < stuRows.length; j++) {
+    if (String(stuRows[j][0]) === progId && normalizeVehicleKey(stuRows[j][1]) === oldKey) {
+      studentSheet.getRange(j + 1, 2).setValue(newName);
+      updatedAny = true;
+    }
+  }
+
+  // 3. Cập nhật trong Sheet DiemDanhAnh
+  const attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  const attRows = attSheet.getDataRange().getValues();
+  for (let k = 1; k < attRows.length; k++) {
+    if (String(attRows[k][1]) === progId && normalizeVehicleKey(attRows[k][2]) === oldKey) {
+      attSheet.getRange(k + 1, 3).setValue(newName);
+      updatedAny = true;
+    }
+  }
+
+  return {
+    success: true,
+    message: `Đã đổi tên xe từ "${oldName}" thành "${newName}" trên toàn bộ hệ thống!`,
+    newVehicleName: newName
+  };
+}
+
+function saveGeminiApiKey(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const key = String(params.key || '').trim();
+  if (!key) return { success: false, message: 'Vui lòng nhập API Key hợp lệ!' };
+
+  PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', key);
+  return { success: true, message: 'Đã lưu cấu hình Gemini API Key trên máy chủ thành công!' };
+}
+
+function getGeminiApiKeyStatus(ss, params) {
+  const key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
+  return {
+    success: true,
+    hasKey: Boolean(key),
+    maskedKey: key ? (key.substring(0, 4) + '••••••••' + key.substring(key.length - 4)) : ''
+  };
+}
+
+// ==============================================================
+// 8. CÁC TÁC VỤ QUẢN TRỊ TRẠNG THÁI & CHƯƠNG TRÌNH KHÁC
+// ==============================================================
 function addCustomStatus(ss, params) {
   if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
   const name = String(params.name || '').trim();
@@ -402,7 +1230,6 @@ function addCustomStatus(ss, params) {
   return { success: true, message: 'Đã thêm trạng thái mới thành công!' };
 }
 
-// Admin: Xóa trạng thái xe
 function deleteCustomStatus(ss, params) {
   if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
   const name = String(params.name || '').trim();
@@ -418,13 +1245,26 @@ function deleteCustomStatus(ss, params) {
   return { success: false, message: 'Không tìm thấy trạng thái để xóa!' };
 }
 
-// Quản trị: Tạo chương trình mới
 function createProgram(ss, params) {
   if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
   const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
   const id = 'TOUR_' + new Date().getTime();
   const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-  progSheet.appendRow([id, params.name || 'Tour mới', params.date || '', params.status || 'Đang diễn ra', '', nowStr]);
+  const progName = params.name || 'Tour mới';
+  const progDate = params.date || '';
+
+  let folderId = '';
+  let folderUrl = '';
+  try {
+    const fInfo = getOrCreateTourFolder(progName, progDate);
+    folderId = fInfo.id;
+    folderUrl = fInfo.url;
+  } catch (e) {}
+
+  progSheet.appendRow([
+    id, progName, progDate, params.status || 'Đang diễn ra', '', nowStr,
+    params.coordinator || '', params.logistics || '', folderId, folderUrl
+  ]);
   return { success: true, message: 'Đã tạo chương trình thành công!', programId: id };
 }
 

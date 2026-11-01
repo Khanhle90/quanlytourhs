@@ -8,6 +8,13 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!-- SheetJS CDN (Xử lý file Excel trực tiếp tại trình duyệt) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Leaflet CSS & JS (Bản đồ định vị GPS các xe mượt mà, không phụ thuộc API key) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
     * { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important; 
@@ -17,6 +24,7 @@
       background-color: #f1f5f9; 
       margin: 0; 
       padding: 0; 
+      -webkit-tap-highlight-color: transparent;
     }
     .sticky-col { 
       position: sticky; 
@@ -32,13 +40,34 @@
     tr:nth-child(even) .sticky-col { 
       background-color: #f8fafc; 
     }
+    /* Pulse dot for live GPS */
+    .pulse-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulse-green 1.8s infinite;
+    }
+    @keyframes pulse-green {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    /* Mobile-only vertical scroll lock for modal */
+    .modal-scroll-vertical {
+      overflow-x: hidden !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
   </style>
 </head>
 <body>
 
   <!-- HEADER & ĐIỀU HƯỚNG 3 TAB -->
   <header class="bg-blue-700 text-white shadow-md sticky top-0 z-40">
-    <div class="max-w-6xl mx-auto px-3 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+    <div class="max-w-6xl mx-auto px-3 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
       <div class="flex items-center justify-between">
         <h1 class="text-base font-bold tracking-wide flex items-center gap-1.5">
           <span>🚌</span> QUẢN LÝ TOUR DÃ NGOẠI
@@ -70,11 +99,13 @@
     </div>
   </div>
 
-  <main class="max-w-6xl mx-auto px-3 pt-3 pb-12">
+  <main class="max-w-6xl mx-auto px-3 pt-3 pb-16">
+
     <!-- ==========================================
-         TAB 1: PHÂN HỆ HƯỚNG DẪN VIÊN
+         TAB 1: PHÂN HỆ HƯỚNG DẪN VIÊN (HDV)
          ========================================== -->
     <section id="sectionHDV" class="space-y-3 max-w-2xl mx-auto">
+      
       <!-- Banner Thông báo Admin -->
       <div id="adminNoticeBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm">
         <div class="flex items-start justify-between gap-2">
@@ -124,7 +155,6 @@
           <p class="text-[10px] text-slate-500 mt-0.5">Gõ số (01) tự thành <b>Xe 01</b>; gõ lớp (8D) tự thành <b>Lớp 8D</b>.</p>
         </div>
 
-        <!-- Họ tên HDV và Số điện thoại HDV cùng 1 hàng -->
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
@@ -143,7 +173,7 @@
         </div>
       </div>
 
-      <!-- Khối 2: Trạng thái xe -->
+      <!-- Khối 2: Trạng thái xe & GPS tự động 15s -->
       <div class="bg-amber-50 p-3.5 rounded-xl shadow-sm border border-amber-300 space-y-2.5">
         <div class="flex items-center justify-between">
           <label class="text-xs font-extrabold text-amber-900 flex items-center gap-1">
@@ -153,8 +183,9 @@
         </div>
 
         <div class="flex flex-col sm:flex-row gap-2">
-          <select id="hdvStatusSelect" class="flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
+          <select id="hdvStatusSelect" onchange="window.onStatusSelectChanged()" class="flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
             <option value="🚩 Đang xuất phát">🚩 Đang xuất phát</option>
+            <option value="🚌 Đang di chuyển">🚌 Đang di chuyển</option>
             <option value="🏛️ Đã đến bảo tàng/di tích">🏛️ Đã đến bảo tàng/di tích</option>
             <option value="🏨 Đã nhận phòng">🏨 Đã nhận phòng</option>
             <option value="🔑 Đã trả phòng">🔑 Đã trả phòng</option>
@@ -166,6 +197,15 @@
             class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-lg text-xs shadow shrink-0 transition">
             ⚡ Cập nhật trạng thái
           </button>
+        </div>
+
+        <!-- Báo trạng thái phát GPS 15s -->
+        <div id="hdvGpsIndicator" class="bg-white/90 p-2 rounded-lg border border-amber-200 flex items-center justify-between text-[11px]">
+          <div class="flex items-center gap-1.5">
+            <span id="gpsDot" class="pulse-dot"></span>
+            <span id="gpsStatusText" class="font-bold text-slate-700">Đang khởi động định vị GPS...</span>
+          </div>
+          <span id="gpsLastTime" class="text-[10px] text-slate-500">15s/lần</span>
         </div>
       </div>
 
@@ -224,30 +264,124 @@
           </div>
         </div>
 
+        <!-- BGH / Trưởng đoàn có cảnh báo xác nhận khi tick -->
         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
           <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1.5">BGH / Trưởng đoàn trên xe (Tùy chọn):</label>
           <div class="grid grid-cols-3 gap-1 text-xs font-medium text-slate-800">
             <label class="inline-flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" id="chkHieuTruong" value="Hiệu trưởng" class="w-3.5 h-3.5 text-blue-600 rounded" />
+              <input type="checkbox" id="chkHieuTruong" value="Hiệu trưởng" onchange="window.handleVipCheck(this, 'Hiệu Trưởng')" class="w-3.5 h-3.5 text-blue-600 rounded" />
               <span>Hiệu Trưởng</span>
             </label>
             <label class="inline-flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" id="chkHieuPho" value="Hiệu phó" class="w-3.5 h-3.5 text-blue-600 rounded" />
+              <input type="checkbox" id="chkHieuPho" value="Hiệu phó" onchange="window.handleVipCheck(this, 'Hiệu Phó')" class="w-3.5 h-3.5 text-blue-600 rounded" />
               <span>Hiệu Phó</span>
             </label>
             <label class="inline-flex items-center gap-1.5 cursor-pointer">
-              <input type="checkbox" id="chkTruongDoan" value="Trưởng đoàn" class="w-3.5 h-3.5 text-blue-600 rounded" />
+              <input type="checkbox" id="chkTruongDoan" value="Trưởng đoàn" onchange="window.handleVipCheck(this, 'Trưởng Đoàn')" class="w-3.5 h-3.5 text-blue-600 rounded" />
               <span>Trưởng Đoàn</span>
             </label>
           </div>
         </div>
       </div>
 
-      <!-- Khối 4: Sĩ số Học sinh theo Lớp -->
+      <!-- Khối 4: CHỤP ẢNH & ĐIỂM DANH HỌC SINH BẰNG GEMINI AI -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-indigo-200 space-y-3">
+        <div class="flex items-center justify-between border-b pb-1.5">
+          <div>
+            <h2 class="font-bold text-indigo-900 text-sm flex items-center gap-1.5">
+              <span>📸</span> 3. Chụp Ảnh Điểm Danh Học Sinh (Gemini AI)
+            </h2>
+            <p class="text-[10px] text-slate-500">Tự động nhận diện dấu tích (v, x, -), đối chiếu danh sách lớp & lưu vào Google Drive</p>
+          </div>
+        </div>
+
+        <!-- Bản lưu ảnh đã gửi trước đó (nếu có) -->
+        <div id="hdvSavedPhotosBox" class="hidden bg-emerald-50 border border-emerald-300 p-2.5 rounded-xl space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-800 flex items-center gap-1">
+              <span>✅</span> Bản lưu ảnh danh sách trên hệ thống
+            </span>
+            <span id="savedAttendanceSummaryBadge" class="text-[11px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full"></span>
+          </div>
+          <p class="text-[10px] text-emerald-700">Ảnh đã gửi được lưu an toàn trên Google Drive. Ảnh này không thể xóa thủ công và sẽ bị thay thế khi bạn gửi ảnh chụp mới.</p>
+          
+          <div id="savedPhotosThumbContainer" class="flex gap-2 overflow-x-auto py-1"></div>
+
+          <div class="flex justify-end">
+            <button type="button" onclick="window.viewCurrentVehicleAttendanceModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow">
+              📋 Xem kết quả điểm danh chi tiết
+            </button>
+          </div>
+        </div>
+
+        <!-- Khay chọn/chụp ảnh tạm (tối đa 2 ảnh 1 lượt) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-slate-700 uppercase">
+              Khay chụp ảnh (Tối đa 2 ảnh / 1 lượt):
+            </label>
+            <span id="trayPhotoCount" class="text-[11px] font-bold text-indigo-700">0 / 2 ảnh</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5" id="photoTrayGrid">
+            <!-- Slot 1 -->
+            <div id="slotCard1" class="border-2 border-dashed border-slate-300 rounded-xl p-2.5 text-center bg-slate-50 relative min-h-[130px] flex flex-col items-center justify-center">
+              <div id="slotEmpty1" class="space-y-1.5">
+                <span class="text-2xl text-slate-400">📷</span>
+                <p class="text-[10px] font-semibold text-slate-500">Ảnh danh sách 1</p>
+                <div class="flex gap-1 justify-center">
+                  <button type="button" onclick="window.triggerCamera(1)" class="text-[10px] bg-blue-600 text-white font-bold px-2 py-1 rounded shadow">
+                    Chụp
+                  </button>
+                  <button type="button" onclick="window.triggerFileInput(1)" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-2 py-1 rounded">
+                    Chọn tệp
+                  </button>
+                </div>
+              </div>
+              <div id="slotPreview1" class="hidden w-full h-full relative">
+                <img id="slotImg1" class="w-full h-28 object-cover rounded-lg border" src="" alt="Ảnh 1" />
+                <button type="button" onclick="window.removeTrayPhoto(1)" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-xs shadow" title="Xóa ảnh này">&times;</button>
+              </div>
+            </div>
+
+            <!-- Slot 2 -->
+            <div id="slotCard2" class="border-2 border-dashed border-slate-300 rounded-xl p-2.5 text-center bg-slate-50 relative min-h-[130px] flex flex-col items-center justify-center">
+              <div id="slotEmpty2" class="space-y-1.5">
+                <span class="text-2xl text-slate-400">📷</span>
+                <p class="text-[10px] font-semibold text-slate-500">Ảnh danh sách 2 (nếu có)</p>
+                <div class="flex gap-1 justify-center">
+                  <button type="button" onclick="window.triggerCamera(2)" class="text-[10px] bg-blue-600 text-white font-bold px-2 py-1 rounded shadow">
+                    Chụp
+                  </button>
+                  <button type="button" onclick="window.triggerFileInput(2)" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-2 py-1 rounded">
+                    Chọn tệp
+                  </button>
+                </div>
+              </div>
+              <div id="slotPreview2" class="hidden w-full h-full relative">
+                <img id="slotImg2" class="w-full h-28 object-cover rounded-lg border" src="" alt="Ảnh 2" />
+                <button type="button" onclick="window.removeTrayPhoto(2)" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-xs shadow" title="Xóa ảnh này">&times;</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hidden inputs for camera & file upload -->
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleImageSelected(this)" />
+          <input type="file" id="fileImageInput" accept="image/*" class="hidden" onchange="window.handleImageSelected(this)" />
+
+          <!-- Nút Gửi Ảnh và Điểm Danh -->
+          <button type="button" id="btnSendPhotos" onclick="window.confirmAndSendPhotos()"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-extrabold py-2.5 rounded-xl text-xs shadow flex items-center justify-center gap-1.5 transition">
+            <span>🚀</span> GỬI ẢNH ĐIỂM DANH & TỰ ĐỘNG PHÂN TÍCH
+          </button>
+        </div>
+      </div>
+
+      <!-- Khối 5: Quản lý Sĩ số theo Lớp -->
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
         <div class="flex items-center justify-between border-b pb-1.5">
           <div>
-            <h2 class="font-bold text-slate-800 text-sm">3. Quản lý Sĩ số theo Lớp</h2>
+            <h2 class="font-bold text-slate-800 text-sm">4. Quản lý Sĩ số theo Lớp</h2>
             <p class="text-[10px] text-slate-500">Bắt buộc nhập Tên lớp và Số Học sinh</p>
           </div>
           <button type="button" onclick="window.addClassRow()"
@@ -258,7 +392,7 @@
         <div id="classListContainer" class="space-y-2.5"></div>
       </div>
 
-      <!-- Khối 5: Tổng quân số & Nút Lưu toàn bộ -->
+      <!-- Khối 6: Tổng quân số & Nút Lưu toàn bộ -->
       <div class="bg-blue-900 text-white p-3.5 rounded-xl shadow-md space-y-2.5">
         <div class="flex items-center justify-between border-b border-blue-700 pb-1.5">
           <span class="text-xs font-bold uppercase tracking-wider text-blue-200">Tổng quân số toàn xe:</span>
@@ -280,7 +414,7 @@
     </section>
 
     <!-- ==========================================
-         TAB 2: PHÂN HỆ TỔNG HỢP BÁO CÁO
+         TAB 2: PHÂN HỆ TỔNG HỢP BÁO CÁO (SUMMARY)
          ========================================== -->
     <section id="sectionSummary" class="hidden space-y-3">
       <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
@@ -299,7 +433,7 @@
         </div>
       </div>
 
-      <!-- 6 THẺ CHỈ SỐ -->
+      <!-- 6 THẺ CHỈ SỐ QUÂN SỐ TOÀN ĐOÀN -->
       <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
         <div class="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-2 rounded-lg shadow text-center">
           <p class="text-[10px] font-bold uppercase text-blue-100 truncate">1. TỔNG SỐ</p>
@@ -327,7 +461,22 @@
         </div>
       </div>
 
-      <!-- BẢNG THỐNG KÊ CHI TIẾT TỪNG XE -->
+      <!-- BẢN ĐỒ VỊ TRÍ CÁC XE TRONG TOUR (CẬP NHẬT 15S/LẦN) -->
+      <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+        <div class="p-2.5 bg-slate-50 border-b flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="text-base">🗺️</span>
+            <h3 class="font-bold text-xs text-slate-800">Bản đồ vị trí các xe trong đoàn</h3>
+            <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+              <span class="pulse-dot"></span> 15s tự động
+            </span>
+          </div>
+          <span id="mapVehicleCountText" class="text-[11px] text-slate-500 font-semibold">0 xe có GPS</span>
+        </div>
+        <div id="tourVehiclesMap" class="w-full h-80 sm:h-96 z-10"></div>
+      </div>
+
+      <!-- BẢNG ĐIỀU HÀNH CHI TIẾT TỪNG XE TRONG ĐOÀN -->
       <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
         <div class="p-2.5 bg-slate-50 border-b flex items-center justify-between">
           <h3 class="font-bold text-xs text-slate-700">Bảng điều hành chi tiết từng xe trong đoàn</h3>
@@ -341,7 +490,7 @@
                 <th class="py-2.5 px-3 sticky-col">Số xe</th>
                 <th class="py-2.5 px-3">Trạng thái xe</th>
                 <th class="py-2.5 px-3 text-center">Tổng HS</th>
-                <th class="py-2.5 px-3">Chi tiết lớp</th>
+                <th class="py-2.5 px-3">Chi tiết lớp & Danh sách ảnh</th>
                 <th class="py-2.5 px-3 text-center">Số GV</th>
                 <th class="py-2.5 px-3 text-center text-orange-400">Số PH</th>
                 <th class="py-2.5 px-3 text-center text-pink-400">Trẻ em</th>
@@ -370,6 +519,8 @@
          TAB 3: PHÂN HỆ QUẢN TRỊ (ADMIN)
          ========================================== -->
     <section id="sectionAdmin" class="hidden space-y-4 max-w-4xl mx-auto">
+      
+      <!-- Cấu hình Máy chủ Apps Script -->
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2">
         <h2 class="font-bold text-slate-800 text-xs uppercase">🔗 Cấu hình Máy chủ Google Apps Script (API URL)</h2>
         <div class="flex flex-col sm:flex-row gap-2">
@@ -381,6 +532,128 @@
         </div>
       </div>
 
+      <!-- Cấu hình Gemini API Key cho nhận diện ảnh danh sách -->
+      <div class="bg-indigo-50 p-3.5 rounded-xl shadow-sm border border-indigo-200 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-indigo-900 text-xs uppercase flex items-center gap-1.5">
+            <span>🤖</span> Cấu hình Gemini API Key (Điểm danh AI)
+          </h2>
+          <span id="geminiKeyStatusBadge" class="text-[10px] bg-indigo-200 text-indigo-800 font-bold px-2 py-0.5 rounded-full">Đang kiểm tra...</span>
+        </div>
+        <p class="text-[11px] text-indigo-700">Gemini API dùng để nhận diện chữ viết, bảng danh sách học sinh và các dấu tích (v, x, -) của HDV.</p>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="password" id="geminiApiKeyInput" placeholder="Nhập khóa Gemini API (AIzaSy...)"
+            class="flex-1 rounded-lg border border-indigo-300 px-3 py-1.5 text-xs font-mono focus:ring-2 focus:ring-indigo-500 outline-none bg-white" />
+          <button type="button" onclick="window.saveGeminiApiKeyAction()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-1.5 rounded-lg shadow">
+            Lưu Gemini Key
+          </button>
+        </div>
+      </div>
+
+      <!-- KHỐI QUẢN TRỊ TOUR: CHỌN TOUR, THÔNG TIN ĐIỀU HÀNH, GOOGLE DRIVE & UPLOAD EXCEL -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center justify-between border-b pb-1.5">
+          <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+            <span>🏨</span> Quản Trị Chi Tiết Tour & Nạp Danh Sách Học Sinh (Excel)
+          </h2>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 uppercase mb-1">Chọn Tour để quản trị:</label>
+          <select id="adminTourSelect" onchange="window.onAdminTourChange()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">-- Đang tải danh sách tour... --</option>
+          </select>
+        </div>
+
+        <!-- Chi tiết thông tin tour được chọn -->
+        <div id="adminTourDetailBox" class="hidden space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tên trường / Chương trình *</label>
+              <input type="text" id="tourNameEdit" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Ngày thực hiện *</label>
+              <input type="date" id="tourDateEdit" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Điều hành tour (Tên điều hành) *</label>
+              <input type="text" id="tourCoordinatorEdit" placeholder="Họ tên người điều hành"
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Phụ trách hậu cần tour (Không bắt buộc)</label>
+              <input type="text" id="tourLogisticsEdit" placeholder="Họ tên phụ trách hậu cần"
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="button" onclick="window.saveTourAdminInfo()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow">
+              💾 Cập nhật thông tin Tour
+            </button>
+          </div>
+
+          <!-- Link Google Drive Folder của Tour -->
+          <div class="bg-white p-2.5 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <p class="text-[10px] font-bold uppercase text-slate-500">📁 Thư mục Google Drive của chương trình:</p>
+              <p id="tourDriveFolderName" class="text-xs font-bold text-blue-900 mt-0.5">Chưa tạo</p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <a id="tourDriveFolderLinkBtn" href="#" target="_blank" class="hidden text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow">
+                📂 Mở thư mục Drive
+              </a>
+              <button type="button" id="tourCopyDriveBtn" onclick="window.copyDriveFolderLink()" class="hidden text-xs bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-2.5 py-1.5 rounded-lg">
+                📋 Copy link
+              </button>
+            </div>
+          </div>
+
+          <!-- NẠP FILE DANH SÁCH EXCEL CHO TOUR -->
+          <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
+                <span>📊</span> Tải lên danh sách học sinh (Excel .xlsx, .xls)
+              </label>
+              <span class="text-[10px] text-slate-500 font-semibold">Tự động nhận diện lớp & cột tên học sinh</span>
+            </div>
+
+            <!-- File picker hỗ trợ chọn nhiều file -->
+            <input type="file" id="excelFilesInput" multiple accept=".xlsx, .xls" onchange="window.handleExcelFilesSelected(this)" class="hidden" />
+
+            <div class="flex flex-col sm:flex-row gap-2 items-center">
+              <button type="button" onclick="document.getElementById('excelFilesInput').click()" class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold px-3 py-2 rounded-lg text-xs shadow-sm flex items-center justify-center gap-1.5">
+                <span>📁</span> Chọn file Excel (1 hoặc nhiều file)
+              </button>
+              <button type="button" id="btnUploadExcelFiles" onclick="window.processAndUploadExcelFiles()" disabled
+                class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold px-4 py-2 rounded-lg text-xs shadow transition">
+                📤 Đọc & Nạp Danh Sách Học Sinh
+              </button>
+            </div>
+
+            <!-- Khung thông báo số lượng file đang gắn lên -->
+            <div id="excelFilesSummaryBox" class="hidden bg-blue-50 border border-blue-200 p-2.5 rounded-lg space-y-1.5">
+              <div class="flex items-center justify-between">
+                <span id="excelFileCountBadge" class="text-[11px] font-bold text-blue-800">Đã gắn: 0 file</span>
+                <button type="button" onclick="window.clearSelectedExcelFiles()" class="text-[10px] text-rose-600 font-bold hover:underline">Hủy chọn tất cả</button>
+              </div>
+              <div id="excelFileChipsContainer" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+            </div>
+
+            <!-- Danh sách lớp hiện đã nạp của tour -->
+            <div id="tourLoadedClassesBox" class="hidden space-y-1.5 pt-1">
+              <p class="text-[11px] font-bold text-slate-700">Các lớp đã có danh sách trong tour này:</p>
+              <div id="tourClassesTagsList" class="flex flex-wrap gap-1.5"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tạo Chương Trình Tour Mới -->
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
         <h2 class="font-bold text-slate-800 text-sm border-b pb-1.5">➕ Tạo Chương Trình Tour Mới</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -425,6 +698,7 @@
         </div>
       </div>
 
+      <!-- Danh sách quản lý chương trình -->
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
         <div class="flex items-center justify-between border-b pb-1.5">
           <h2 class="font-bold text-slate-800 text-sm">📋 Danh Sách Quản Lý Chương Trình</h2>
@@ -437,7 +711,89 @@
     </section>
   </main>
 
-  <!-- POP-UP NHẬP MÃ PIN -->
+  <!-- ==============================================================
+       MODAL 1: CỬA SỔ HIỂN THỊ DANH SÁCH & ẢNH ĐIỂM DANH LỚP
+       (TỐI ƯU HÓA MOBILE: CHỈ VUỐT XUỐNG DỌC, KHÔNG VUỐT NGANG)
+       ============================================================== -->
+  <div id="classAttendanceModal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 hidden items-center justify-center p-3">
+    <div class="bg-white rounded-2xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="bg-slate-800 text-white px-4 py-3 flex items-center justify-between shrink-0">
+        <div>
+          <h3 id="attModalTitle" class="text-sm font-bold">📋 Bảng Điểm Danh Lớp</h3>
+          <p id="attModalSub" class="text-[10px] text-slate-300">Xe: - | Cập nhật lúc: -</p>
+        </div>
+        <button type="button" onclick="window.closeClassAttendanceModal()" class="text-white hover:text-slate-300 font-bold text-xl leading-none">&times;</button>
+      </div>
+
+      <!-- Modal Body (Chỉ cuộn dọc) -->
+      <div class="p-4 space-y-4 modal-scroll-vertical flex-1">
+        
+        <!-- Tổng hợp số lượng có mặt / vắng -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-100 p-2 rounded-xl">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">Tổng Sĩ Số</p>
+            <p id="attModalTotal" class="text-base font-black text-slate-800">0</p>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
+            <p class="text-[10px] font-bold text-emerald-700 uppercase">Có Mặt</p>
+            <p id="attModalPresent" class="text-base font-black text-emerald-600">0</p>
+          </div>
+          <div class="bg-rose-50 border border-rose-200 p-2 rounded-xl">
+            <p class="text-[10px] font-bold text-rose-700 uppercase">Vắng Mặt</p>
+            <p id="attModalAbsent" class="text-base font-black text-rose-600">0</p>
+          </div>
+        </div>
+
+        <!-- PHẦN TRÊN: DANH SÁCH HỌC SINH (HỌC SINH VẮNG BÔI MÀU NỔI BẬT) -->
+        <div class="space-y-1.5">
+          <h4 class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
+            <span>📝</span> Danh sách học sinh sau khi phân tích từ ảnh
+          </h4>
+          <div id="attStudentListContainer" class="divide-y divide-slate-100 border rounded-xl overflow-hidden text-xs">
+            <!-- Render học sinh -->
+          </div>
+        </div>
+
+        <!-- PHẦN DƯỚI: ẢNH CHỤP DANH SÁCH GỐC CỦA HDV (BẤM VÀO ĐỂ XEM FULL MÀN HÌNH) -->
+        <div class="space-y-2 pt-2 border-t border-slate-200">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
+              <span>📸</span> Ảnh chụp danh sách gốc (HDV gửi)
+            </h4>
+            <span class="text-[10px] text-blue-600 font-semibold">Chạm để phóng to</span>
+          </div>
+
+          <div id="attModalImagesContainer" class="space-y-2">
+            <!-- Render ảnh -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-3 bg-slate-50 border-t flex justify-end shrink-0">
+        <button type="button" onclick="window.closeClassAttendanceModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold">
+          Đóng cửa sổ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL 2: XEM ẢNH FULL MÀN HÌNH (LIGHTBOX TOÀN DIỆN CHO DI ĐỘNG)
+       ============================================================== -->
+  <div id="fullscreenImageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex-col items-center justify-center p-2">
+    <div class="absolute top-3 right-3 z-50">
+      <button type="button" onclick="window.closeFullscreenImage()" class="bg-white/20 hover:bg-white/40 text-white rounded-full w-10 h-10 flex items-center justify-center text-2xl font-bold shadow">&times;</button>
+    </div>
+    <div class="w-full h-full flex items-center justify-center overflow-auto p-1">
+      <img id="fullscreenImg" src="" alt="Ảnh phóng to" class="max-w-full max-h-full object-contain select-none" />
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL 3: XÁC THỰC MÃ PIN QUẢN LÝ
+       ============================================================== -->
   <div id="pinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl space-y-3.5 text-center">
       <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto text-2xl shadow-inner">
@@ -462,11 +818,12 @@
   </div>
 
   <!-- ==============================================================
-       LOGIC JAVASCRIPT ĐIỀU HÀNH
+       LOGIC JAVASCRIPT ĐIỀU HÀNH TOÀN DIỆN
        ============================================================== -->
   <script>
     const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0OWxGSx5QGYilJwtRxhd_6rklcpdI1vngSqDs3cY9wExtx5m3kToyh8DvUmT4PGC4/exec';
     const REQUIRED_PIN = '8888';
+    const DRIVE_ROOT_FOLDER_ID = '1GzfsEUmBb2x91aPZIgFdBNeg1XHsHVm7';
 
     const LS_API_URL = 'TOUR_APP_SCRIPT_URL';
     const LS_HDV_NAME = 'TOUR_HDV_NAME';
@@ -474,12 +831,29 @@
     const LS_LOCKED_VEHICLES = 'TOUR_LOCKED_VEHICLES_MAP';
     const LS_LAST_PROGRAM = 'TOUR_LAST_PROGRAM_ID';
     const LS_ACK_PREFIX = 'TOUR_ACK_NOTICE_';
+    const LS_GEMINI_KEY = 'TOUR_GEMINI_API_KEY';
 
     let unlockedPinSession = false;
     let pendingTargetTab = null;
     let activeProgramsCache = [];
     let adminProgramsCache = [];
+    let summaryVehiclesCache = [];
 
+    // Khay ảnh chụp tạm của HDV (Tối đa 2 ảnh base64)
+    let trayPhotos = [null, null]; // [base64_slot1, base64_slot2]
+    let activeSlotIndex = 1;
+    let existingVehicleAttendanceRecord = null;
+
+    // GPS Auto Tracking (15s)
+    let hdvGpsIntervalTimer = null;
+    let summaryMapIntervalTimer = null;
+    let leafletMapInstance = null;
+    let leafletMarkersLayer = null;
+
+    // Quản trị Excel
+    let selectedExcelFiles = [];
+
+    // --- HỖ TRỢ RUNG MÁY ---
     function triggerDeviceVibration() {
       try {
         if ("vibrate" in navigator) {
@@ -490,6 +864,7 @@
       }
     }
 
+    // --- CHUẨN HÓA URL SCRIPT ---
     function normalizeScriptUrl(url) {
       let clean = String(url || '').trim();
       if (!clean || !clean.startsWith('https://script.google.com/')) return '';
@@ -513,6 +888,20 @@
       loadActivePrograms();
     }
 
+    // --- GỌI API BACKEND ---
+    async function callApi(payload) {
+      const url = getApiUrl();
+      if (!url) throw new Error('Chưa cấu hình Google Apps Script URL!');
+      const res = await fetch(url, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    // --- ĐỊNH DẠNG TÊN XE / LỚP ---
     function formatVehicleOrClassName(rawInput) {
       if (!rawInput) return '';
       let s = rawInput.trim().replace(/\s+/g, ' ');
@@ -521,6 +910,12 @@
       if (/^xe(\s+|$)/i.test(s)) return 'Xe ' + s.replace(/^xe\s*/i, '').trim();
       if (/^(lớp|lop)(\s+|$)/i.test(s)) return 'Lớp ' + s.replace(/^(lớp|lop)\s*/i, '').trim();
       return 'Lớp ' + s;
+    }
+
+    function removeVietnameseTones(str) {
+      let s = String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      s = s.replace(/[đĐ]/g, m => m === 'đ' ? 'd' : 'D');
+      return s.trim();
     }
 
     function handleVehicleBlur() {
@@ -581,6 +976,327 @@
       localStorage.setItem(LS_HDV_PHONE, document.getElementById('hdvPhoneInput').value.trim());
     }
 
+    // ==============================================================
+    // BGH / TRƯỞNG ĐOÀN: CẢNH BÁO XÁC NHẬN KHI ĐÁNH DẤU
+    // ==============================================================
+    function handleVipCheck(checkbox, roleTitle) {
+      if (checkbox.checked) {
+        const confirmed = confirm(`Bạn xác định ${roleTitle} đang đi xe bạn?`);
+        if (!confirmed) {
+          checkbox.checked = false;
+        }
+      }
+      // Khi tắt đánh dấu (uncheck) thì không cần hỏi
+    }
+
+    // ==============================================================
+    // GPS AUTO TRACKING 15S CHO HDV
+    // ==============================================================
+    function onStatusSelectChanged() {
+      const status = document.getElementById('hdvStatusSelect').value;
+      checkAndToggleHdvGpsTracking(status);
+    }
+
+    function isMovingStatus(statusStr) {
+      const s = String(statusStr || '').toLowerCase();
+      return s.includes('xuất phát') || s.includes('di chuyển') || s.includes('về trường');
+    }
+
+    function checkAndToggleHdvGpsTracking(status) {
+      const shouldTrack = isMovingStatus(status);
+      const dot = document.getElementById('gpsDot');
+      const text = document.getElementById('gpsStatusText');
+
+      if (shouldTrack) {
+        if (!hdvGpsIntervalTimer) {
+          sendHdvGpsLocation(); // Gửi ngay 1 lần
+          hdvGpsIntervalTimer = setInterval(sendHdvGpsLocation, 15000);
+        }
+        if (dot) dot.className = 'pulse-dot';
+        if (text) text.textContent = 'Đang phát định vị GPS 15s/lần...';
+      } else {
+        if (hdvGpsIntervalTimer) {
+          clearInterval(hdvGpsIntervalTimer);
+          hdvGpsIntervalTimer = null;
+        }
+        if (dot) dot.className = 'inline-block w-2 h-2 rounded-full bg-slate-400';
+        if (text) text.textContent = 'Đã dừng phát GPS (Chỉ phát khi di chuyển)';
+      }
+    }
+
+    function sendHdvGpsLocation() {
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value);
+      const status = document.getElementById('hdvStatusSelect')?.value;
+      const hdvName = document.getElementById('hdvNameInput')?.value.trim();
+
+      if (!progId || !vehicleName) return;
+
+      if (!("geolocation" in navigator)) {
+        document.getElementById('gpsStatusText').textContent = 'Thiết bị không hỗ trợ GPS';
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const nowStr = new Date().toLocaleTimeString('vi-VN');
+
+          try {
+            await callApi({
+              action: 'updateGpsAuto15s',
+              programId: progId,
+              vehicleName: vehicleName,
+              status: status,
+              hdvName: hdvName,
+              lat: lat,
+              lng: lng,
+              gpsTime: new Date().toISOString()
+            });
+
+            const textEl = document.getElementById('gpsStatusText');
+            const timeEl = document.getElementById('gpsLastTime');
+            if (textEl) textEl.textContent = `GPS OK (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+            if (timeEl) timeEl.textContent = `Lúc: ${nowStr}`;
+          } catch (e) {
+            console.warn('Ping GPS thất bại:', e);
+          }
+        },
+        (err) => {
+          console.warn('Lỗi lấy GPS:', err.message);
+          const textEl = document.getElementById('gpsStatusText');
+          if (textEl) textEl.textContent = 'Chưa bật quyền vị trí GPS';
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    }
+
+    // ==============================================================
+    // CHỤP ẢNH & KHAY ẢNH ĐIỂM DANH (HDV)
+    // ==============================================================
+    function triggerCamera(slot) {
+      activeSlotIndex = slot;
+      const input = document.getElementById('cameraInput');
+      input.value = '';
+      input.click();
+    }
+
+    function triggerFileInput(slot) {
+      activeSlotIndex = slot;
+      const input = document.getElementById('fileImageInput');
+      input.value = '';
+      input.click();
+    }
+
+    async function handleImageSelected(inputEl) {
+      if (!inputEl.files || inputEl.files.length === 0) return;
+      const file = inputEl.files[0];
+
+      try {
+        const compressedBase64 = await resizeAndCompressImage(file, 1600, 0.85);
+        setTrayPhoto(activeSlotIndex, compressedBase64);
+        showToast(`Đã thêm ảnh vào ô ${activeSlotIndex}`, 'success');
+      } catch (err) {
+        showToast('Lỗi nén ảnh: ' + err.message, 'error');
+      }
+    }
+
+    function setTrayPhoto(slot, base64) {
+      trayPhotos[slot - 1] = base64;
+      const emptyEl = document.getElementById(`slotEmpty${slot}`);
+      const prevEl = document.getElementById(`slotPreview${slot}`);
+      const imgEl = document.getElementById(`slotImg${slot}`);
+
+      if (base64) {
+        imgEl.src = base64;
+        emptyEl.classList.add('hidden');
+        prevEl.classList.remove('hidden');
+      } else {
+        imgEl.src = '';
+        emptyEl.classList.remove('hidden');
+        prevEl.classList.add('hidden');
+      }
+      updateTrayCounter();
+    }
+
+    function removeTrayPhoto(slot) {
+      setTrayPhoto(slot, null);
+    }
+
+    function updateTrayCounter() {
+      const count = trayPhotos.filter(Boolean).length;
+      const el = document.getElementById('trayPhotoCount');
+      if (el) el.textContent = `${count} / 2 ảnh`;
+
+      const btn = document.getElementById('btnSendPhotos');
+      if (btn) {
+        btn.innerHTML = `<span>🚀</span> GỬI ẢNH ĐIỂM DANH (${count} ảnh)`;
+      }
+    }
+
+    // Nén ảnh để tải lên Google Apps Script siêu nhanh
+    function resizeAndCompressImage(file, maxDim = 1600, quality = 0.85) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // XÁC NHẬN VÀ GỬI ẢNH ĐIỂM DANH
+    async function confirmAndSendPhotos() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+
+      if (!progId) return showToast('Vui lòng chọn Chương trình đang diễn ra!', 'error');
+      if (!vehicleName) return showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
+
+      const validPhotos = trayPhotos.filter(Boolean);
+      if (validPhotos.length === 0) {
+        return showToast('Vui lòng chụp hoặc chọn ít nhất 1 ảnh danh sách!', 'error');
+      }
+
+      // Kiểm tra xem đã từng gửi ảnh trước đây chưa
+      const hasOldPhotos = (existingVehicleAttendanceRecord && existingVehicleAttendanceRecord.fileIds && existingVehicleAttendanceRecord.fileIds.length > 0);
+
+      let confirmMsg = '';
+      if (hasOldPhotos) {
+        const oldCnt = existingVehicleAttendanceRecord.fileIds.length;
+        confirmMsg = `Ảnh chụp mới sẽ thay thế ảnh cũ.\nBạn có xác nhận thay thế ${oldCnt} ảnh chụp danh sách trước đây không?`;
+      } else {
+        confirmMsg = `Bạn có xác nhận gửi ${validPhotos.length} ảnh chụp danh sách học sinh để Gemini AI phân tích điểm danh không?`;
+      }
+
+      const ok = confirm(confirmMsg);
+      if (!ok) return; // Nếu ấn từ chối thì hủy việc gửi
+
+      const btn = document.getElementById('btnSendPhotos');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '🤖 Đang lưu Drive & Gemini AI đang phân tích...';
+
+      try {
+        const res = await callApi({
+          action: 'uploadAndAnalyzeAttendanceImage',
+          programId: progId,
+          programName: progObj ? progObj.name : '',
+          tourDate: progObj ? progObj.date : '',
+          vehicleName: vehicleName,
+          images: validPhotos,
+          geminiApiKey: localStorage.getItem(LS_GEMINI_KEY) || ''
+        });
+
+        if (!res.success) throw new Error(res.message);
+
+        // Xóa khay tạm sau khi gửi thành công
+        setTrayPhoto(1, null);
+        setTrayPhoto(2, null);
+
+        showToast(res.message || 'Đã phân tích điểm danh thành công!', 'success');
+
+        // Cập nhật lại bản lưu ảnh trên giao diện HDV
+        fetchExistingVehicleInfo(progId, vehicleName);
+
+        // Mở cửa sổ kết quả điểm danh để HDV xem ngay
+        openAttendanceDetailModal({
+          vehicleName: vehicleName,
+          programName: progObj ? progObj.name : '',
+          updatedAt: new Date().toLocaleString('vi-VN'),
+          totalStudents: res.totalStudents,
+          presentCount: res.presentCount,
+          absentCount: res.absentCount,
+          students: res.students || [],
+          imageUrls: res.imageUrls || [],
+          fileIds: res.fileIds || []
+        });
+
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function renderSavedPhotosInHdvView(record) {
+      const box = document.getElementById('hdvSavedPhotosBox');
+      const badge = document.getElementById('savedAttendanceSummaryBadge');
+      const container = document.getElementById('savedPhotosThumbContainer');
+
+      if (!record || !record.fileIds || record.fileIds.length === 0) {
+        box.classList.add('hidden');
+        return;
+      }
+
+      box.classList.remove('hidden');
+      badge.textContent = `Có mặt: ${record.presentCount || 0} / ${record.students ? record.students.length : 0} HS`;
+      container.innerHTML = '';
+
+      const urls = record.imageUrls || [];
+      const fileIds = record.fileIds || [];
+
+      fileIds.forEach((fid, idx) => {
+        const imgUrl = urls[idx] || `https://drive.google.com/thumbnail?id=${fid}&sz=w800`;
+        const div = document.createElement('div');
+        div.className = 'relative shrink-0 cursor-pointer group';
+        div.onclick = () => window.openFullscreenImage(imgUrl);
+        div.innerHTML = `
+          <img src="${imgUrl}" class="w-20 h-20 object-cover rounded-lg border-2 border-emerald-400 shadow-sm group-hover:opacity-90" alt="Ảnh ${idx + 1}"
+            onerror="this.onerror=null; this.src='${getApiUrl()}?action=getDriveImage&fileId=${fid}';" />
+          <span class="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1 rounded font-bold">#${idx + 1}</span>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function viewCurrentVehicleAttendanceModal() {
+      if (!existingVehicleAttendanceRecord) return;
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+
+      openAttendanceDetailModal({
+        vehicleName: vehicleName,
+        programName: progObj ? progObj.name : '',
+        updatedAt: existingVehicleAttendanceRecord.updatedAt || '',
+        totalStudents: existingVehicleAttendanceRecord.students ? existingVehicleAttendanceRecord.students.length : 0,
+        presentCount: existingVehicleAttendanceRecord.presentCount || 0,
+        absentCount: existingVehicleAttendanceRecord.absentCount || 0,
+        students: existingVehicleAttendanceRecord.students || [],
+        imageUrls: existingVehicleAttendanceRecord.imageUrls || [],
+        fileIds: existingVehicleAttendanceRecord.fileIds || []
+      });
+    }
+
+    // ==============================================================
+    // SĨ SỐ HỌC SINH THEO LỚP & TÍNH TỔNG (HDV)
+    // ==============================================================
     function renderClassRows(classesData) {
       const container = document.getElementById('classListContainer');
       if (!container) return;
@@ -701,18 +1417,9 @@
       if (elTotalAll) elTotalAll.textContent = t.totalPeople + ' người';
     }
 
-    async function callApi(payload) {
-      const url = getApiUrl();
-      if (!url) throw new Error('Chưa cấu hình Google Apps Script URL!');
-      const res = await fetch(url, {
-        method: 'POST',
-        redirect: 'follow',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-      return await res.json();
-    }
-
+    // ==============================================================
+    // TẢI CHƯƠNG TRÌNH & DỮ LIỆU XE (HDV)
+    // ==============================================================
     async function loadActivePrograms(isBackground = false) {
       try {
         const result = await callApi({ action: 'getInitData' });
@@ -811,6 +1518,8 @@
       } else {
         resetVehicleFormFields();
       }
+
+      checkAndToggleHdvGpsTracking(document.getElementById('hdvStatusSelect').value);
     }
 
     function showAdminNoticeModal(content) {
@@ -844,6 +1553,8 @@
       const lastSavedEl = document.getElementById('lastSavedTime');
       if (lastSavedEl) lastSavedEl.textContent = '';
 
+      existingVehicleAttendanceRecord = null;
+      renderSavedPhotosInHdvView(null);
       renderClassRows([]);
     }
 
@@ -878,7 +1589,17 @@
           document.getElementById('driverPhoneInput').value = d.driverPhone || '';
 
           renderClassRows(d.classes || []);
+
+          // Cập nhật bản ghi ảnh điểm danh nếu có
+          existingVehicleAttendanceRecord = d.attendance || null;
+          renderSavedPhotosInHdvView(existingVehicleAttendanceRecord);
+
+          checkAndToggleHdvGpsTracking(d.status);
           showToast('Đã tải lại dữ liệu xe ' + d.vehicleName, 'info');
+        } else {
+          // Chưa có dữ liệu xe, kiểm tra ảnh riêng
+          existingVehicleAttendanceRecord = res.attendance || null;
+          renderSavedPhotosInHdvView(existingVehicleAttendanceRecord);
         }
       } catch (err) {
         console.warn('Lỗi tải dữ liệu xe:', err);
@@ -892,21 +1613,9 @@
       const hdvName = document.getElementById('hdvNameInput').value.trim();
       const status = document.getElementById('hdvStatusSelect').value;
 
-      if (!progId) {
-        showToast('Vui lòng chọn tour đang diễn ra!', 'error');
-        document.getElementById('hdvProgramSelect').focus();
-        return;
-      }
-      if (!vehicleName) {
-        showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
-        document.getElementById('hdvVehicleInput').focus();
-        return;
-      }
-      if (!hdvName) {
-        showToast('Vui lòng nhập Họ tên HDV!', 'error');
-        document.getElementById('hdvNameInput').focus();
-        return;
-      }
+      if (!progId) return showToast('Vui lòng chọn tour đang diễn ra!', 'error');
+      if (!vehicleName) return showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
+      if (!hdvName) return showToast('Vui lòng nhập Họ tên HDV!', 'error');
 
       const btn = document.getElementById('btnQuickStatus');
       const oldText = btn.innerHTML;
@@ -930,6 +1639,8 @@
         setLockedVehicleForTour(progId, vehicleName);
         document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
         showToast(res.message, 'success');
+
+        checkAndToggleHdvGpsTracking(status);
       } catch (err) {
         showToast(err.message, 'error');
       } finally {
@@ -938,7 +1649,6 @@
       }
     }
 
-    // HÀM KIỂM TRA BẮT BUỘC NHẬP TOÀN BỘ THÔNG TIN TRƯỚC KHI LƯU
     async function submitFullVehicleForm() {
       const progId = document.getElementById('hdvProgramSelect').value;
       const progObj = activeProgramsCache.find(p => p.id === progId);
@@ -953,66 +1663,22 @@
       const driverName = document.getElementById('driverNameInput').value.trim();
       const driverPhone = document.getElementById('driverPhoneInput').value.trim();
 
-      // 1. Kiểm tra khối 1
-      if (!progId) {
-        showToast('Vui lòng chọn Chương trình đang diễn ra!', 'error');
-        document.getElementById('hdvProgramSelect').focus();
-        return;
-      }
-      if (!vehicleName) {
-        showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
-        document.getElementById('hdvVehicleInput').focus();
-        return;
-      }
-      if (!hdvName) {
-        showToast('Vui lòng nhập Họ tên HDV!', 'error');
-        document.getElementById('hdvNameInput').focus();
-        return;
-      }
-      if (!hdvPhone) {
-        showToast('Vui lòng nhập Số điện thoại HDV!', 'error');
-        document.getElementById('hdvPhoneInput').focus();
-        return;
-      }
+      if (!progId) return showToast('Vui lòng chọn Chương trình đang diễn ra!', 'error');
+      if (!vehicleName) return showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
+      if (!hdvName) return showToast('Vui lòng nhập Họ tên HDV!', 'error');
+      if (!hdvPhone) return showToast('Vui lòng nhập Số điện thoại HDV!', 'error');
 
-      // 2. Kiểm tra khối 2: Quản lý Nhân sự & Trưởng xe
-      if (!leaderName) {
-        showToast('Vui lòng nhập Tên GVCN / Trưởng xe!', 'error');
-        document.getElementById('leaderNameInput').focus();
-        return;
-      }
-      if (!leaderPhone) {
-        showToast('Vui lòng nhập SĐT GVCN / Trưởng xe!', 'error');
-        document.getElementById('leaderPhoneInput').focus();
-        return;
-      }
+      if (!leaderName) return showToast('Vui lòng nhập Tên GVCN / Trưởng xe!', 'error');
+      if (!leaderPhone) return showToast('Vui lòng nhập SĐT GVCN / Trưởng xe!', 'error');
       if (teacherCountRaw === '' || isNaN(teacherCountRaw) || parseInt(teacherCountRaw, 10) < 0) {
-        showToast('Vui lòng nhập Tổng Giáo viên trên xe (ít nhất 0)!', 'error');
-        document.getElementById('teacherCountInput').focus();
-        return;
+        return showToast('Vui lòng nhập Tổng Giáo viên trên xe!', 'error');
       }
-      if (!licensePlate) {
-        showToast('Vui lòng nhập Biển số xe!', 'error');
-        document.getElementById('licensePlateInput').focus();
-        return;
-      }
-      if (!driverName) {
-        showToast('Vui lòng nhập Tên Lái xe!', 'error');
-        document.getElementById('driverNameInput').focus();
-        return;
-      }
-      if (!driverPhone) {
-        showToast('Vui lòng nhập SĐT Lái xe!', 'error');
-        document.getElementById('driverPhoneInput').focus();
-        return;
-      }
+      if (!licensePlate) return showToast('Vui lòng nhập Biển số xe!', 'error');
+      if (!driverName) return showToast('Vui lòng nhập Tên Lái xe!', 'error');
+      if (!driverPhone) return showToast('Vui lòng nhập SĐT Lái xe!', 'error');
 
-      // 3. Kiểm tra khối 3: Quản lý Sĩ số theo Lớp
       const rows = document.querySelectorAll('#classListContainer .class-item-row');
-      if (rows.length === 0) {
-        showToast('Vui lòng thêm ít nhất 1 lớp học!', 'error');
-        return;
-      }
+      if (rows.length === 0) return showToast('Vui lòng thêm ít nhất 1 lớp học!', 'error');
 
       for (let i = 0; i < rows.length; i++) {
         const r = rows[i];
@@ -1020,19 +1686,12 @@
         const stRaw = r.querySelector('.cls-students').value.trim();
         const stVal = parseInt(stRaw, 10);
 
-        if (!cName) {
-          showToast(`Vui lòng nhập Tên lớp ở Lớp thứ ${i + 1}!`, 'error');
-          r.querySelector('.cls-name').focus();
-          return;
-        }
+        if (!cName) return showToast(`Vui lòng nhập Tên lớp ở Lớp thứ ${i + 1}!`, 'error');
         if (stRaw === '' || isNaN(stVal) || stVal <= 0) {
-          showToast(`Vui lòng nhập Số Học sinh (> 0) cho lớp ${cName}!`, 'error');
-          r.querySelector('.cls-students').focus();
-          return;
+          return showToast(`Vui lòng nhập Số Học sinh (> 0) cho lớp ${cName}!`, 'error');
         }
       }
 
-      // 4. Chuẩn bị dữ liệu gửi đi khi đã điền đầy đủ
       const vipArr = [];
       if (document.getElementById('chkHieuTruong').checked) vipArr.push('Hiệu trưởng');
       if (document.getElementById('chkHieuPho').checked) vipArr.push('Hiệu phó');
@@ -1076,6 +1735,7 @@
         setLockedVehicleForTour(progId, vehicleName);
         document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
         showToast(res.message, 'success');
+        checkAndToggleHdvGpsTracking(payloadData.status);
       } catch (err) {
         showToast(err.message, 'error');
       } finally {
@@ -1084,6 +1744,9 @@
       }
     }
 
+    // ==============================================================
+    // TAB NAVIGATION & MÃ PIN QUẢN LÝ
+    // ==============================================================
     function switchTab(tabName) {
       if ((tabName === 'summary' || tabName === 'admin') && !unlockedPinSession) {
         pendingTargetTab = tabName;
@@ -1150,11 +1813,21 @@
         loadActivePrograms();
       } else if (tabName === 'summary') {
         loadAdminProgramsForSummary();
+        initOrStartSummaryMapAutoRefresh();
       } else if (tabName === 'admin') {
         loadAdminPrograms();
+        checkGeminiKeyStatus();
+      }
+
+      if (tabName !== 'summary' && summaryMapIntervalTimer) {
+        clearInterval(summaryMapIntervalTimer);
+        summaryMapIntervalTimer = null;
       }
     }
 
+    // ==============================================================
+    // BẢNG TỔNG HỢP & BẢN ĐỒ VỊ TRÍ CÁC XE (LEAFLET 15S)
+    // ==============================================================
     async function loadAdminProgramsForSummary() {
       try {
         const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
@@ -1191,34 +1864,12 @@
       }
     }
 
-    function getStatusBadgeHtml(statusText) {
-      const s = String(statusText || '');
-      let colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      if (s.includes('bảo tàng') || s.includes('di tích')) colorClass = 'bg-amber-100 text-amber-800 border-amber-300';
-      else if (s.includes('nhận phòng')) colorClass = 'bg-blue-100 text-blue-800 border-blue-300';
-      else if (s.includes('trả phòng')) colorClass = 'bg-purple-100 text-purple-800 border-purple-300';
-      else if (s.includes('Đang về trường')) colorClass = 'bg-orange-100 text-orange-800 border-orange-300';
-      else if (s.includes('Đã về tới trường')) colorClass = 'bg-red-100 text-red-800 border-red-300';
-
-      return `<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorClass}">${escapeHtml(s)}</span>`;
-    }
-
-    function formatCallLink(phone) {
-      const clean = String(phone || '').trim();
-      if (!clean) return '<span class="text-slate-300">-</span>';
-      return `<a href="tel:${escapeHtml(clean)}" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold underline">📞 ${escapeHtml(clean)}</a>`;
-    }
-
-    function formatTimeDisplay(rawTime) {
-      if (!rawTime) return '-';
-      try {
-        const d = new Date(rawTime);
-        if (!isNaN(d.getTime())) {
-          const pad = n => String(n).padStart(2, '0');
-          return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-        }
-      } catch (e) {}
-      return String(rawTime);
+    function initOrStartSummaryMapAutoRefresh() {
+      if (!summaryMapIntervalTimer) {
+        summaryMapIntervalTimer = setInterval(() => {
+          loadSummaryDashboard(true); // Cập nhật ngầm 15s/lần
+        }, 15000);
+      }
     }
 
     async function loadSummaryDashboard(isSilent = false) {
@@ -1236,6 +1887,7 @@
         if (!res.success) throw new Error(res.message);
 
         const list = res.vehicles || [];
+        summaryVehiclesCache = list;
 
         list.sort((a, b) =>
           String(a.vehicleName).localeCompare(String(b.vehicleName), 'vi', { numeric: true, sensitivity: 'base' })
@@ -1258,16 +1910,31 @@
 
             const vipTag = v.vipRoles ? `<div class="text-[9px] text-rose-600 font-bold">(${escapeHtml(v.vipRoles)})</div>` : '';
 
+            // Nút xem chi tiết ảnh điểm danh lớp
+            const classDisplay = v.classSummary || v.vehicleName;
+            const hasAtt = Boolean(v.attendance && v.attendance.fileIds && v.attendance.fileIds.length > 0);
+            const attPill = hasAtt
+              ? `<span class="inline-flex items-center gap-1 text-[10px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded cursor-pointer hover:bg-indigo-200" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">📸 ${v.attendance.presentCount || 0} có mặt</span>`
+              : `<span class="text-[10px] text-slate-400 cursor-pointer hover:underline" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">Chưa chụp ảnh</span>`;
+
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-blue-50/40 transition';
             tr.innerHTML = `
-              <td class="py-2 px-3 font-extrabold text-blue-900 sticky-col">${escapeHtml(v.vehicleName)}</td>
+              <td class="py-2 px-3 font-extrabold text-blue-900 sticky-col flex items-center justify-between gap-1">
+                <span class="cursor-pointer hover:underline" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">${escapeHtml(v.vehicleName)}</span>
+                <button type="button" onclick="window.promptRenameVehicle('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" title="Quản trị: Sửa tên xe" class="text-slate-400 hover:text-blue-600 font-bold text-xs p-1">✏️</button>
+              </td>
               <td class="py-2 px-3">${getStatusBadgeHtml(v.status)}</td>
               <td class="py-2 px-3 text-center font-extrabold text-emerald-700 text-xs">${v.totalStudents}</td>
-              <td class="py-2 px-3 font-semibold text-slate-700">${escapeHtml(v.classSummary || '-')}</td>
+              <td class="py-2 px-3">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-semibold text-slate-700 cursor-pointer hover:text-blue-600" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">${escapeHtml(classDisplay)}</span>
+                  ${attPill}
+                </div>
+              </td>
               <td class="py-2 px-3 text-center font-bold text-indigo-700">${v.teacherCount}${vipTag}</td>
               <td class="py-2 px-3 text-center font-bold text-orange-600">${v.parentCount}</td>
-              <td class="py-2.5 px-3 text-center font-bold text-pink-600">${v.childCount}</td>
+              <td class="py-2 px-3 text-center font-bold text-pink-600">${v.childCount}</td>
               <td class="py-2 px-3 text-center font-extrabold text-blue-900 bg-slate-100">${v.totalPeople}</td>
               <td class="py-2 px-3 font-semibold">${escapeHtml(v.hdvName || '-')}</td>
               <td class="py-2 px-3">${formatCallLink(v.hdvPhone)}</td>
@@ -1291,24 +1958,683 @@
         setCard('sumCardVehicles', list.length);
         setCard('summaryCountText', `Đã có ${list.length} xe báo cáo`);
 
+        // Cập nhật bản đồ GPS
+        updateLeafletMapWithVehicles(list);
+
         if (!isSilent) showToast('Đã làm mới dữ liệu!', 'info');
       } catch (err) {
         if (!isSilent) showToast(err.message, 'error');
       }
     }
 
-    async function loadAdminPrograms() {
+    // Cập nhật Leaflet Map mượt mà
+    function updateLeafletMapWithVehicles(vehicles) {
+      const mapEl = document.getElementById('tourVehiclesMap');
+      if (!mapEl) return;
+
+      if (!leafletMapInstance) {
+        leafletMapInstance = L.map('tourVehiclesMap', {
+          zoomControl: true,
+          scrollWheelZoom: false
+        }).setView([21.0285, 105.8542], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap'
+        }).addTo(leafletMapInstance);
+
+        leafletMarkersLayer = L.layerGroup().addTo(leafletMapInstance);
+      }
+
+      leafletMarkersLayer.clearLayers();
+
+      const validGpsList = vehicles.filter(v => {
+        const lat = parseFloat(v.lat);
+        const lng = parseFloat(v.lng);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+      });
+
+      const countEl = document.getElementById('mapVehicleCountText');
+      if (countEl) countEl.textContent = `${validGpsList.length} / ${vehicles.length} xe có GPS`;
+
+      if (validGpsList.length === 0) return;
+
+      const bounds = [];
+      validGpsList.forEach(v => {
+        const lat = parseFloat(v.lat);
+        const lng = parseFloat(v.lng);
+        bounds.push([lat, lng]);
+
+        const isMoving = isMovingStatus(v.status);
+        const markerColor = isMoving ? '#10b981' : '#3b82f6';
+
+        const customIcon = L.divIcon({
+          className: 'custom-bus-marker',
+          html: `<div style="background:${markerColor}; color:#fff; font-weight:bold; font-size:11px; padding:3px 8px; border-radius:14px; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); white-space:nowrap; display:flex; align-items:center; gap:4px;">🚌 ${escapeHtml(v.vehicleName)}</div>`,
+          iconSize: [80, 26],
+          iconAnchor: [40, 13]
+        });
+
+        const popupContent = `
+          <div style="font-size:12px; line-height:1.4;">
+            <b style="font-size:13px; color:#1e3a8a;">🚌 ${escapeHtml(v.vehicleName)}</b>
+            <div style="margin:3px 0;">Trạng thái: <b>${escapeHtml(v.status)}</b></div>
+            <div>HDV: <b>${escapeHtml(v.hdvName || '-')}</b> (${escapeHtml(v.hdvPhone || '-')})</div>
+            <div>Lái xe: ${escapeHtml(v.driverName || '-')} (${escapeHtml(v.driverPhone || '-')})</div>
+            <div>Biển số: <b>${escapeHtml(v.licensePlate || '-')}</b></div>
+            <div style="font-size:10px; color:#64748b; margin-top:3px;">GPS cập nhật: ${formatTimeDisplay(v.gpsTime || v.updatedAt)}</div>
+          </div>
+        `;
+
+        const marker = L.marker([lat, lng], { icon: customIcon }).bindPopup(popupContent);
+        leafletMarkersLayer.addLayer(marker);
+      });
+
+      if (bounds.length > 0) {
+        leafletMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      }
+    }
+
+    // ==============================================================
+    // SỬA TÊN XE DÀNH RIÊNG CHO QUẢN TRỊ
+    // ==============================================================
+    async function promptRenameVehicle(programId, oldVehicleName) {
+      const newName = prompt(`Nhập tên xe mới cho "${oldVehicleName}":\n(VD: Xe 01, Lớp 9A1)`, oldVehicleName);
+      if (!newName || newName.trim() === '' || newName.trim() === oldVehicleName) return;
+
+      const formattedNew = formatVehicleOrClassName(newName.trim());
+
       try {
-        const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
+        const res = await callApi({
+          action: 'renameVehicle',
+          pin: REQUIRED_PIN,
+          programId: programId,
+          oldVehicleName: oldVehicleName,
+          newVehicleName: formattedNew
+        });
+
         if (!res.success) throw new Error(res.message);
-        adminProgramsCache = res.programs || [];
-        renderAdminProgramList();
-        populateAdminNoticeSelect();
+        showToast(res.message, 'success');
+        loadSummaryDashboard(true);
       } catch (err) {
         showToast(err.message, 'error');
       }
     }
 
+    // ==============================================================
+    // CỬA SỔ HIỂN THỊ CHI TIẾT ĐIỂM DANH LỚP & ẢNH CHỤP HDV
+    // (DANH SÁCH TRÊN, ẢNH DƯỚI, CHỈ VUỐT XUỐNG DỌC)
+    // ==============================================================
+    async function fetchAndOpenAttendanceModal(programId, vehicleName) {
+      try {
+        const res = await callApi({
+          action: 'getAttendanceRecord',
+          programId: programId,
+          vehicleName: vehicleName
+        });
+
+        const progObj = (adminProgramsCache || []).find(p => p.id === programId) || {};
+
+        if (res.success && res.found && res.record) {
+          const rec = res.record;
+          openAttendanceDetailModal({
+            vehicleName: vehicleName,
+            programName: progObj.name || '',
+            updatedAt: rec.updatedAt || '',
+            totalStudents: rec.students ? rec.students.length : (rec.presentCount + rec.absentCount),
+            presentCount: rec.presentCount || 0,
+            absentCount: rec.absentCount || 0,
+            students: rec.students || [],
+            imageUrls: rec.imageUrls || [],
+            fileIds: rec.fileIds || []
+          });
+        } else {
+          // Chưa có ảnh chụp, thử lấy danh sách học sinh từ Excel
+          const stuRes = await callApi({
+            action: 'getClassStudentList',
+            programId: programId,
+            vehicleName: vehicleName
+          });
+          const list = stuRes.students || [];
+
+          openAttendanceDetailModal({
+            vehicleName: vehicleName,
+            programName: progObj.name || '',
+            updatedAt: 'Chưa có ảnh chụp điểm danh',
+            totalStudents: list.length,
+            presentCount: 0,
+            absentCount: list.length,
+            students: list.map(s => ({ stt: s.stt, name: s.name, present: false })),
+            imageUrls: [],
+            fileIds: []
+          });
+        }
+      } catch (err) {
+        showToast('Lỗi tải bảng điểm danh: ' + err.message, 'error');
+      }
+    }
+
+    function openAttendanceDetailModal(data) {
+      const modal = document.getElementById('classAttendanceModal');
+      if (!modal) return;
+
+      document.getElementById('attModalTitle').textContent = `📋 Bảng Điểm Danh: ${data.vehicleName}`;
+      document.getElementById('attModalSub').textContent = `Tour: ${data.programName} | Cập nhật: ${formatTimeDisplay(data.updatedAt)}`;
+
+      document.getElementById('attModalTotal').textContent = data.totalStudents;
+      document.getElementById('attModalPresent').textContent = data.presentCount;
+      document.getElementById('attModalAbsent').textContent = data.absentCount;
+
+      // Render danh sách học sinh (HIỂN THỊ Ở TRÊN, HỌC SINH VẮNG BÔI MÀU NỔI BẬT)
+      const listContainer = document.getElementById('attStudentListContainer');
+      listContainer.innerHTML = '';
+
+      if (!data.students || data.students.length === 0) {
+        listContainer.innerHTML = '<div class="p-4 text-center text-slate-400">Chưa có danh sách học sinh cho lớp này.</div>';
+      } else {
+        data.students.forEach((s, idx) => {
+          const isPresent = Boolean(s.present);
+          const rowDiv = document.createElement('div');
+          
+          if (isPresent) {
+            rowDiv.className = 'py-2 px-3 flex items-center justify-between bg-white hover:bg-slate-50 transition';
+            rowDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-6 text-[11px] font-mono text-slate-400">${s.stt || (idx + 1)}.</span>
+                <span class="font-bold text-slate-800 text-xs">${escapeHtml(s.name)}</span>
+              </div>
+              <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span>✅</span> Có mặt
+              </span>
+            `;
+          } else {
+            // Học sinh vắng: Bôi màu đỏ nhạt cả dòng để cực kỳ dễ nhận diện
+            rowDiv.className = 'py-2 px-3 flex items-center justify-between bg-rose-50 border-l-4 border-rose-500 text-rose-900';
+            rowDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="w-6 text-[11px] font-mono text-rose-500 font-bold">${s.stt || (idx + 1)}.</span>
+                <span class="font-bold text-rose-900 text-xs">${escapeHtml(s.name)}</span>
+              </div>
+              <span class="bg-rose-200 text-rose-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span>❌</span> VẮNG
+              </span>
+            `;
+          }
+          listContainer.appendChild(rowDiv);
+        });
+      }
+
+      // Render ảnh chụp của HDV (HIỂN THỊ Ở DƯỚI)
+      const imgContainer = document.getElementById('attModalImagesContainer');
+      imgContainer.innerHTML = '';
+
+      const urls = data.imageUrls || [];
+      const fileIds = data.fileIds || [];
+
+      if (urls.length === 0 && fileIds.length === 0) {
+        imgContainer.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-3">Chưa có ảnh chụp danh sách nào được gửi.</p>';
+      } else {
+        fileIds.forEach((fid, idx) => {
+          const url = urls[idx] || `https://drive.google.com/thumbnail?id=${fid}&sz=w1600`;
+          const wrapper = document.createElement('div');
+          wrapper.className = 'relative rounded-xl overflow-hidden border border-slate-300 shadow cursor-pointer group';
+          wrapper.onclick = () => window.openFullscreenImage(url);
+          wrapper.innerHTML = `
+            <img src="${url}" class="w-full max-h-72 object-contain bg-slate-900 group-hover:scale-[1.01] transition" alt="Ảnh danh sách ${idx + 1}"
+              onerror="this.onerror=null; this.src='${getApiUrl()}?action=getDriveImage&fileId=${fid}';" />
+            <div class="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow">
+              Ảnh #${idx + 1} (Chạm để xem full màn hình)
+            </div>
+          `;
+          imgContainer.appendChild(wrapper);
+        });
+      }
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeClassAttendanceModal() {
+      const modal = document.getElementById('classAttendanceModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    // ==============================================================
+    // LIGHTBOX XEM ẢNH FULL MÀN HÌNH CHO MOBILE
+    // ==============================================================
+    function openFullscreenImage(src) {
+      const modal = document.getElementById('fullscreenImageModal');
+      const img = document.getElementById('fullscreenImg');
+      if (modal && img) {
+        img.src = src;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeFullscreenImage() {
+      const modal = document.getElementById('fullscreenImageModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    // ==============================================================
+    // QUẢN TRỊ TOUR: EXCEL UPLOAD, DRIVE FOLDER & GEMINI KEY
+    // ==============================================================
+    async function loadAdminPrograms() {
+      try {
+        const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
+        if (!res.success) throw new Error(res.message);
+        adminProgramsCache = res.programs || [];
+
+        renderAdminProgramList();
+        populateAdminNoticeSelect();
+        populateAdminTourSelect();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function populateAdminTourSelect() {
+      const sel = document.getElementById('adminTourSelect');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Chọn tour để quản trị --</option>';
+      adminProgramsCache.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `[${p.status}] ${p.name} (${p.date || 'Chưa có ngày'})`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function onAdminTourChange() {
+      const sel = document.getElementById('adminTourSelect');
+      const progId = sel.value;
+      const detailBox = document.getElementById('adminTourDetailBox');
+
+      if (!progId) {
+        detailBox.classList.add('hidden');
+        return;
+      }
+
+      try {
+        const res = await callApi({ action: 'getTourDetails', pin: REQUIRED_PIN, programId: progId });
+        if (!res.success) throw new Error(res.message);
+
+        const tour = res.tour;
+        detailBox.classList.remove('hidden');
+
+        document.getElementById('tourNameEdit').value = tour.name || '';
+        document.getElementById('tourDateEdit').value = tour.date || '';
+        document.getElementById('tourCoordinatorEdit').value = tour.coordinator || '';
+        document.getElementById('tourLogisticsEdit').value = tour.logistics || '';
+
+        // Folder Drive link
+        const driveNameEl = document.getElementById('tourDriveFolderName');
+        const driveLinkBtn = document.getElementById('tourDriveFolderLinkBtn');
+        const copyBtn = document.getElementById('tourCopyDriveBtn');
+
+        if (tour.driveFolderLink) {
+          driveNameEl.textContent = tour.name ? `Thư mục: [${tour.date || ''}]_${tour.name}` : 'Thư mục Drive';
+          driveLinkBtn.href = tour.driveFolderLink;
+          driveLinkBtn.classList.remove('hidden');
+          copyBtn.classList.remove('hidden');
+          copyBtn.setAttribute('data-link', tour.driveFolderLink);
+        } else {
+          driveNameEl.textContent = 'Đang tự động khởi tạo thư mục Drive...';
+          driveLinkBtn.classList.add('hidden');
+          copyBtn.classList.add('hidden');
+        }
+
+        // Render các lớp đã có
+        renderTourLoadedClasses(res.classes || []);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderTourLoadedClasses(classes) {
+      const box = document.getElementById('tourLoadedClassesBox');
+      const container = document.getElementById('tourClassesTagsList');
+      if (!classes || classes.length === 0) {
+        box.classList.add('hidden');
+        return;
+      }
+      box.classList.remove('hidden');
+      container.innerHTML = '';
+      classes.forEach(c => {
+        const span = document.createElement('span');
+        span.className = 'text-[11px] bg-blue-100 text-blue-900 font-bold px-2.5 py-1 rounded-lg border border-blue-200';
+        span.textContent = `${c.className} (${c.count} HS)`;
+        container.appendChild(span);
+      });
+    }
+
+    async function saveTourAdminInfo() {
+      const progId = document.getElementById('adminTourSelect').value;
+      if (!progId) return showToast('Vui lòng chọn tour!', 'error');
+
+      const name = document.getElementById('tourNameEdit').value.trim();
+      const date = document.getElementById('tourDateEdit').value;
+      const coordinator = document.getElementById('tourCoordinatorEdit').value.trim();
+      const logistics = document.getElementById('tourLogisticsEdit').value.trim();
+
+      if (!name) return showToast('Tên tour không được để trống!', 'error');
+
+      try {
+        const res = await callApi({
+          action: 'updateTourDetails',
+          pin: REQUIRED_PIN,
+          programId: progId,
+          name: name,
+          date: date,
+          coordinator: coordinator,
+          logistics: logistics
+        });
+        if (!res.success) throw new Error(res.message);
+        showToast(res.message, 'success');
+        onAdminTourChange();
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function copyDriveFolderLink() {
+      const btn = document.getElementById('tourCopyDriveBtn');
+      const link = btn.getAttribute('data-link');
+      if (link) {
+        navigator.clipboard.writeText(link).then(() => {
+          showToast('Đã sao chép link Google Drive vào bộ nhớ tạm!', 'success');
+        }).catch(() => {
+          prompt('Copy link Drive bên dưới:', link);
+        });
+      }
+    }
+
+    // --- XỬ LÝ FILE EXCEL DANH SÁCH LỚP ---
+    function handleExcelFilesSelected(input) {
+      if (!input.files || input.files.length === 0) return;
+      selectedExcelFiles = Array.from(input.files);
+      renderSelectedExcelFilesSummary();
+    }
+
+    function renderSelectedExcelFilesSummary() {
+      const summaryBox = document.getElementById('excelFilesSummaryBox');
+      const badge = document.getElementById('excelFileCountBadge');
+      const chips = document.getElementById('excelFileChipsContainer');
+      const btn = document.getElementById('btnUploadExcelFiles');
+
+      if (selectedExcelFiles.length === 0) {
+        summaryBox.classList.add('hidden');
+        btn.disabled = true;
+        return;
+      }
+
+      summaryBox.classList.remove('hidden');
+      btn.disabled = false;
+      badge.textContent = `Hệ thống xác nhận: Đã gắn ${selectedExcelFiles.length} file Excel`;
+      chips.innerHTML = '';
+
+      selectedExcelFiles.forEach((file, idx) => {
+        const div = document.createElement('div');
+        div.className = 'bg-white px-2 py-1 rounded border border-blue-200 text-xs font-medium text-slate-700 flex items-center gap-1.5 shadow-sm';
+        div.innerHTML = `
+          <span>📄 ${escapeHtml(file.name)}</span>
+          <button type="button" onclick="window.removeSelectedExcelFile(${idx})" class="text-rose-600 font-bold hover:text-rose-800">&times;</button>
+        `;
+        chips.appendChild(div);
+      });
+    }
+
+    function removeSelectedExcelFile(idx) {
+      selectedExcelFiles.splice(idx, 1);
+      renderSelectedExcelFilesSummary();
+    }
+
+    function clearSelectedExcelFiles() {
+      selectedExcelFiles = [];
+      document.getElementById('excelFilesInput').value = '';
+      renderSelectedExcelFilesSummary();
+    }
+
+    // ĐỌC VÀ NẠP DANH SÁCH HỌC SINH THEO CÁC NGUYÊN TẮC CỤ THỂ
+    async function processAndUploadExcelFiles() {
+      const progId = document.getElementById('adminTourSelect').value;
+      if (!progId) return showToast('Vui lòng chọn tour cần nạp danh sách!', 'error');
+      if (selectedExcelFiles.length === 0) return showToast('Vui lòng chọn ít nhất 1 file Excel!', 'error');
+
+      const btn = document.getElementById('btnUploadExcelFiles');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Đang phân tích danh sách lớp...';
+
+      try {
+        const parsedClasses = await parseExcelFilesWithRules(selectedExcelFiles);
+        if (parsedClasses.length === 0) {
+          throw new Error('Không trích xuất được danh sách học sinh nào từ file đã chọn!');
+        }
+
+        // Chuyển đổi file gốc sang base64 để lưu lên Google Drive của tour
+        const excelFilesBase64 = [];
+        for (const f of selectedExcelFiles) {
+          const b64 = await fileToBase64(f);
+          excelFilesBase64.push({ name: f.name, base64: b64 });
+        }
+
+        btn.innerHTML = '📤 Đang lưu lên Google Sheets & Drive...';
+
+        const res = await callApi({
+          action: 'saveTourClassLists',
+          pin: REQUIRED_PIN,
+          programId: progId,
+          classes: parsedClasses,
+          excelFiles: excelFilesBase64
+        });
+
+        if (!res.success) throw new Error(res.message);
+
+        showToast(res.message, 'success');
+        clearSelectedExcelFiles();
+        onAdminTourChange();
+      } catch (err) {
+        showToast('Lỗi xử lý Excel: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // THUẬT TOÁN ĐỌC FILE EXCEL THEO ĐÚNG CÁC NGUYÊN TẮC:
+    // 1. Nếu file chỉ có 1 đến 3 sheet mà các sheet vẫn có chữ Sheet: Tên lớp chính là tên file.
+    // 2. Nếu chỉ gửi 1 file: Tên lớp chính là tên sheet.
+    // 3. Xác định cột tên: Cột A là STT. Kiểm tra tại hàng số 12: Cột B nếu không có số là cột tên; nếu có số thì kiểm tra cột C xem có số không, nếu không có số là cột tên.
+    // 4. Hàng bắt đầu: Tại cột A tìm ô có số 1.
+    // 5. Kết thúc: 2 hàng liên tiếp không có dữ liệu.
+    async function parseExcelFilesWithRules(files) {
+      const isMultipleFiles = files.length > 1;
+      const parsedClasses = [];
+
+      for (let fIdx = 0; fIdx < files.length; fIdx++) {
+        const file = files[fIdx];
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const sheetNames = workbook.SheetNames || [];
+        const baseFileName = file.name.replace(/\.[^/.]+$/, '').trim();
+
+        const hasGenericSheetNames = sheetNames.length >= 1 && sheetNames.length <= 3 &&
+          sheetNames.every(s => /sheet/i.test(s));
+
+        if (isMultipleFiles && hasGenericSheetNames) {
+          // Nhiều file, mỗi file tương ứng 1 lớp/xe, tên lớp là tên file
+          const firstSheet = workbook.Sheets[sheetNames[0]];
+          const students = extractStudentsFromSingleSheet(firstSheet);
+          if (students.length > 0) {
+            parsedClasses.push({
+              className: formatVehicleOrClassName(baseFileName),
+              fileName: file.name,
+              students: students
+            });
+          }
+        } else if (!isMultipleFiles) {
+          // Chỉ gửi 1 file: danh sách tổng hợp chung, xác định tên lớp bằng tên sheet
+          sheetNames.forEach(sName => {
+            const sheet = workbook.Sheets[sName];
+            const students = extractStudentsFromSingleSheet(sheet);
+            if (students.length > 0) {
+              parsedClasses.push({
+                className: formatVehicleOrClassName(sName.trim()),
+                fileName: file.name,
+                students: students
+              });
+            }
+          });
+        } else {
+          // Nhiều file và có tên sheet cụ thể
+          sheetNames.forEach(sName => {
+            const sheet = workbook.Sheets[sName];
+            const students = extractStudentsFromSingleSheet(sheet);
+            if (students.length > 0) {
+              const clsName = /sheet/i.test(sName) ? baseFileName : sName.trim();
+              parsedClasses.push({
+                className: formatVehicleOrClassName(clsName),
+                fileName: file.name,
+                students: students
+              });
+            }
+          });
+        }
+      }
+
+      return parsedClasses;
+    }
+
+    function extractStudentsFromSingleSheet(sheet) {
+      if (!sheet) return [];
+      const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!data || data.length === 0) return [];
+
+      function hasNumber(val) {
+        if (val === null || val === undefined || val === '') return false;
+        return /\d/.test(String(val)) || !isNaN(Number(val));
+      }
+
+      // Kiểm tra tại hàng số 12 (0-indexed là dòng 11)
+      let checkRowIdx = 11;
+      if (data.length <= 11) {
+        checkRowIdx = Math.max(0, data.length - 1);
+      }
+      const sampleRow = data[checkRowIdx] || [];
+      const valB = sampleRow[1] !== undefined ? String(sampleRow[1]).trim() : '';
+      const valC = sampleRow[2] !== undefined ? String(sampleRow[2]).trim() : '';
+
+      let nameColIdx = 1; // Mặc định Cột B
+      if (hasNumber(valB)) {
+        if (!hasNumber(valC)) {
+          nameColIdx = 2; // Cột C
+        } else {
+          nameColIdx = 2;
+        }
+      } else {
+        nameColIdx = 1; // Cột B
+      }
+
+      // Hàng bắt đầu: Tại cột A tìm ô có số 1
+      let startRowIdx = -1;
+      for (let r = 0; r < data.length; r++) {
+        const colAVal = data[r] && data[r][0] !== undefined ? String(data[r][0]).trim() : '';
+        if (colAVal === '1' || colAVal === '01' || parseInt(colAVal, 10) === 1) {
+          startRowIdx = r;
+          break;
+        }
+      }
+
+      if (startRowIdx === -1) {
+        startRowIdx = Math.min(checkRowIdx, data.length - 1);
+      }
+
+      // Lấy danh sách tên cho đến khi có 2 hàng liên tiếp không có dữ liệu
+      const students = [];
+      let consecutiveEmpty = 0;
+
+      for (let r = startRowIdx; r < data.length; r++) {
+        const row = data[r] || [];
+        const colA = row[0] !== undefined ? String(row[0]).trim() : '';
+        const colName = row[nameColIdx] !== undefined ? String(row[nameColIdx]).trim() : '';
+
+        const isEmpty = (!colA && !colName);
+        if (isEmpty) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 2) break; // Kết thúc danh sách
+        } else {
+          consecutiveEmpty = 0;
+          if (colName && !/tổng|tong|giao vien|hướng dẫn/i.test(colName)) {
+            const sttVal = colA ? (parseInt(colA, 10) || (students.length + 1)) : (students.length + 1);
+            students.push({
+              stt: sttVal,
+              name: colName
+            });
+          }
+        }
+      }
+
+      return students;
+    }
+
+    // --- CẤU HÌNH GEMINI API KEY ---
+    async function checkGeminiKeyStatus() {
+      const badge = document.getElementById('geminiKeyStatusBadge');
+      const input = document.getElementById('geminiApiKeyInput');
+      const savedLocal = localStorage.getItem(LS_GEMINI_KEY);
+      if (savedLocal && input) input.value = savedLocal;
+
+      try {
+        const res = await callApi({ action: 'getGeminiApiKeyStatus' });
+        if (res.success && res.hasKey) {
+          badge.textContent = '✅ Đã cấu hình trên máy chủ';
+          badge.className = 'text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full';
+        } else if (savedLocal) {
+          badge.textContent = '⚡ Đã lưu trên trình duyệt';
+          badge.className = 'text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full';
+        } else {
+          badge.textContent = '⚠️ Chưa cấu hình Key';
+          badge.className = 'text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full';
+        }
+      } catch (e) {
+        if (badge) badge.textContent = 'Chưa kết nối';
+      }
+    }
+
+    async function saveGeminiApiKeyAction() {
+      const key = document.getElementById('geminiApiKeyInput').value.trim();
+      if (!key) return showToast('Vui lòng nhập API Key!', 'error');
+
+      localStorage.setItem(LS_GEMINI_KEY, key);
+
+      try {
+        const res = await callApi({ action: 'saveGeminiApiKey', pin: REQUIRED_PIN, key: key });
+        if (!res.success) throw new Error(res.message);
+        showToast('Đã lưu Gemini API Key lên máy chủ thành công!', 'success');
+        checkGeminiKeyStatus();
+      } catch (err) {
+        showToast('Đã lưu cục bộ (Lỗi server: ' + err.message + ')', 'info');
+      }
+    }
+
+    // --- THÔNG BÁO ADMIN & TẠO TOUR ---
     function populateAdminNoticeSelect() {
       const sel = document.getElementById('adminNoticeProgSelect');
       if (!sel) return;
@@ -1380,7 +2706,7 @@
               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${escapeHtml(p.status)}</span>
               <span class="font-bold text-slate-800">${escapeHtml(p.name)}</span>
             </div>
-            <p class="text-[10px] text-slate-500 mt-0.5">Ngày: <b>${escapeHtml(p.date || 'Chưa chọn')}</b></p>
+            <p class="text-[10px] text-slate-500 mt-0.5">Ngày: <b>${escapeHtml(p.date || 'Chưa chọn')}</b> | Điều hành: <b>${escapeHtml(p.coordinator || '-')}</b></p>
           </div>
           <div class="flex items-center gap-1.5 shrink-0">${actionBtns}</div>
         `;
@@ -1415,6 +2741,39 @@
       }
     }
 
+    // ==============================================================
+    // TIỆN ÍCH HIỂN THỊ & TOAST
+    // ==============================================================
+    function getStatusBadgeHtml(statusText) {
+      const s = String(statusText || '');
+      let colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      if (s.includes('bảo tàng') || s.includes('di tích')) colorClass = 'bg-amber-100 text-amber-800 border-amber-300';
+      else if (s.includes('nhận phòng')) colorClass = 'bg-blue-100 text-blue-800 border-blue-300';
+      else if (s.includes('trả phòng')) colorClass = 'bg-purple-100 text-purple-800 border-purple-300';
+      else if (s.includes('về trường')) colorClass = 'bg-orange-100 text-orange-800 border-orange-300';
+      else if (s.includes('tới trường')) colorClass = 'bg-red-100 text-red-800 border-red-300';
+
+      return `<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorClass}">${escapeHtml(s)}</span>`;
+    }
+
+    function formatCallLink(phone) {
+      const clean = String(phone || '').trim();
+      if (!clean) return '<span class="text-slate-300">-</span>';
+      return `<a href="tel:${escapeHtml(clean)}" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold underline">📞 ${escapeHtml(clean)}</a>`;
+    }
+
+    function formatTimeDisplay(rawTime) {
+      if (!rawTime) return '-';
+      try {
+        const d = new Date(rawTime);
+        if (!isNaN(d.getTime())) {
+          const pad = n => String(n).padStart(2, '0');
+          return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+        }
+      } catch (e) {}
+      return String(rawTime);
+    }
+
     function showToast(msg, type = 'info') {
       const box = document.getElementById('toastBox');
       const content = document.getElementById('toastContent');
@@ -1440,10 +2799,11 @@
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // GẮN CÁC HÀM VÀO WINDOW
+    // --- GẮN HÀM VÀO WINDOW ---
     window.switchTab = switchTab;
     window.hideToast = hideToast;
     window.saveQuickStatus = saveQuickStatus;
+    window.onStatusSelectChanged = onStatusSelectChanged;
     window.addClassRow = addClassRow;
     window.removeClassRow = removeClassRow;
     window.submitFullVehicleForm = submitFullVehicleForm;
@@ -1463,8 +2823,28 @@
     window.confirmPinModal = confirmPinModal;
     window.syncNoticeTextarea = syncNoticeTextarea;
     window.handleSendNotice = handleSendNotice;
+    window.handleVipCheck = handleVipCheck;
+    window.triggerCamera = triggerCamera;
+    window.triggerFileInput = triggerFileInput;
+    window.handleImageSelected = handleImageSelected;
+    window.removeTrayPhoto = removeTrayPhoto;
+    window.confirmAndSendPhotos = confirmAndSendPhotos;
+    window.viewCurrentVehicleAttendanceModal = viewCurrentVehicleAttendanceModal;
+    window.fetchAndOpenAttendanceModal = fetchAndOpenAttendanceModal;
+    window.closeClassAttendanceModal = closeClassAttendanceModal;
+    window.openFullscreenImage = openFullscreenImage;
+    window.closeFullscreenImage = closeFullscreenImage;
+    window.promptRenameVehicle = promptRenameVehicle;
+    window.onAdminTourChange = onAdminTourChange;
+    window.saveTourAdminInfo = saveTourAdminInfo;
+    window.copyDriveFolderLink = copyDriveFolderLink;
+    window.handleExcelFilesSelected = handleExcelFilesSelected;
+    window.removeSelectedExcelFile = removeSelectedExcelFile;
+    window.clearSelectedExcelFiles = clearSelectedExcelFiles;
+    window.processAndUploadExcelFiles = processAndUploadExcelFiles;
+    window.saveGeminiApiKeyAction = saveGeminiApiKeyAction;
 
-    // KHỞI CHẠY LẦN ĐẦU
+    // --- KHỞI CHẠY LẦN ĐẦU ---
     window.addEventListener('DOMContentLoaded', () => {
       const hdvEl = document.getElementById('hdvNameInput');
       const hdvPhoneEl = document.getElementById('hdvPhoneInput');
@@ -1478,7 +2858,7 @@
       loadActivePrograms();
     });
 
-    // MỞ SÁNG MÀN HÌNH -> CHỈ QUÉT THÔNG BÁO VÀ RUNG, KHÔNG RESET FORM
+    // Màn hình quay lại -> quét thông báo
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         if (getApiUrl()) {
@@ -1487,7 +2867,6 @@
       }
     });
 
-    // CHẠY NGẦM ĐỊNH KỲ 30 GIÂY -> CHỈ QUÉT THÔNG BÁO VÀ RUNG, KHÔNG RESET FORM
     setInterval(() => {
       if (document.visibilityState === "visible" && getApiUrl()) {
         loadActivePrograms(true);
