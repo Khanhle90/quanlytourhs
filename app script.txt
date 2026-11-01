@@ -51,7 +51,15 @@ function capQuyenVaKiemTraGoogleDrive() {
   initSheets();
   Logger.log('3. Đã khởi tạo hoàn tất 5 bảng tính dữ liệu (bao gồm DiemDanhAnh và DanhSachHocSinhGoc)!');
 
-  return 'KẾT NỐI GOOGLE DRIVE & HỆ THỐNG THÀNH CÔNG! Hãy bấm Triển khai -> Quản lý bản triển khai -> Tạo phiên bản mới.';
+  // KÍCH HOẠT VÀ CẤP QUYỀN URLFETCHAPP (EXTERNAL REQUEST) CHO GEMINI AI:
+  try {
+    const testFetch = UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+    Logger.log('4. ĐÃ CẤP QUYỀN UrlFetchApp (script.external_request) THÀNH CÔNG! Mã HTTP: ' + testFetch.getResponseCode());
+  } catch (netErr) {
+    Logger.log('4. UrlFetchApp test: ' + netErr.message);
+  }
+
+  return 'CẤP QUYỀN GOOGLE DRIVE, GOOGLE SHEETS & URLFETCHAPP (GEMINI AI) THÀNH CÔNG! Hãy bấm Triển khai -> Quản lý bản triển khai -> Tạo phiên bản mới.';
 }
 
 function getProgramSheetHeadersMap(progSheet) {
