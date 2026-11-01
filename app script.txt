@@ -497,6 +497,24 @@ function saveVehicleData(ss, params) {
     dataSheet.appendRow(rowValues);
   }
 
+  // Tự động lưu thông tin điểm danh kèm theo nếu có
+  if (d.attendance && d.attendance.students && d.attendance.students.length > 0) {
+    try {
+      saveAttendanceRecordInSheet(
+        ss,
+        progId,
+        vehicleName,
+        d.attendance.fileIds || [],
+        d.attendance.imageUrls || [],
+        d.attendance.presentCount || 0,
+        d.attendance.absentCount || 0,
+        d.attendance.students
+      );
+    } catch (e) {
+      console.warn('Lỗi lưu điểm danh kèm xe:', e);
+    }
+  }
+
   return { success: true, message: 'Đã lưu & đồng bộ vị trí GPS cho ' + vehicleName, updatedAt: nowStr };
 }
 

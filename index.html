@@ -990,8 +990,51 @@
     }
 
     // ==============================================================
-    // GPS AUTO TRACKING 15S CHO HDV
+    // GPS AUTO TRACKING (YÊU CẦU CẤP QUYỀN 1 LẦN DUY NHẤT BẰNG WATCHPOSITION)
     // ==============================================================
+    let globalGpsWatchId = null;
+    let latestGpsCoords = null; // { lat, lng, time }
+    let isTrackingMoving = false;
+
+    function initGpsWatcherOnce() {
+      if (globalGpsWatchId !== null) return;
+      if (!("geolocation" in navigator)) {
+        const textEl = document.getElementById('gpsStatusText');
+        if (textEl) textEl.textContent = 'Thiết bị không hỗ trợ GPS';
+        return;
+      }
+
+      globalGpsWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+          latestGpsCoords = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            time: new Date()
+          };
+          const textEl = document.getElementById('gpsStatusText');
+          const timeEl = document.getElementById('gpsLastTime');
+          const dot = document.getElementById('gpsDot');
+          const nowStr = latestGpsCoords.time.toLocaleTimeString('vi-VN');
+
+          if (isTrackingMoving) {
+            if (dot) dot.className = 'pulse-dot';
+            if (textEl) textEl.textContent = `GPS OK (${latestGpsCoords.lat.toFixed(4)}, ${latestGpsCoords.lng.toFixed(4)})`;
+            if (timeEl) timeEl.textContent = `Lúc: ${nowStr}`;
+          } else {
+            if (dot) dot.className = 'inline-block w-2 h-2 rounded-full bg-slate-400';
+            if (textEl) textEl.textContent = `Đã dừng phát (Sẵn sàng: ${latestGpsCoords.lat.toFixed(4)}, ${latestGpsCoords.lng.toFixed(4)})`;
+            if (timeEl) timeEl.textContent = `Lúc: ${nowStr}`;
+          }
+        },
+        (err) => {
+          console.warn('Lỗi GPS watch:', err.message);
+          const textEl = document.getElementById('gpsStatusText');
+          if (textEl) textEl.textContent = 'Chưa bật quyền vị trí GPS';
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+      );
+    }
+
     function onStatusSelectChanged() {
       const status = document.getElementById('hdvStatusSelect').value;
       checkAndToggleHdvGpsTracking(status);
@@ -1003,17 +1046,24 @@
     }
 
     function checkAndToggleHdvGpsTracking(status) {
+      initGpsWatcherOnce(); // Luôn đảm bảo watcher đã bật (chỉ hỏi quyền 1 lần duy nhất)
+
       const shouldTrack = isMovingStatus(status);
+      isTrackingMoving = shouldTrack;
       const dot = document.getElementById('gpsDot');
       const text = document.getElementById('gpsStatusText');
 
       if (shouldTrack) {
         if (!hdvGpsIntervalTimer) {
-          sendHdvGpsLocation(); // Gửi ngay 1 lần
-          hdvGpsIntervalTimer = setInterval(sendHdvGpsLocation, 15000);
+          sendHdvGpsPing(); // Gửi ngay 1 lần nếu có tọa độ
+          hdvGpsIntervalTimer = setInterval(sendHdvGpsPing, 15000);
         }
         if (dot) dot.className = 'pulse-dot';
-        if (text) text.textContent = 'Đang phát định vị GPS 15s/lần...';
+        if (text && latestGpsCoords) {
+          text.textContent = `Đang phát GPS (${latestGpsCoords.lat.toFixed(4)}, ${latestGpsCoords.lng.toFixed(4)})`;
+        } else if (text) {
+          text.textContent = 'Đang phát định vị GPS 15s/lần...';
+        }
       } else {
         if (hdvGpsIntervalTimer) {
           clearInterval(hdvGpsIntervalTimer);
@@ -1024,52 +1074,24 @@
       }
     }
 
-    function sendHdvGpsLocation() {
+    function sendHdvGpsPing() {
       const progId = document.getElementById('hdvProgramSelect')?.value;
       const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value);
       const status = document.getElementById('hdvStatusSelect')?.value;
       const hdvName = document.getElementById('hdvNameInput')?.value.trim();
 
-      if (!progId || !vehicleName) return;
+      if (!progId || !vehicleName || !latestGpsCoords) return;
 
-      if (!("geolocation" in navigator)) {
-        document.getElementById('gpsStatusText').textContent = 'Thiết bị không hỗ trợ GPS';
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const nowStr = new Date().toLocaleTimeString('vi-VN');
-
-          try {
-            await callApi({
-              action: 'updateGpsAuto15s',
-              programId: progId,
-              vehicleName: vehicleName,
-              status: status,
-              hdvName: hdvName,
-              lat: lat,
-              lng: lng,
-              gpsTime: new Date().toISOString()
-            });
-
-            const textEl = document.getElementById('gpsStatusText');
-            const timeEl = document.getElementById('gpsLastTime');
-            if (textEl) textEl.textContent = `GPS OK (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
-            if (timeEl) timeEl.textContent = `Lúc: ${nowStr}`;
-          } catch (e) {
-            console.warn('Ping GPS thất bại:', e);
-          }
-        },
-        (err) => {
-          console.warn('Lỗi lấy GPS:', err.message);
-          const textEl = document.getElementById('gpsStatusText');
-          if (textEl) textEl.textContent = 'Chưa bật quyền vị trí GPS';
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-      );
+      callApi({
+        action: 'updateGpsAuto15s',
+        programId: progId,
+        vehicleName: vehicleName,
+        status: status,
+        hdvName: hdvName,
+        lat: latestGpsCoords.lat,
+        lng: latestGpsCoords.lng,
+        gpsTime: new Date().toISOString()
+      }).catch(e => console.warn('Ping GPS server error:', e));
     }
 
     // ==============================================================
@@ -1135,8 +1157,8 @@
       }
     }
 
-    // Nén ảnh để tải lên Google Apps Script siêu nhanh
-    function resizeAndCompressImage(file, maxDim = 1600, quality = 0.85) {
+    // Nén ảnh để tải lên Google Apps Script siêu nhanh và nhẹ (1200px, 0.75)
+    function resizeAndCompressImage(file, maxDim = 1200, quality = 0.75) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -1168,7 +1190,247 @@
       });
     }
 
-    // XÁC NHẬN VÀ GỬI ẢNH ĐIỂM DANH
+    function getGeminiApiKey() {
+      return localStorage.getItem(LS_GEMINI_KEY) || '';
+    }
+
+    // GỌI TRỰC TIẾP GEMINI API TỪ TRÌNH DUYỆT (FALLBACK VƯỢT MỌI LỖI MÁY CHỦ/DEPLOY)
+    async function callGeminiOcrDirect(imagesBase64, apiKey) {
+      if (!apiKey) {
+        apiKey = getGeminiApiKey();
+      }
+      if (!apiKey) {
+        const inputKey = prompt('Vui lòng nhập Gemini API Key của bạn để sử dụng tính năng phân tích ảnh điểm danh:\n(Khóa bắt đầu bằng AIzaSy...)');
+        if (inputKey && inputKey.trim()) {
+          apiKey = inputKey.trim();
+          localStorage.setItem(LS_GEMINI_KEY, apiKey);
+        } else {
+          throw new Error('Chưa có Gemini API Key để phân tích ảnh.');
+        }
+      }
+
+      const parts = [
+        {
+          text: "Bạn là chuyên gia phân tích danh sách học sinh từ ảnh chụp bảng điểm danh lớp học đi dã ngoại.\n" +
+                "Nhiệm vụ của bạn: Đọc toàn bộ danh sách học sinh trong tất cả các ảnh và xác định học sinh nào CÓ MẶT, học sinh nào VẮNG MẶT.\n\n" +
+                "QUY TẮC NHẬN DIỆN CỰC KỲ QUAN TRỌNG:\n" +
+                "1. Hướng dẫn viên điểm danh bằng cách đánh dấu cùng hàng với tên học sinh: có thể là dấu tích 'v', đánh 'x', gạch ngang '-', dấu chấm '.', khoanh tròn hoặc dấu bất kỳ ở trước hoặc sau tên.\n" +
+                "2. Bất kỳ học sinh nào có đánh dấu cùng hàng tên -> ĐANG CÓ MẶT (present: true).\n" +
+                "3. Học sinh nào KHÔNG CÓ ĐÁNH DẤU gì cùng hàng tên -> MẶC ĐỊNH LÀ VẮNG MẶT (present: false).\n" +
+                "4. Đọc chuẩn xác họ và tên tiếng Việt (họ tên đầy đủ có dấu nếu đọc được), và số thứ tự (stt).\n" +
+                "5. Nếu có nhiều ảnh, hãy ghép toàn bộ học sinh của các ảnh thành MỘT danh sách duy nhất không trùng lặp theo đúng thứ tự.\n\n" +
+                "Hãy trả về kết quả ĐÚNG ĐỊNH DẠNG JSON sau (chỉ trả về JSON thuần, không bọc markdown ```json hay giải thích nào khác):\n" +
+                "[\n" +
+                "  {\"stt\": 1, \"name\": \"Nguyễn Văn An\", \"present\": true},\n" +
+                "  {\"stt\": 2, \"name\": \"Trần Thị Bình\", \"present\": false}\n" +
+                "]"
+        }
+      ];
+
+      imagesBase64.forEach(img => {
+        let mime = 'image/jpeg';
+        let data = img;
+        const match = img.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          mime = match[1];
+          data = match[2];
+        }
+        parts.push({
+          inlineData: { mimeType: mime, data: data }
+        });
+      });
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: parts }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json"
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Lỗi từ Gemini API (${res.status}): ${errText}`);
+      }
+
+      const resJson = await res.json();
+      const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) throw new Error('Gemini không phản hồi dữ liệu.');
+
+      let clean = rawText.trim();
+      if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+
+      return JSON.parse(clean);
+    }
+
+    // ĐỐI CHIẾU DANH SÁCH TẠI TRÌNH DUYỆT (HỌC SINH KHÔNG DẤU & TRÙNG TÊN)
+    function matchAttendanceClientSide(officialStudents, ocrStudents) {
+      function cleanStr(s) {
+        return removeVietnameseTones(s).toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+      }
+
+      if (!officialStudents || officialStudents.length === 0) {
+        let pCount = 0, aCount = 0;
+        const directList = (ocrStudents || []).map((o, idx) => {
+          const isPres = Boolean(o.present);
+          if (isPres) pCount++; else aCount++;
+          return {
+            stt: o.stt !== undefined ? Number(o.stt) : (idx + 1),
+            name: o.name || ('Học sinh ' + (idx + 1)),
+            cleanName: cleanStr(o.name || ''),
+            present: isPres
+          };
+        });
+        return {
+          students: directList,
+          totalStudents: directList.length,
+          presentCount: pCount,
+          absentCount: aCount
+        };
+      }
+
+      const ocrList = (ocrStudents || []).map((o, idx) => ({
+        rawName: o.name || '',
+        cleanName: cleanStr(o.name || ''),
+        present: Boolean(o.present),
+        stt: o.stt !== undefined ? Number(o.stt) : (idx + 1),
+        used: false
+      }));
+
+      const officialNameCount = {};
+      officialStudents.forEach(s => {
+        const c = cleanStr(s.name);
+        officialNameCount[c] = (officialNameCount[c] || 0) + 1;
+      });
+
+      const result = [];
+      let presentCount = 0, absentCount = 0;
+
+      officialStudents.forEach(stu => {
+        const cName = cleanStr(stu.name);
+        const stuStt = Number(stu.stt);
+        const isDuplicate = (officialNameCount[cName] > 1);
+
+        let matchedOcr = null;
+
+        // Nếu trùng tên, ưu tiên khớp theo STT gần nhất
+        if (isDuplicate) {
+          matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName && Math.abs(o.stt - stuStt) <= 1);
+        }
+
+        // Khớp chính xác tên không dấu
+        if (!matchedOcr) {
+          matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName);
+        }
+
+        let isPresent = false;
+        let ocrFoundName = '';
+        if (matchedOcr) {
+          matchedOcr.used = true;
+          isPresent = Boolean(matchedOcr.present);
+          ocrFoundName = matchedOcr.rawName;
+        } else {
+          isPresent = false;
+        }
+
+        if (isPresent) presentCount++;
+        else absentCount++;
+
+        result.push({
+          stt: stu.stt,
+          name: stu.name,
+          cleanName: cName,
+          present: isPresent,
+          ocrName: ocrFoundName
+        });
+      });
+
+      return {
+        students: result,
+        totalStudents: result.length,
+        presentCount: presentCount,
+        absentCount: absentCount
+      };
+    }
+
+    // THỰC THI PHÂN TÍCH ĐIỂM DANH (HỖ TRỢ CẢ BACKEND & CLIENT-SIDE GEMINI TRỰC TIẾP)
+    async function executeAttendanceAnalysis(validPhotos, isAutoSave = false) {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+
+      let apiKey = getGeminiApiKey();
+
+      // 1. Thử gọi qua backend Apps Script trước
+      let serverRes = null;
+      try {
+        serverRes = await callApi({
+          action: 'uploadAndAnalyzeAttendanceImage',
+          programId: progId,
+          programName: progObj ? progObj.name : '',
+          tourDate: progObj ? progObj.date : '',
+          vehicleName: vehicleName,
+          images: validPhotos,
+          geminiApiKey: apiKey
+        });
+      } catch (err) {
+        serverRes = { success: false, message: err.message };
+      }
+
+      // 2. Nếu Backend đã cập nhật và thành công
+      if (serverRes && serverRes.success) {
+        existingVehicleAttendanceRecord = {
+          updatedAt: new Date().toLocaleString('vi-VN'),
+          programId: progId,
+          vehicleName: vehicleName,
+          fileIds: serverRes.fileIds || [],
+          imageUrls: serverRes.imageUrls || [],
+          totalStudents: serverRes.totalStudents,
+          presentCount: serverRes.presentCount || 0,
+          absentCount: serverRes.absentCount || 0,
+          students: serverRes.students || []
+        };
+        return existingVehicleAttendanceRecord;
+      }
+
+      // 3. NẾU BACKEND BÁO LỖI (Ví dụ "Hành động không hợp lệ!" do chưa cập nhật script trên Google):
+      // TỰ ĐỘNG CHUYỂN SANG CHẾ ĐỘ PHÂN TÍCH TRỰC TIẾP TẠI TRÌNH DUYỆT (CLIENT-SIDE GEMINI AI FALLBACK)
+      console.warn('Backend chưa cập nhật bản triển khai mới, tự động chạy Gemini AI trực tiếp từ trình duyệt...');
+
+      const ocrStudents = await callGeminiOcrDirect(validPhotos, apiKey);
+
+      // Lấy danh sách lớp chính thức nếu có để đối chiếu
+      let officialStudents = [];
+      try {
+        const offRes = await callApi({ action: 'getClassStudentList', programId: progId, vehicleName: vehicleName });
+        if (offRes && offRes.success) officialStudents = offRes.students || [];
+      } catch (e) {}
+
+      const matched = matchAttendanceClientSide(officialStudents, ocrStudents);
+
+      existingVehicleAttendanceRecord = {
+        updatedAt: new Date().toLocaleString('vi-VN'),
+        programId: progId,
+        vehicleName: vehicleName,
+        fileIds: [],
+        imageUrls: validPhotos,
+        totalStudents: matched.totalStudents,
+        presentCount: matched.presentCount,
+        absentCount: matched.absentCount,
+        students: matched.students,
+        isLocalFallback: true
+      };
+
+      return existingVehicleAttendanceRecord;
+    }
+
+    // XÁC NHẬN VÀ GỬI ẢNH ĐIỂM DANH THỦ CÔNG
     async function confirmAndSendPhotos() {
       const progId = document.getElementById('hdvProgramSelect').value;
       const progObj = activeProgramsCache.find(p => p.id === progId);
@@ -1182,62 +1444,36 @@
         return showToast('Vui lòng chụp hoặc chọn ít nhất 1 ảnh danh sách!', 'error');
       }
 
-      // Kiểm tra xem đã từng gửi ảnh trước đây chưa
-      const hasOldPhotos = (existingVehicleAttendanceRecord && existingVehicleAttendanceRecord.fileIds && existingVehicleAttendanceRecord.fileIds.length > 0);
+      const hasOldPhotos = Boolean(existingVehicleAttendanceRecord && (existingVehicleAttendanceRecord.fileIds?.length > 0 || existingVehicleAttendanceRecord.imageUrls?.length > 0));
 
       let confirmMsg = '';
       if (hasOldPhotos) {
-        const oldCnt = existingVehicleAttendanceRecord.fileIds.length;
+        const oldCnt = existingVehicleAttendanceRecord.fileIds?.length || existingVehicleAttendanceRecord.imageUrls?.length || 1;
         confirmMsg = `Ảnh chụp mới sẽ thay thế ảnh cũ.\nBạn có xác nhận thay thế ${oldCnt} ảnh chụp danh sách trước đây không?`;
       } else {
         confirmMsg = `Bạn có xác nhận gửi ${validPhotos.length} ảnh chụp danh sách học sinh để Gemini AI phân tích điểm danh không?`;
       }
 
       const ok = confirm(confirmMsg);
-      if (!ok) return; // Nếu ấn từ chối thì hủy việc gửi
+      if (!ok) return;
 
       const btn = document.getElementById('btnSendPhotos');
       const originalText = btn.innerHTML;
       btn.disabled = true;
-      btn.innerHTML = '🤖 Đang lưu Drive & Gemini AI đang phân tích...';
+      btn.innerHTML = '🤖 Đang phân tích danh sách bằng Gemini AI...';
 
       try {
-        const res = await callApi({
-          action: 'uploadAndAnalyzeAttendanceImage',
-          programId: progId,
-          programName: progObj ? progObj.name : '',
-          tourDate: progObj ? progObj.date : '',
-          vehicleName: vehicleName,
-          images: validPhotos,
-          geminiApiKey: localStorage.getItem(LS_GEMINI_KEY) || ''
-        });
+        const record = await executeAttendanceAnalysis(validPhotos, false);
 
-        if (!res.success) throw new Error(res.message);
-
-        // Xóa khay tạm sau khi gửi thành công
         setTrayPhoto(1, null);
         setTrayPhoto(2, null);
 
-        showToast(res.message || 'Đã phân tích điểm danh thành công!', 'success');
+        showToast(`✅ Điểm danh thành công: ${record.presentCount}/${record.totalStudents} học sinh có mặt!`, 'success');
+        renderSavedPhotosInHdvView(record);
 
-        // Cập nhật lại bản lưu ảnh trên giao diện HDV
-        fetchExistingVehicleInfo(progId, vehicleName);
-
-        // Mở cửa sổ kết quả điểm danh để HDV xem ngay
-        openAttendanceDetailModal({
-          vehicleName: vehicleName,
-          programName: progObj ? progObj.name : '',
-          updatedAt: new Date().toLocaleString('vi-VN'),
-          totalStudents: res.totalStudents,
-          presentCount: res.presentCount,
-          absentCount: res.absentCount,
-          students: res.students || [],
-          imageUrls: res.imageUrls || [],
-          fileIds: res.fileIds || []
-        });
-
+        openAttendanceDetailModal(record);
       } catch (err) {
-        showToast(err.message, 'error');
+        showToast('Lỗi phân tích: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
@@ -1704,6 +1940,34 @@
       btn.disabled = true;
       btn.innerHTML = '⏳ Đang lưu dữ liệu...';
 
+      // TỰ ĐỘNG TÍCH HỢP PHÂN TÍCH ẢNH ĐIỂM DANH KHI LƯU (NẾU CÓ ẢNH TRONG KHAY)
+      const validTrayPhotos = trayPhotos.filter(Boolean);
+      let attendanceToSave = existingVehicleAttendanceRecord;
+
+      if (validTrayPhotos.length > 0) {
+        btn.innerHTML = '🤖 Đang tự động phân tích ảnh danh sách học sinh (AI)...';
+        try {
+          const attRecord = await executeAttendanceAnalysis(validTrayPhotos, true);
+          if (attRecord) {
+            attendanceToSave = attRecord;
+            if (attRecord.totalStudents > 0) {
+              totals.totalStudents = attRecord.totalStudents;
+              // Nếu lớp thứ nhất có số lượng học sinh đang bằng 0 thì tự gán bằng tổng sĩ số vừa nhận diện
+              const firstClsStudents = document.querySelector('#classListContainer .cls-students');
+              if (firstClsStudents && (!firstClsStudents.value || parseInt(firstClsStudents.value, 10) === 0)) {
+                firstClsStudents.value = attRecord.totalStudents;
+                calculateRealtimeTotals();
+              }
+            }
+          }
+        } catch (attErr) {
+          console.warn('Lỗi phân tích ảnh khi lưu:', attErr);
+          showToast('Cảnh báo điểm danh ảnh: ' + attErr.message + ' (vẫn tiếp tục lưu xe)', 'info');
+        }
+      }
+
+      btn.innerHTML = '💾 Đang gửi toàn bộ dữ liệu lên máy chủ...';
+
       const payloadData = {
         programId: progId,
         programName: progObj ? progObj.name : '',
@@ -1726,7 +1990,8 @@
         classes: totals.classes,
         lat: '',
         lng: '',
-        gpsTime: ''
+        gpsTime: '',
+        attendance: attendanceToSave
       };
 
       try {
@@ -1734,7 +1999,20 @@
         if (!res.success) throw new Error(res.message);
         setLockedVehicleForTour(progId, vehicleName);
         document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
-        showToast(res.message, 'success');
+        
+        // Nếu vừa phân tích ảnh điểm danh, dọn sạch khay ảnh tạm và hiển thị bản lưu
+        if (validTrayPhotos.length > 0) {
+          setTrayPhoto(1, null);
+          setTrayPhoto(2, null);
+          renderSavedPhotosInHdvView(attendanceToSave);
+          showToast('Đã lưu toàn bộ báo cáo xe và điểm danh học sinh thành công!', 'success');
+          if (attendanceToSave && attendanceToSave.students && attendanceToSave.students.length > 0) {
+            openAttendanceDetailModal(attendanceToSave);
+          }
+        } else {
+          showToast(res.message, 'success');
+        }
+
         checkAndToggleHdvGpsTracking(payloadData.status);
       } catch (err) {
         showToast(err.message, 'error');
@@ -1814,6 +2092,9 @@
       } else if (tabName === 'summary') {
         loadAdminProgramsForSummary();
         initOrStartSummaryMapAutoRefresh();
+        setTimeout(() => {
+          if (leafletMapInstance) leafletMapInstance.invalidateSize(true);
+        }, 300);
       } else if (tabName === 'admin') {
         loadAdminPrograms();
         checkGeminiKeyStatus();
@@ -1967,7 +2248,7 @@
       }
     }
 
-    // Cập nhật Leaflet Map mượt mà
+    // Cập nhật Leaflet Map mượt mà với Google Maps Tiles
     function updateLeafletMapWithVehicles(vehicles) {
       const mapEl = document.getElementById('tourVehiclesMap');
       if (!mapEl) return;
@@ -1978,12 +2259,20 @@
           scrollWheelZoom: false
         }).setView([21.0285, 105.8542], 12);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap'
+        // Sử dụng Google Maps Tiles: Tải siêu tốc qua Google CDN, không bị lỗi xám, hiển thị rõ tên đường tiếng Việt
+        L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+          subdomains: ['0', '1', '2', '3'],
+          maxZoom: 20,
+          attribution: '&copy; Google Maps'
         }).addTo(leafletMapInstance);
 
         leafletMarkersLayer = L.layerGroup().addTo(leafletMapInstance);
       }
+
+      // Khắc phục triệt để lỗi màn hình xám khi map nằm trong tab ẩn
+      setTimeout(() => {
+        if (leafletMapInstance) leafletMapInstance.invalidateSize();
+      }, 150);
 
       leafletMarkersLayer.clearLayers();
 
@@ -1996,7 +2285,10 @@
       const countEl = document.getElementById('mapVehicleCountText');
       if (countEl) countEl.textContent = `${validGpsList.length} / ${vehicles.length} xe có GPS`;
 
-      if (validGpsList.length === 0) return;
+      if (validGpsList.length === 0) {
+        leafletMapInstance.setView([21.0285, 105.8542], 12);
+        return;
+      }
 
       const bounds = [];
       validGpsList.forEach(v => {
@@ -2005,13 +2297,13 @@
         bounds.push([lat, lng]);
 
         const isMoving = isMovingStatus(v.status);
-        const markerColor = isMoving ? '#10b981' : '#3b82f6';
+        const markerColor = isMoving ? '#10b981' : '#2563eb';
 
         const customIcon = L.divIcon({
           className: 'custom-bus-marker',
-          html: `<div style="background:${markerColor}; color:#fff; font-weight:bold; font-size:11px; padding:3px 8px; border-radius:14px; border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.3); white-space:nowrap; display:flex; align-items:center; gap:4px;">🚌 ${escapeHtml(v.vehicleName)}</div>`,
-          iconSize: [80, 26],
-          iconAnchor: [40, 13]
+          html: `<div style="background:${markerColor}; color:#fff; font-weight:bold; font-size:11px; padding:4px 9px; border-radius:14px; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.35); white-space:nowrap; display:flex; align-items:center; gap:4px;"><span>🚌</span> ${escapeHtml(v.vehicleName)}</div>`,
+          iconSize: [85, 28],
+          iconAnchor: [42, 14]
         });
 
         const popupContent = `
@@ -2029,8 +2321,10 @@
         leafletMarkersLayer.addLayer(marker);
       });
 
-      if (bounds.length > 0) {
-        leafletMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
+      if (bounds.length === 1) {
+        leafletMapInstance.setView(bounds[0], 15);
+      } else if (bounds.length > 1) {
+        leafletMapInstance.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
       }
     }
 
@@ -2856,6 +3150,12 @@
 
       renderClassRows([]);
       loadActivePrograms();
+      initGpsWatcherOnce(); // Khởi tạo GPS watcher ngay để xin quyền 1 lần duy nhất
+    });
+
+    // Tự động căn chỉnh bản đồ khi xoay màn hình hoặc đổi kích thước
+    window.addEventListener('resize', () => {
+      if (leafletMapInstance) leafletMapInstance.invalidateSize();
     });
 
     // Màn hình quay lại -> quét thông báo
