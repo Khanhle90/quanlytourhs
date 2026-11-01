@@ -441,18 +441,48 @@
         </div>
       </div>
 
+      <!-- Khung thông báo yêu cầu quyền xem dữ liệu Tour -->
+      <div id="summaryAccessLockBox" class="hidden bg-white p-6 rounded-2xl shadow border border-amber-200 text-center max-w-lg mx-auto my-6 space-y-4">
+        <div class="w-14 h-14 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-3xl mx-auto shadow-inner">
+          🔒
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Yêu cầu quyền truy cập Tour</h3>
+          <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
+            Dữ liệu điều hành tour này chỉ dành riêng cho <b>Điều hành tour</b> hoặc <b>Phụ trách hậu cần</b> có số điện thoại được phân công trong chương trình.
+          </p>
+          <div class="mt-2 text-[11px] text-blue-700 bg-blue-50 py-1.5 px-3 rounded-lg border border-blue-200 font-semibold inline-block">
+            Tài khoản hiện tại của bạn: <span id="summaryCurrentUserPhoneDisplay">-</span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-200 pt-3">
+          <p class="text-xs font-semibold text-slate-700 mb-2">Hoặc nhập mã PIN Quản trị (8888) để vào xem:</p>
+          <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
+            <input type="password" id="summaryDirectPinInput" maxlength="6" placeholder="Nhập PIN"
+              class="w-32 text-center text-sm font-bold tracking-widest px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+              onkeydown="if(event.key==='Enter') window.confirmSummaryDirectPin()" />
+            <button type="button" onclick="window.confirmSummaryDirectPin()"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow transition">
+              Xác nhận
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="summaryMainContentBox" class="space-y-3.5">
       <!-- Khung thông tin Điều hành Tour & Phụ trách Hậu cần (kèm nút gọi trực tiếp) -->
       <div id="summaryTourContactBanner" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-2.5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
           <div class="flex items-center gap-2">
             <span class="text-blue-900 font-bold">👔 Điều hành Tour:</span>
             <span id="sumCoordinatorName" class="font-bold text-slate-800">-</span>
-            <a id="sumCoordinatorCallBtn" href="#" class="hidden inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-0.5 rounded text-[11px] shadow transition">📞 Gọi Điều hành</a>
+            <a id="sumCoordinatorCallBtn" href="#" title="Gọi điện" class="hidden inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition">📞</a>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-indigo-900 font-bold">📦 Phụ trách Hậu cần:</span>
             <span id="sumLogisticsName" class="font-bold text-slate-800">-</span>
-            <a id="sumLogisticsCallBtn" href="#" class="hidden inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-0.5 rounded text-[11px] shadow transition">📞 Gọi Hậu cần</a>
+            <a id="sumLogisticsCallBtn" href="#" title="Gọi điện" class="hidden inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow transition">📞</a>
           </div>
         </div>
       </div>
@@ -498,6 +528,16 @@
           <span id="mapVehicleCountText" class="text-[11px] text-slate-500 font-semibold">0 xe có GPS</span>
         </div>
         <div id="tourVehiclesMap" class="w-full h-80 sm:h-96 z-10"></div>
+        <!-- Ghi chú màu sắc trạng thái xe dưới bản đồ: thật gọn, chữ nhỏ, cả điện thoại và máy tính đều hiển thị trong 1 hàng -->
+        <div class="px-2 py-1.5 bg-slate-50 border-t border-slate-200 text-[10px] sm:text-xs text-slate-700 flex items-center justify-between gap-1 overflow-x-auto whitespace-nowrap scrollbar-none">
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span><span class="font-semibold">X.Phát</span></span>
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span><span class="font-semibold">D.chuyển</span></span>
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span><span class="font-semibold">D.tích</span></span>
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-teal-500 inline-block"></span><span class="font-semibold">N.phòng</span></span>
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-purple-500 inline-block"></span><span class="font-semibold">T.phòng</span></span>
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-orange-500 inline-block"></span><span class="font-semibold">Về</span></span>
+          <span class="inline-flex items-center gap-1 shrink-0"><span class="w-2 h-2 rounded-full bg-rose-500 inline-block"></span><span class="font-semibold">Final</span></span>
+        </div>
       </div>
 
       <!-- BẢNG ĐIỀU HÀNH CHI TIẾT TỪNG XE TRONG ĐOÀN -->
@@ -520,15 +560,18 @@
                 <th class="py-2.5 px-3 text-center text-pink-400">Trẻ em</th>
                 <th class="py-2.5 px-3 text-center bg-slate-700">Tổng người</th>
                 <th class="py-2.5 px-3">HDV</th>
+                <th class="py-2.5 px-3">SĐT HDV</th>
                 <th class="py-2.5 px-3">GV/Trưởng xe</th>
+                <th class="py-2.5 px-3">SĐT GV</th>
                 <th class="py-2.5 px-3">Lái xe</th>
+                <th class="py-2.5 px-3">SĐT Lái xe</th>
                 <th class="py-2.5 px-3">Biển số</th>
                 <th class="py-2.5 px-3 text-center">Cập nhật lúc</th>
               </tr>
             </thead>
             <tbody id="summaryTableBody" class="divide-y divide-slate-200">
               <tr>
-                <td colspan="13" class="py-6 text-center text-slate-400">Chưa có dữ liệu xe báo cáo.</td>
+                <td colspan="16" class="py-6 text-center text-slate-400">Chưa có dữ liệu xe báo cáo.</td>
               </tr>
             </tbody>
           </table>
@@ -588,14 +631,21 @@
 
         <!-- Chi tiết thông tin tour được chọn -->
         <div id="adminTourDetailBox" class="hidden space-y-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div class="sm:col-span-1">
               <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tên trường / Chương trình *</label>
-              <input type="text" id="tourNameEdit" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+              <input type="text" id="tourNameEdit" placeholder="Ví dụ: THCS Ban Mai"
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
             </div>
             <div>
-              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Ngày thực hiện *</label>
-              <input type="date" id="tourDateEdit" class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Ngày thực hiện / xuất phát *</label>
+              <input type="date" id="tourDateEdit" onchange="window.syncTourEndDateDefault()"
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Ngày kết thúc tour *</label>
+              <input type="date" id="tourEndDateEdit" oninput="this.dataset.customized = 'true'"
+                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
             </div>
           </div>
 
@@ -2338,8 +2388,9 @@
     // TAB NAVIGATION & MÃ PIN QUẢN LÝ
     // ==============================================================
     function switchTab(tabName) {
-      if ((tabName === 'summary' || tabName === 'admin') && !unlockedPinSession) {
-        pendingTargetTab = tabName;
+      // Tab Quản trị bắt buộc nhập PIN 8888
+      if (tabName === 'admin' && !unlockedPinSession) {
+        pendingTargetTab = 'admin';
         const modal = document.getElementById('pinModal');
         const input = document.getElementById('pinInputBox');
         if (modal && input) {
@@ -2350,6 +2401,7 @@
         }
         return;
       }
+      // Tab Tổng Hợp: Mở trực tiếp, phân quyền kiểm tra SĐT Điều hành / Hậu cần theo từng tour
       activateTabView(tabName);
     }
 
@@ -2438,18 +2490,43 @@
           return;
         }
 
-        adminProgramsCache.forEach(p => {
+        // Lọc các chương trình đang chạy của ngày hôm nay theo yêu cầu
+        const runningToday = adminProgramsCache.filter(isProgramRunningToday);
+        const programsToShow = runningToday.length > 0 ? runningToday : adminProgramsCache;
+
+        if (runningToday.length === 0) {
+          const optEmpty = document.createElement('option');
+          optEmpty.value = '';
+          optEmpty.textContent = '-- Hôm nay không có tour đang diễn ra --';
+          sel.appendChild(optEmpty);
+        }
+
+        programsToShow.forEach(p => {
           const opt = document.createElement('option');
           opt.value = p.id;
-          opt.textContent = `[${p.status}] ${p.name} (${p.date || ''})`;
+          const dateLabel = (p.endDate && p.endDate !== p.date) ? `${p.date} -> ${p.endDate}` : (p.date || '');
+          opt.textContent = `[${p.status}] ${p.name} (${dateLabel})`;
           sel.appendChild(opt);
         });
 
+        if (runningToday.length > 0 && adminProgramsCache.length > runningToday.length) {
+          const optGroup = document.createElement('optgroup');
+          optGroup.label = '── CÁC TOUR KHÁC (CẦN MÃ PIN) ──';
+          adminProgramsCache.filter(p => !runningToday.includes(p)).forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = `[${p.status}] ${p.name} (${p.date || ''})`;
+            optGroup.appendChild(opt);
+          });
+          sel.appendChild(optGroup);
+        }
+
         if (currentVal && adminProgramsCache.some(p => p.id === currentVal)) {
           sel.value = currentVal;
-        } else {
-          const activeOne = adminProgramsCache.find(p => p.status === 'Đang diễn ra');
-          sel.value = activeOne ? activeOne.id : adminProgramsCache[0].id;
+        } else if (runningToday.length > 0) {
+          sel.value = runningToday[0].id;
+        } else if (programsToShow.length > 0) {
+          sel.value = programsToShow[0].id;
         }
 
         loadSummaryDashboard();
@@ -2470,7 +2547,34 @@
       const progSel = document.getElementById('summaryProgramSelect');
       if (!progSel) return;
       const progId = progSel.value;
-      if (!progId) return;
+      if (!progId) {
+        const lockEl = document.getElementById('summaryAccessLockBox');
+        const contentEl = document.getElementById('summaryMainContentBox');
+        if (lockEl) lockEl.classList.add('hidden');
+        if (contentEl) contentEl.classList.remove('hidden');
+        return;
+      }
+
+      // Kiểm tra phân quyền truy cập: SĐT Điều hành / Hậu cần hoặc PIN 8888
+      const hasAccess = checkSummaryTourAccess(progId);
+      const lockEl = document.getElementById('summaryAccessLockBox');
+      const contentEl = document.getElementById('summaryMainContentBox');
+
+      if (!hasAccess) {
+        if (lockEl) {
+          lockEl.classList.remove('hidden');
+          const myPhone = localStorage.getItem(LS_HDV_PHONE) || 'Chưa đăng nhập SĐT';
+          const myName = localStorage.getItem(LS_HDV_NAME) || 'Khách';
+          const phoneDisp = document.getElementById('summaryCurrentUserPhoneDisplay');
+          if (phoneDisp) phoneDisp.textContent = `${myName} (${myPhone})`;
+        }
+        if (contentEl) contentEl.classList.add('hidden');
+        return;
+      }
+
+      // Đã có quyền truy cập
+      if (lockEl) lockEl.classList.add('hidden');
+      if (contentEl) contentEl.classList.remove('hidden');
 
       try {
         const res = await callApi({
@@ -2534,9 +2638,12 @@
               <td class="py-2 px-3 text-center font-bold text-orange-600">${v.parentCount}</td>
               <td class="py-2 px-3 text-center font-bold text-pink-600">${v.childCount}</td>
               <td class="py-2 px-3 text-center font-extrabold text-blue-900 bg-slate-100">${v.totalPeople}</td>
-              <td class="py-2 px-3 font-semibold whitespace-nowrap">${escapeHtml(v.hdvName || '-')}${hdvCallIcon}</td>
-              <td class="py-2 px-3 font-medium whitespace-nowrap">${escapeHtml(v.leaderName || '-')}${leaderCallIcon}</td>
-              <td class="py-2 px-3 font-medium whitespace-nowrap">${escapeHtml(v.driverName || '-')}${driverCallIcon}</td>
+              <td class="py-2 px-3 font-semibold whitespace-nowrap text-slate-800">${escapeHtml(v.hdvName || '-')}</td>
+              <td class="py-2 px-3 whitespace-nowrap">${v.hdvPhone ? `<a href="tel:${escapeHtml(v.hdvPhone)}" class="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 text-xs transition"><span>📞</span>${escapeHtml(v.hdvPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
+              <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800">${escapeHtml(v.leaderName || '-')}</td>
+              <td class="py-2 px-3 whitespace-nowrap">${v.leaderPhone ? `<a href="tel:${escapeHtml(v.leaderPhone)}" class="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 text-xs transition"><span>📞</span>${escapeHtml(v.leaderPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
+              <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800">${escapeHtml(v.driverName || '-')}</td>
+              <td class="py-2 px-3 whitespace-nowrap">${v.driverPhone ? `<a href="tel:${escapeHtml(v.driverPhone)}" class="inline-flex items-center gap-1 font-bold text-emerald-600 hover:text-emerald-800 text-xs transition"><span>📞</span>${escapeHtml(v.driverPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
               <td class="py-2 px-3 font-bold uppercase text-slate-700">${escapeHtml(v.licensePlate || '-')}</td>
               <td class="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">${formatTimeDisplay(v.updatedAt)}</td>
             `;
@@ -2644,8 +2751,14 @@
         const lng = parseFloat(v.lng);
         bounds.push([lat, lng]);
 
-        const isMoving = isMovingStatus(v.status);
-        const markerColor = isMoving ? '#10b981' : '#2563eb';
+        const sLower = String(v.status || '').toLowerCase();
+        let markerColor = '#10b981';
+        if (sLower.includes('di chuyển')) markerColor = '#2563eb';
+        else if (sLower.includes('bảo tàng') || sLower.includes('di tích')) markerColor = '#d97706';
+        else if (sLower.includes('nhận phòng')) markerColor = '#0d9488';
+        else if (sLower.includes('trả phòng')) markerColor = '#7c3aed';
+        else if (sLower.includes('về trường')) markerColor = '#ea580c';
+        else if (sLower.includes('tới trường') || sLower.includes('final')) markerColor = '#e11d48';
 
         const customIcon = L.divIcon({
           className: 'custom-bus-marker',
@@ -2796,40 +2909,36 @@
       document.getElementById('attModalTitle').textContent = `📋 Bảng Điểm Danh: ${data.vehicleName}`;
       document.getElementById('attModalSub').textContent = `Tour: ${data.programName} | Cập nhật: ${formatTimeDisplay(data.updatedAt)}`;
 
-      // Cập nhật khung liên hệ HDV & Lái xe (Có nút gọi ngay sau tên, không hiện số điện thoại thô)
+      // Cập nhật khung liên hệ HDV & Lái xe: Đầy đủ họ tên, SĐT và icon gọi điện thoại sạch gọn
       const contactBox = document.getElementById('attModalContactBox');
       if (contactBox) {
-        let hdvPart = `<div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">HDV:</span> <span class="font-bold text-slate-900">${escapeHtml(data.hdvName || 'Chưa cập nhật')}</span>`;
-        if (data.hdvPhone) {
-          hdvPart += ` <a href="tel:${escapeHtml(data.hdvPhone)}" class="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-0.5 rounded text-xs shadow-sm transition">📞 Gọi HDV</a>`;
-        }
-        hdvPart += `</div>`;
-
-        let driverPart = `<div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">Lái xe:</span> <span class="font-bold text-slate-900">${escapeHtml(data.driverName || 'Chưa cập nhật')}</span>`;
-        if (data.driverPhone) {
-          driverPart += ` <a href="tel:${escapeHtml(data.driverPhone)}" class="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white font-bold px-2 py-0.5 rounded text-xs shadow-sm transition">📞 Gọi Lái xe</a>`;
-        }
-        driverPart += `</div>`;
-
-        let platePart = data.licensePlate ? `<div class="text-slate-600 text-[11px] font-mono">Biển số: <b>${escapeHtml(data.licensePlate)}</b></div>` : '';
-
-        let leaderPart = '';
-        if (data.leaderName) {
-          leaderPart = `<div class="flex items-center gap-1.5"><span class="text-slate-500 font-semibold">GV/Trưởng xe:</span> <span class="font-bold text-slate-900">${escapeHtml(data.leaderName)}</span>`;
-          if (data.leaderPhone) {
-            leaderPart += ` <a href="tel:${escapeHtml(data.leaderPhone)}" class="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2 py-0.5 rounded text-xs shadow-sm transition">📞 Gọi GV</a>`;
-          }
-          leaderPart += `</div>`;
-        }
+        const hdvCall = data.hdvPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.hdvPhone)})</span> <a href="tel:${escapeHtml(data.hdvPhone)}" title="Gọi HDV" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
+        const driverCall = data.driverPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.driverPhone)})</span> <a href="tel:${escapeHtml(data.driverPhone)}" title="Gọi Lái xe" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
+        const leaderCall = data.leaderPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.leaderPhone)})</span> <a href="tel:${escapeHtml(data.leaderPhone)}" title="Gọi GV" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
 
         contactBox.innerHTML = `
-          <div class="w-full flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 pb-1.5">
-            ${hdvPart}
-            ${driverPart}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2 border-b border-blue-100">
+            <div class="flex items-center gap-1.5">
+              <span class="text-slate-500 font-semibold text-xs">HDV:</span>
+              <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.hdvName || 'Chưa cập nhật')}</span>
+              ${hdvCall}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-slate-500 font-semibold text-xs">Lái xe:</span>
+              <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.driverName || 'Chưa cập nhật')}</span>
+              ${driverCall}
+            </div>
           </div>
-          <div class="w-full flex flex-wrap items-center justify-between gap-2 pt-0.5">
-            ${leaderPart || '<span class="text-[11px] text-slate-400">Không có GV đi kèm</span>'}
-            ${platePart}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
+            <div class="flex items-center gap-1.5">
+              <span class="text-slate-500 font-semibold text-xs">GV/Trưởng xe:</span>
+              <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.leaderName || 'Không có GV đi kèm')}</span>
+              ${leaderCall}
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-slate-500 font-semibold text-xs">Biển số:</span>
+              <span class="font-bold font-mono text-slate-900 uppercase text-xs">${escapeHtml(data.licensePlate || 'Chưa cập nhật')}</span>
+            </div>
           </div>
         `;
       }
@@ -2987,6 +3096,11 @@
 
         document.getElementById('tourNameEdit').value = tour.name || '';
         document.getElementById('tourDateEdit').value = tour.date || '';
+        const endEl = document.getElementById('tourEndDateEdit');
+        if (endEl) {
+          endEl.value = tour.endDate || tour.date || '';
+          endEl.dataset.customized = (tour.endDate && tour.endDate !== tour.date) ? 'true' : 'false';
+        }
         document.getElementById('tourCoordinatorEdit').value = tour.coordinator || '';
         document.getElementById('tourCoordinatorPhoneEdit').value = tour.coordinatorPhone || '';
         document.getElementById('tourLogisticsEdit').value = tour.logistics || '';
@@ -3042,6 +3156,7 @@
 
       const name = document.getElementById('tourNameEdit').value.trim();
       const date = document.getElementById('tourDateEdit').value;
+      const endDate = (document.getElementById('tourEndDateEdit') ? document.getElementById('tourEndDateEdit').value : '') || date;
       const coordinator = document.getElementById('tourCoordinatorEdit').value.trim();
       const coordinatorPhone = document.getElementById('tourCoordinatorPhoneEdit').value.trim();
       const logistics = document.getElementById('tourLogisticsEdit').value.trim();
@@ -3056,6 +3171,7 @@
           programId: progId,
           name: name,
           date: date,
+          endDate: endDate,
           coordinator: coordinator,
           coordinatorPhone: coordinatorPhone,
           logistics: logistics,
@@ -3497,6 +3613,57 @@
     }
 
     // ==============================================================
+    // TIỆN ÍCH ĐIỀU HÀNH & PHÂN QUYỀN TRUY CẬP TOUR THEO SĐT
+    // ==============================================================
+    function syncTourEndDateDefault() {
+      const startEl = document.getElementById('tourDateEdit');
+      const endEl = document.getElementById('tourEndDateEdit');
+      if (startEl && endEl && (!endEl.value || endEl.dataset.customized !== 'true')) {
+        endEl.value = startEl.value;
+      }
+    }
+
+    function isProgramRunningToday(p) {
+      if (!p) return false;
+      if (p.status === 'Đang diễn ra') return true;
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const startDate = (p.date || '').slice(0, 10);
+      const endDate = (p.endDate || p.date || '').slice(0, 10);
+      if (startDate && endDate) {
+        return todayStr >= startDate && todayStr <= endDate;
+      }
+      if (startDate) return todayStr === startDate;
+      return false;
+    }
+
+    function checkSummaryTourAccess(progId) {
+      if (unlockedPinSession) return true;
+      const prog = (adminProgramsCache || []).find(p => p.id === progId);
+      if (!prog) return false;
+      const myPhone = (localStorage.getItem(LS_HDV_PHONE) || '').replace(/\D/g, '').replace(/^84/, '0');
+      if (!myPhone) return false;
+      const coordPhone = (prog.coordinatorPhone || '').replace(/\D/g, '').replace(/^84/, '0');
+      const logiPhone = (prog.logisticsPhone || '').replace(/\D/g, '').replace(/^84/, '0');
+      if ((coordPhone && myPhone === coordPhone) || (logiPhone && myPhone === logiPhone)) {
+        return true;
+      }
+      return false;
+    }
+
+    function confirmSummaryDirectPin() {
+      const pinInput = document.getElementById('summaryDirectPinInput');
+      if (pinInput && pinInput.value.trim() === REQUIRED_PIN) {
+        unlockedPinSession = true;
+        pinInput.value = '';
+        showToast('Xác thực PIN Quản trị thành công!', 'success');
+        loadSummaryDashboard();
+      } else {
+        showToast('Mã PIN không đúng!', 'error');
+      }
+    }
+
+    // ==============================================================
     // TIỆN ÍCH HIỂN THỊ & TOAST
     // ==============================================================
     function getStatusBadgeHtml(statusText) {
@@ -3631,6 +3798,8 @@
     window.saveGeminiApiKeyAction = saveGeminiApiKeyAction;
     window.confirmHdvLoginModal = confirmHdvLoginModal;
     window.requestHdvLogout = requestHdvLogout;
+    window.syncTourEndDateDefault = syncTourEndDateDefault;
+    window.confirmSummaryDirectPin = confirmSummaryDirectPin;
 
     // --- KHỞI CHẠY LẦN ĐẦU ---
     window.addEventListener('DOMContentLoaded', () => {

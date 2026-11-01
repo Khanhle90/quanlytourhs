@@ -55,7 +55,7 @@ function capQuyenVaKiemTraGoogleDrive() {
 }
 
 function getProgramSheetHeadersMap(progSheet) {
-  const lastCol = Math.max(progSheet.getLastColumn(), 12);
+  const lastCol = Math.max(progSheet.getLastColumn(), 13);
   const headers = progSheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
   let colCoord = headers.indexOf('Điều Hành Tour');
   let colCoordPhone = headers.indexOf('SDT Điều Hành');
@@ -63,21 +63,23 @@ function getProgramSheetHeadersMap(progSheet) {
   let colLogisticsPhone = headers.indexOf('SDT Hậu Cần');
   let colDriveId = headers.indexOf('Folder Drive ID');
   let colDriveLink = headers.indexOf('Folder Drive Link');
+  let colEndDate = headers.indexOf('Ngày Kết Thúc');
 
-  if (colCoordPhone === -1 || colLogisticsPhone === -1) {
-    progSheet.getRange(1, 1, 1, 12).setValues([[
+  if (colCoordPhone === -1 || colLogisticsPhone === -1 || colEndDate === -1) {
+    progSheet.getRange(1, 1, 1, 13).setValues([[
       'Mã Chương Trình', 'Tên Chương Trình', 'Ngày Thực Hiện',
       'Trạng Thái', 'Thông Báo Admin', 'Ngày Tạo',
       'Điều Hành Tour', 'SDT Điều Hành', 'Phụ Trách Hậu Cần', 'SDT Hậu Cần',
-      'Folder Drive ID', 'Folder Drive Link'
+      'Folder Drive ID', 'Folder Drive Link', 'Ngày Kết Thúc'
     ]]);
-    progSheet.getRange('A1:L1').setFontWeight('bold').setBackground('#d9ead3');
+    progSheet.getRange('A1:M1').setFontWeight('bold').setBackground('#d9ead3');
     colCoord = 6;
     colCoordPhone = 7;
     colLogistics = 8;
     colLogisticsPhone = 9;
     colDriveId = 10;
     colDriveLink = 11;
+    colEndDate = 12;
   }
 
   return {
@@ -86,7 +88,8 @@ function getProgramSheetHeadersMap(progSheet) {
     colLogistics: colLogistics !== -1 ? colLogistics : 8,
     colLogisticsPhone: colLogisticsPhone !== -1 ? colLogisticsPhone : 9,
     colDriveId: colDriveId !== -1 ? colDriveId : 10,
-    colDriveLink: colDriveLink !== -1 ? colDriveLink : 11
+    colDriveLink: colDriveLink !== -1 ? colDriveLink : 11,
+    colEndDate: colEndDate !== -1 ? colEndDate : 12
   };
 }
 
@@ -102,9 +105,9 @@ function initSheets() {
       'Mã Chương Trình', 'Tên Chương Trình', 'Ngày Thực Hiện',
       'Trạng Thái', 'Thông Báo Admin', 'Ngày Tạo',
       'Điều Hành Tour', 'SDT Điều Hành', 'Phụ Trách Hậu Cần', 'SDT Hậu Cần',
-      'Folder Drive ID', 'Folder Drive Link'
+      'Folder Drive ID', 'Folder Drive Link', 'Ngày Kết Thúc'
     ]);
-    progSheet.getRange('A1:L1').setFontWeight('bold').setBackground('#d9ead3');
+    progSheet.getRange('A1:M1').setFontWeight('bold').setBackground('#d9ead3');
   } else {
     getProgramSheetHeadersMap(progSheet);
   }
@@ -369,7 +372,8 @@ function getInitData(ss, params) {
       logistics: String(r[colMap.colLogistics] || ''),
       logisticsPhone: String(r[colMap.colLogisticsPhone] || ''),
       driveFolderId: String(r[colMap.colDriveId] || ''),
-      driveFolderLink: String(r[colMap.colDriveLink] || '')
+      driveFolderLink: String(r[colMap.colDriveLink] || ''),
+      endDate: r[colMap.colEndDate] ? Utilities.formatDate(new Date(r[colMap.colEndDate]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : (r[2] ? Utilities.formatDate(new Date(r[2]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '')
     };
     if (isAdmin || prog.status === 'Đang diễn ra') {
       programs.push(prog);
@@ -526,7 +530,8 @@ function getSummaryData(ss, params) {
             coordinatorPhone: String(progRows[p][colMap.colCoordPhone] || ''),
             logistics: String(progRows[p][colMap.colLogistics] || ''),
             logisticsPhone: String(progRows[p][colMap.colLogisticsPhone] || ''),
-            driveFolderLink: String(progRows[p][colMap.colDriveLink] || '')
+            driveFolderLink: String(progRows[p][colMap.colDriveLink] || ''),
+            endDate: progRows[p][colMap.colEndDate] ? Utilities.formatDate(new Date(progRows[p][colMap.colEndDate]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : (progRows[p][2] ? Utilities.formatDate(new Date(progRows[p][2]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '')
           };
           break;
         }
@@ -693,7 +698,8 @@ function getTourDetails(ss, params) {
         logistics: String(rows[i][colMap.colLogistics] || ''),
         logisticsPhone: String(rows[i][colMap.colLogisticsPhone] || ''),
         driveFolderId: String(rows[i][colMap.colDriveId] || ''),
-        driveFolderLink: String(rows[i][colMap.colDriveLink] || '')
+        driveFolderLink: String(rows[i][colMap.colDriveLink] || ''),
+        endDate: rows[i][colMap.colEndDate] ? Utilities.formatDate(new Date(rows[i][colMap.colEndDate]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : (rows[i][2] ? Utilities.formatDate(new Date(rows[i][2]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '')
       };
       break;
     }
@@ -755,6 +761,12 @@ function updateTourDetails(ss, params) {
       if (params.coordinatorPhone !== undefined) progSheet.getRange(rowIdx, colMap.colCoordPhone + 1).setValue(params.coordinatorPhone);
       if (params.logistics !== undefined) progSheet.getRange(rowIdx, colMap.colLogistics + 1).setValue(params.logistics);
       if (params.logisticsPhone !== undefined) progSheet.getRange(rowIdx, colMap.colLogisticsPhone + 1).setValue(params.logisticsPhone);
+      if (params.endDate !== undefined) {
+        progSheet.getRange(rowIdx, colMap.colEndDate + 1).setValue(params.endDate || params.date || '');
+      } else if (params.date) {
+        const curEnd = progSheet.getRange(rowIdx, colMap.colEndDate + 1).getValue();
+        if (!curEnd) progSheet.getRange(rowIdx, colMap.colEndDate + 1).setValue(params.date);
+      }
 
       // Cập nhật hoặc đảm bảo folder Google Drive
       const curProgName = params.name || rows[i][1];
