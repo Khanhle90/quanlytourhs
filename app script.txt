@@ -17,6 +17,41 @@ const SHEET_ATTENDANCE = 'DiemDanhAnh';
 const ADMIN_PIN = '8888';
 const ROOT_DRIVE_FOLDER_ID = '1GzfsEUmBb2x91aPZIgFdBNeg1XHsHVm7';
 
+/**
+ * ==============================================================
+ * BƯỚC 1 (CỰC KỲ QUAN TRỌNG): CẤP QUYỀN GOOGLE DRIVE CHO APPS SCRIPT
+ * ==============================================================
+ * Để Google Apps Script được phép tạo thư mục và tải ảnh lên Google Drive:
+ * 1. Trong trình chỉnh sửa Apps Script (trên web), tại ô chọn hàm (cạnh nút "Chạy"),
+ *    chọn hàm: "capQuyenVaKiemTraGoogleDrive".
+ * 2. Bấm nút "Chạy" (Run) màu xanh hoặc biểu tượng Play ▶.
+ * 3. Hộp thoại "Cần có ủy quyền" (Authorization Required) sẽ hiện lên:
+ *    -> Bấm "Xem lại quyền" (Review permissions)
+ *    -> Chọn tài khoản Google của bạn
+ *    -> Bấm "Nâng cao" (Advanced)
+ *    -> Bấm "Đi tới Quản lý tour hs (không an toàn)"
+ *    -> Bấm "Cho phép" (Allow).
+ * 4. Khi thanh nhật ký ghi: "KẾT NỐI GOOGLE DRIVE THÀNH CÔNG!"
+ * 5. Bấm nút "Triển khai" (Deploy) -> "Quản lý bản triển khai" (Manage deployments)
+ *    -> Bấm biểu tượng Bút chì ✏️ -> Chọn Phiên bản: "Phiên bản mới" -> Bấm "Triển khai" (Deploy).
+ */
+function capQuyenVaKiemTraGoogleDrive() {
+  const rootId = ROOT_DRIVE_FOLDER_ID;
+  const folder = DriveApp.getFolderById(rootId);
+  Logger.log('1. Đã kết nối thành công thư mục gốc Google Drive: ' + folder.getName());
+
+  // Thử tạo thư mục con tour mẫu theo đúng cấu trúc: [năm.tháng.ngày]_[Tên trường/chương trình]
+  const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy.MM.dd');
+  const sampleFolder = getOrCreateTourFolder('THCS Ban Mai', todayStr);
+  Logger.log('2. Đã tạo hoặc kết nối thư mục tour con: ' + sampleFolder.name + ' (Link: ' + sampleFolder.url + ')');
+
+  // Khởi tạo đầy đủ 5 bảng tính
+  initSheets();
+  Logger.log('3. Đã khởi tạo hoàn tất 5 bảng tính dữ liệu (bao gồm DiemDanhAnh và DanhSachHocSinhGoc)!');
+
+  return 'KẾT NỐI GOOGLE DRIVE & HỆ THỐNG THÀNH CÔNG! Hãy bấm Triển khai -> Quản lý bản triển khai -> Tạo phiên bản mới.';
+}
+
 // 1. Tự động khởi tạo và chuẩn hóa cấu trúc 5 Sheets
 function initSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -201,6 +236,10 @@ function handleRequest(e) {
         result = saveTourClassLists(ss, params);
       } else if (action === 'uploadAndAnalyzeAttendanceImage') {
         result = uploadAndAnalyzeAttendanceImage(ss, params);
+      } else if (action === 'saveAttendanceRecord') {
+        result = handleSaveAttendanceRecord(ss, params);
+      } else if (action === 'createTourDriveFolder') {
+        result = handleCreateTourDriveFolder(ss, params);
       } else if (action === 'renameVehicle') {
         result = renameVehicle(ss, params);
       } else if (action === 'saveGeminiApiKey') {
@@ -779,13 +818,16 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
   }
 
   // 1. Lấy hoặc tạo Folder Google Drive cho Tour
-  let tourFolderInfo;
-  let tourFolder;
+  let tourFolder = null;
+  let driveWarning = '';
   try {
-    tourFolderInfo = getOrCreateTourFolder(progName, tourDate);
-    tourFolder = DriveApp.getFolderById(tourFolderInfo.id);
+    const tourFolderInfo = getOrCreateTourFolder(progName, tourDate);
+    if (tourFolderInfo && tourFolderInfo.id) {
+      tourFolder = DriveApp.getFolderById(tourFolderInfo.id);
+    }
   } catch (err) {
-    return { success: false, message: 'Lỗi truy cập thư mục Google Drive: ' + err.toString() };
+    console.warn('Cảnh báo kết nối Google Drive:', err);
+    driveWarning = 'Chưa lưu ảnh lên Google Drive do Apps Script chưa được cấp quyền DriveApp (Hãy mở Apps Script chọn hàm capQuyenVaKiemTraGoogleDrive và ấn Chạy để cấp quyền 1 lần duy nhất).';
   }
 
   // 2. Định dạng tên file: [tên xe/lớp]_[Tên chương trình/tên trường]_[Ngày thực hiện]
@@ -794,28 +836,33 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
   const cleanProg = progName.replace(/[\\/:*?"<>|]/g, '_').trim();
   const baseFileName = `${cleanVehicle}_${cleanProg}_${datePart}`;
 
-  // 3. Lưu ảnh vào Google Drive & Cấp quyền xem công khai vượt tường lửa
+  // 3. Lưu ảnh vào Google Drive nếu thư mục sẵn sàng & Cấp quyền xem công khai
   const fileIds = [];
   const imageUrls = [];
 
-  for (let idx = 0; idx < images.length; idx++) {
-    const rawBase64 = images[idx];
-    const cleanBase64 = rawBase64.replace(/^data:[^;]+;base64,/, '');
-    const fileName = images.length > 1 ? `${baseFileName}_${idx + 1}.jpg` : `${baseFileName}.jpg`;
+  if (tourFolder) {
+    for (let idx = 0; idx < images.length; idx++) {
+      try {
+        const rawBase64 = images[idx];
+        const cleanBase64 = rawBase64.replace(/^data:[^;]+;base64,/, '');
+        const fileName = images.length > 1 ? `${baseFileName}_${idx + 1}.jpg` : `${baseFileName}.jpg`;
 
-    const blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), 'image/jpeg', fileName);
-    const savedFile = tourFolder.createFile(blob);
-    try {
-      savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    } catch (e) {
-      console.warn('Set sharing image error:', e);
+        const blob = Utilities.newBlob(Utilities.base64Decode(cleanBase64), 'image/jpeg', fileName);
+        const savedFile = tourFolder.createFile(blob);
+        try {
+          savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (e) {
+          console.warn('Set sharing image error:', e);
+        }
+
+        const fid = savedFile.getId();
+        fileIds.push(fid);
+        const directUrl = 'https://drive.google.com/thumbnail?id=' + fid + '&sz=w1600';
+        imageUrls.push(directUrl);
+      } catch (fErr) {
+        console.warn('Lỗi lưu ảnh lên Drive:', fErr);
+      }
     }
-
-    const fid = savedFile.getId();
-    fileIds.push(fid);
-    // Link xem ảnh trực tiếp chất lượng cao qua Google Thumbnail API (không bị chặn cookie Google trên Safari/iOS)
-    const directUrl = 'https://drive.google.com/thumbnail?id=' + fid + '&sz=w1600';
-    imageUrls.push(directUrl);
   }
 
   // 4. Phân tích ảnh bằng Gemini API
@@ -825,11 +872,11 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
     ocrStudents = callGeminiForAttendance(images, geminiApiKey);
   } catch (ocrErr) {
     console.warn('Gemini OCR lỗi:', ocrErr);
-    // Nếu Gemini lỗi, ta vẫn lưu ảnh và thông báo cho người dùng
+    // Vẫn lưu thông tin vào sheet nếu Gemini chưa kịp phân tích
     saveAttendanceRecordInSheet(ss, progId, vehicleName, fileIds, imageUrls, 0, 0, []);
     return {
       success: true,
-      warning: 'Đã lưu ảnh vào Google Drive, nhưng Gemini API chưa hoàn tất phân tích: ' + ocrErr.message,
+      warning: (driveWarning ? driveWarning + ' | ' : '') + 'Gemini API chưa hoàn tất phân tích: ' + ocrErr.message,
       imageUrls: imageUrls,
       fileIds: fileIds,
       students: [],
@@ -838,7 +885,7 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
     };
   }
 
-  // 5. Đối chiếu kết quả OCR với danh sách học sinh gốc từ Excel (so sánh không dấu, giải quyết trùng tên)
+  // 5. Đối chiếu kết quả OCR với danh sách học sinh gốc từ Excel
   const officialRes = getClassStudentList(ss, { programId: progId, vehicleName: vehicleName });
   const officialStudents = officialRes.students || [];
 
@@ -861,7 +908,8 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
 
   return {
     success: true,
-    message: `Điểm danh thành công: ${matched.presentCount}/${matched.totalStudents} học sinh có mặt!`,
+    warning: driveWarning || undefined,
+    message: `Điểm danh thành công: ${matched.presentCount}/${matched.totalStudents} học sinh có mặt!` + (driveWarning ? ` (${driveWarning})` : ''),
     imageUrls: imageUrls,
     fileIds: fileIds,
     totalStudents: matched.totalStudents,
@@ -1134,13 +1182,24 @@ function calcTextSimilarity(s1, s2) {
 
 // Lưu hoặc cập nhật bản ghi điểm danh
 function saveAttendanceRecordInSheet(ss, progId, vehicleName, fileIds, imageUrls, presentCount, absentCount, students) {
-  const attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  let attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  if (!attSheet) {
+    initSheets();
+    attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  }
+  if (!attSheet) return;
+
   const rows = attSheet.getDataRange().getValues();
   const targetKey = normalizeVehicleKey(vehicleName);
   const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
 
-  const fileIdsStr = fileIds.join(',');
-  const imageUrlsStr = imageUrls.join(',');
+  const fileIdsStr = (fileIds || []).join(',');
+  // Lọc bỏ base64 ảnh thô quá 500 ký tự để không làm tràn giới hạn 50.000 ký tự 1 ô bảng tính Google Sheet
+  const cleanUrls = (imageUrls || []).map(function(u) {
+    const s = String(u);
+    return (s.indexOf('data:') === 0 && s.length > 500) ? '' : s;
+  }).filter(Boolean);
+  const imageUrlsStr = cleanUrls.join(',');
   const studentsJson = JSON.stringify(students || []);
 
   let foundRowIdx = -1;
@@ -1169,12 +1228,56 @@ function saveAttendanceRecordInSheet(ss, progId, vehicleName, fileIds, imageUrls
   }
 }
 
+function handleSaveAttendanceRecord(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const vehicleName = String(params.vehicleName || '').trim();
+  if (!progId || !vehicleName) return { success: false, message: 'Thiếu thông tin chương trình hoặc xe' };
+
+  saveAttendanceRecordInSheet(
+    ss,
+    progId,
+    vehicleName,
+    params.fileIds || [],
+    params.imageUrls || [],
+    params.presentCount || 0,
+    params.absentCount || 0,
+    params.students || []
+  );
+
+  updateVehicleStudentCountIfFound(ss, progId, vehicleName, (params.students || []).length);
+  return { success: true, message: 'Đã lưu bản ghi điểm danh vào Google Sheet thành công!' };
+}
+
+function handleCreateTourDriveFolder(ss, params) {
+  const progName = String(params.programName || '').trim();
+  const progDate = String(params.tourDate || '').trim();
+  const progId = String(params.programId || '').trim();
+  try {
+    const folderInfo = getOrCreateTourFolder(progName, progDate);
+    if (progId) {
+      const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+      const rows = progSheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][0]) === progId) {
+          progSheet.getRange(i + 1, 9).setValue(folderInfo.id);
+          progSheet.getRange(i + 1, 10).setValue(folderInfo.url);
+          break;
+        }
+      }
+    }
+    return { success: true, folderId: folderInfo.id, folderName: folderInfo.name, folderUrl: folderInfo.url };
+  } catch (err) {
+    return { success: false, message: 'Lỗi tạo thư mục Google Drive: ' + err.toString() };
+  }
+}
+
 function getAttendanceRecord(ss, params) {
   const progId = String(params.programId || '').trim();
   const vehicleName = String(params.vehicleName || params.className || '').trim();
   if (!progId || !vehicleName) return { success: false, found: false };
 
   const attSheet = ss.getSheetByName(SHEET_ATTENDANCE);
+  if (!attSheet) return { success: true, found: false };
   const rows = attSheet.getDataRange().getValues();
   const targetKey = normalizeVehicleKey(vehicleName);
 
