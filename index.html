@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Quản Lý Tour Dã Ngoại</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    * { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important; 
+      box-sizing: border-box; 
+    }
+    body { 
+      background-color: #f1f5f9; 
+      margin: 0; 
+      padding: 0; 
+    }
+    .sticky-col { 
+      position: sticky; 
+      left: 0; 
+      z-index: 20; 
+      background-color: #ffffff; 
+      box-shadow: 2px 0 5px -2px rgba(0,0,0,0.15); 
+    }
+    thead .sticky-col { 
+      background-color: #1e293b; 
+      z-index: 30; 
+    }
+    tr:nth-child(even) .sticky-col { 
+      background-color: #f8fafc; 
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER & ĐIỀU HƯỚNG 3 TAB -->
+  <header class="bg-blue-700 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-3 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div class="flex items-center justify-between">
+        <h1 class="text-base font-bold tracking-wide flex items-center gap-1.5">
+          <span>🚌</span> QUẢN LÝ TOUR DÃ NGOẠI
+        </h1>
+        <span id="deviceLockBadge" class="hidden text-[11px] bg-emerald-500 text-white font-semibold px-2 py-0.5 rounded-full shadow">
+          🔒 Đã nhớ xe
+        </span>
+      </div>
+
+      <nav class="grid grid-cols-3 gap-1 bg-blue-800 p-1 rounded-lg text-xs font-semibold">
+        <button id="tabBtnHDV" onclick="window.switchTab('hdv')" class="py-1.5 px-2 rounded bg-white text-blue-800 shadow transition text-center">
+          🧑‍✈️ HDV
+        </button>
+        <button id="tabBtnSummary" onclick="window.switchTab('summary')" class="py-1.5 px-2 rounded text-blue-100 hover:bg-blue-700 transition text-center">
+          📊 TỔNG HỢP
+        </button>
+        <button id="tabBtnAdmin" onclick="window.switchTab('admin')" class="py-1.5 px-2 rounded text-blue-100 hover:bg-blue-700 transition text-center">
+          ⚙️ QUẢN TRỊ
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- TOAST THÔNG BÁO -->
+  <div id="toastBox" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-96 z-50 hidden">
+    <div id="toastContent" class="p-3 rounded-xl shadow-lg text-white font-medium text-xs flex items-center justify-between">
+      <span id="toastText"></span>
+      <button onclick="window.hideToast()" class="ml-3 font-bold text-base leading-none">&times;</button>
+    </div>
+  </div>
+
+  <main class="max-w-6xl mx-auto px-3 pt-3 pb-12">
+    <!-- ==========================================
+         TAB 1: PHÂN HỆ HƯỚNG DẪN VIÊN
+         ========================================== -->
+    <section id="sectionHDV" class="space-y-3 max-w-2xl mx-auto">
+      <!-- Banner Thông báo Admin -->
+      <div id="adminNoticeBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-start gap-1.5">
+            <span class="text-base">📢</span>
+            <div>
+              <p class="text-[11px] font-bold uppercase text-amber-800">Thông báo từ Điều hành:</p>
+              <p id="adminNoticeText" class="text-xs font-medium text-slate-800 mt-0.5 whitespace-pre-line line-clamp-2"></p>
+            </div>
+          </div>
+          <button type="button" onclick="window.openCurrentNoticeModal()" class="text-[11px] bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-1 rounded shadow shrink-0">
+            Xem lại
+          </button>
+        </div>
+      </div>
+
+      <!-- Khối 1: Chương trình & Định danh Xe & HDV -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
+        <div class="flex items-center justify-between border-b pb-1.5">
+          <h2 class="font-bold text-slate-800 text-sm">1. Chương trình & Định danh Xe</h2>
+          <button type="button" onclick="window.loadActivePrograms()" class="text-xs text-blue-600 font-semibold hover:underline">
+            🔄 Tải lại tour
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+            Chương trình đang diễn ra <span class="text-rose-500">*</span>
+          </label>
+          <select id="hdvProgramSelect" onchange="window.onProgramChange()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">-- Đang tải danh sách chương trình... --</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+            Số Xe / Lớp <span class="text-rose-500">*</span>
+          </label>
+          <div class="flex gap-2">
+            <input type="text" id="hdvVehicleInput" onblur="window.handleVehicleBlur()" placeholder="VD: 01, 2, 8D..."
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none" />
+            <button type="button" id="unlockVehicleBtn" onclick="window.unlockVehicleForCurrentTour()"
+              class="hidden px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold shrink-0">
+              Đổi xe
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-0.5">Gõ số (01) tự thành <b>Xe 01</b>; gõ lớp (8D) tự thành <b>Lớp 8D</b>.</p>
+        </div>
+
+        <!-- Họ tên HDV và Số điện thoại HDV cùng 1 hàng -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+              Họ tên HDV <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="hdvNameInput" oninput="window.syncHdvName()" placeholder="Tên Hướng dẫn viên"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+              Số điện thoại HDV <span class="text-rose-500">*</span>
+            </label>
+            <input type="tel" id="hdvPhoneInput" oninput="window.syncHdvName()" placeholder="SĐT HDV"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối 2: Trạng thái xe -->
+      <div class="bg-amber-50 p-3.5 rounded-xl shadow-sm border border-amber-300 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-extrabold text-amber-900 flex items-center gap-1">
+            <span>🚩</span> TRẠNG THÁI HOẠT ĐỘNG CỦA XE <span class="text-rose-500">*</span>
+          </label>
+          <span id="lastSavedTime" class="text-[10px] text-amber-800 font-medium"></span>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2">
+          <select id="hdvStatusSelect" class="flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
+            <option value="🚩 Đang xuất phát">🚩 Đang xuất phát</option>
+            <option value="🏛️ Đã đến bảo tàng/di tích">🏛️ Đã đến bảo tàng/di tích</option>
+            <option value="🏨 Đã nhận phòng">🏨 Đã nhận phòng</option>
+            <option value="🔑 Đã trả phòng">🔑 Đã trả phòng</option>
+            <option value="🚌 Đang về trường">🚌 Đang về trường</option>
+            <option value="🏫 Đã về tới trường">🏫 Đã về tới trường</option>
+          </select>
+
+          <button type="button" id="btnQuickStatus" onclick="window.saveQuickStatus()"
+            class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-lg text-xs shadow shrink-0 transition">
+            ⚡ Cập nhật trạng thái
+          </button>
+        </div>
+      </div>
+
+      <!-- Khối 3: Quản lý Nhân sự & Trưởng xe -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
+        <h2 class="font-bold text-slate-800 text-sm border-b pb-1.5">2. Quản lý Nhân sự & Trưởng xe</h2>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              Tên GVCN / Trưởng xe <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="leaderNameInput" placeholder="Tên GVCN / Trưởng xe"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              SĐT GVCN / Trưởng xe <span class="text-rose-500">*</span>
+            </label>
+            <input type="tel" id="leaderPhoneInput" placeholder="SĐT GVCN / Trưởng xe"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              Tổng Giáo viên trên xe <span class="text-rose-500">*</span>
+            </label>
+            <input type="number" min="0" id="teacherCountInput" value="0" oninput="window.calculateRealtimeTotals()"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              Biển số xe <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="licensePlateInput" placeholder="VD: 29B12345"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              Tên Lái xe <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" id="driverNameInput" placeholder="Tên lái xe"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              SĐT Lái xe <span class="text-rose-500">*</span>
+            </label>
+            <input type="tel" id="driverPhoneInput" placeholder="SĐT lái xe"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+          <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1.5">BGH / Trưởng đoàn trên xe (Tùy chọn):</label>
+          <div class="grid grid-cols-3 gap-1 text-xs font-medium text-slate-800">
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="chkHieuTruong" value="Hiệu trưởng" class="w-3.5 h-3.5 text-blue-600 rounded" />
+              <span>Hiệu Trưởng</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="chkHieuPho" value="Hiệu phó" class="w-3.5 h-3.5 text-blue-600 rounded" />
+              <span>Hiệu Phó</span>
+            </label>
+            <label class="inline-flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" id="chkTruongDoan" value="Trưởng đoàn" class="w-3.5 h-3.5 text-blue-600 rounded" />
+              <span>Trưởng Đoàn</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối 4: Sĩ số Học sinh theo Lớp -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
+        <div class="flex items-center justify-between border-b pb-1.5">
+          <div>
+            <h2 class="font-bold text-slate-800 text-sm">3. Quản lý Sĩ số theo Lớp</h2>
+            <p class="text-[10px] text-slate-500">Bắt buộc nhập Tên lớp và Số Học sinh</p>
+          </div>
+          <button type="button" onclick="window.addClassRow()"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-2.5 py-1.5 rounded-lg shadow flex items-center gap-1">
+            + Thêm lớp
+          </button>
+        </div>
+        <div id="classListContainer" class="space-y-2.5"></div>
+      </div>
+
+      <!-- Khối 5: Tổng quân số & Nút Lưu toàn bộ -->
+      <div class="bg-blue-900 text-white p-3.5 rounded-xl shadow-md space-y-2.5">
+        <div class="flex items-center justify-between border-b border-blue-700 pb-1.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-200">Tổng quân số toàn xe:</span>
+          <span id="realtimeTotalAll" class="text-xl font-extrabold text-amber-300">0 người</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-1.5 text-center text-[11px] bg-blue-800/80 p-2 rounded-lg">
+          <div><p class="text-blue-200 text-[10px]">Học sinh</p><p id="rtStudents" class="font-bold text-sm text-white">0</p></div>
+          <div><p class="text-blue-200 text-[10px]">Giáo viên</p><p id="rtTeachers" class="font-bold text-sm text-white">0</p></div>
+          <div><p class="text-blue-200 text-[10px]">Phụ huynh</p><p id="rtParents" class="font-bold text-sm text-white">0</p></div>
+          <div><p class="text-blue-200 text-[10px]">Trẻ em</p><p id="rtChildren" class="font-bold text-sm text-white">0</p></div>
+        </div>
+
+        <button type="button" id="btnSaveAll" onclick="window.submitFullVehicleForm()"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm shadow transition">
+          💾 LƯU TOÀN BỘ BÁO CÁO XE
+        </button>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 2: PHÂN HỆ TỔNG HỢP BÁO CÁO
+         ========================================== -->
+    <section id="sectionSummary" class="hidden space-y-3">
+      <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+        <div class="flex-1">
+          <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Chọn Chương trình xem báo cáo</label>
+          <select id="summaryProgramSelect" onchange="window.loadSummaryDashboard()" class="w-full sm:max-w-md rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-800">
+            <option value="">-- Chọn chương trình --</option>
+          </select>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="window.loadSummaryDashboard()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow flex items-center gap-1">
+            <span>🔄</span> Làm mới dữ liệu
+          </button>
+        </div>
+      </div>
+
+      <!-- 6 THẺ CHỈ SỐ -->
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        <div class="bg-gradient-to-br from-blue-600 to-blue-800 text-white p-2 rounded-lg shadow text-center">
+          <p class="text-[10px] font-bold uppercase text-blue-100 truncate">1. TỔNG SỐ</p>
+          <p id="sumCardTotalPeople" class="text-lg font-black mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-2 rounded-lg shadow border-l-4 border-emerald-500 text-center">
+          <p class="text-[10px] font-bold uppercase text-slate-500 truncate">2. Học Sinh</p>
+          <p id="sumCardStudents" class="text-lg font-black text-emerald-600 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-2 rounded-lg shadow border-l-4 border-indigo-500 text-center">
+          <p class="text-[10px] font-bold uppercase text-slate-500 truncate">3. Giáo Viên</p>
+          <p id="sumCardTeachers" class="text-lg font-black text-indigo-600 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-2 rounded-lg shadow border-l-4 border-orange-500 text-center">
+          <p class="text-[10px] font-bold uppercase text-slate-500 truncate">4. Phụ Huynh</p>
+          <p id="sumCardParents" class="text-lg font-black text-orange-600 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-2 rounded-lg shadow border-l-4 border-pink-500 text-center">
+          <p class="text-[10px] font-bold uppercase text-slate-500 truncate">5. Trẻ Em</p>
+          <p id="sumCardChildren" class="text-lg font-black text-pink-600 mt-0.5">0</p>
+        </div>
+        <div class="bg-white p-2 rounded-lg shadow border-l-4 border-rose-500 text-center">
+          <p class="text-[10px] font-bold uppercase text-slate-500 truncate">6. Tổng Xe</p>
+          <p id="sumCardVehicles" class="text-lg font-black text-rose-600 mt-0.5">0</p>
+        </div>
+      </div>
+
+      <!-- BẢNG THỐNG KÊ CHI TIẾT TỪNG XE -->
+      <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
+        <div class="p-2.5 bg-slate-50 border-b flex items-center justify-between">
+          <h3 class="font-bold text-xs text-slate-700">Bảng điều hành chi tiết từng xe trong đoàn</h3>
+          <span id="summaryCountText" class="text-[11px] text-slate-500 font-semibold"></span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs whitespace-nowrap">
+            <thead>
+              <tr class="bg-slate-800 text-white font-bold">
+                <th class="py-2.5 px-3 sticky-col">Số xe</th>
+                <th class="py-2.5 px-3">Trạng thái xe</th>
+                <th class="py-2.5 px-3 text-center">Tổng HS</th>
+                <th class="py-2.5 px-3">Chi tiết lớp</th>
+                <th class="py-2.5 px-3 text-center">Số GV</th>
+                <th class="py-2.5 px-3 text-center text-orange-400">Số PH</th>
+                <th class="py-2.5 px-3 text-center text-pink-400">Trẻ em</th>
+                <th class="py-2.5 px-3 text-center bg-slate-700">Tổng người</th>
+                <th class="py-2.5 px-3">HDV</th>
+                <th class="py-2.5 px-3">SĐT HDV</th>
+                <th class="py-2.5 px-3">GV/Trưởng xe</th>
+                <th class="py-2.5 px-3">SĐT GV/Trưởng xe</th>
+                <th class="py-2.5 px-3">Lái xe</th>
+                <th class="py-2.5 px-3">SĐT Lái xe</th>
+                <th class="py-2.5 px-3">Biển số</th>
+                <th class="py-2.5 px-3 text-center">Cập nhật lúc</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTableBody" class="divide-y divide-slate-200">
+              <tr>
+                <td colspan="16" class="py-6 text-center text-slate-400">Chưa có dữ liệu xe báo cáo.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         TAB 3: PHÂN HỆ QUẢN TRỊ (ADMIN)
+         ========================================== -->
+    <section id="sectionAdmin" class="hidden space-y-4 max-w-4xl mx-auto">
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2">
+        <h2 class="font-bold text-slate-800 text-xs uppercase">🔗 Cấu hình Máy chủ Google Apps Script (API URL)</h2>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="url" id="apiEndpointInput" placeholder="https://script.google.com/macros/s/.../exec"
+            class="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
+          <button type="button" onclick="window.saveApiEndpoint()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
+            Lưu URL
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
+        <h2 class="font-bold text-slate-800 text-sm border-b pb-1.5">➕ Tạo Chương Trình Tour Mới</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div class="sm:col-span-2">
+            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Tên chương trình *</label>
+            <input type="text" id="newProgName" placeholder="VD: THPT Thực Nghiệm"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Ngày thực hiện *</label>
+            <input type="date" id="newProgDate"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+        <div class="flex justify-end pt-1">
+          <button type="button" onclick="window.handleCreateProgram()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow">
+            Tạo chương trình
+          </button>
+        </div>
+      </div>
+
+      <!-- Quản trị phát thông báo -->
+      <div class="bg-amber-50 p-3.5 rounded-xl shadow-sm border border-amber-300 space-y-2.5">
+        <h2 class="font-bold text-amber-900 text-sm border-b border-amber-200 pb-1.5">📢 Phát Thông Báo Khẩn (Kích hoạt rung máy HDV)</h2>
+        <div>
+          <label class="block text-[11px] font-bold text-amber-900 mb-0.5">Chọn chương trình:</label>
+          <select id="adminNoticeProgSelect" onchange="window.syncNoticeTextarea()" class="w-full rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-bold">
+            <option value="">-- Chọn chương trình --</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-amber-900 mb-0.5">Nội dung thông báo:</label>
+          <textarea id="adminNoticeInput" rows="2" placeholder="VD: 11h30 toàn đoàn tập trung ăn trưa..."
+            class="w-full rounded-lg border border-amber-300 p-2 text-xs focus:ring-2 focus:ring-amber-500 outline-none"></textarea>
+        </div>
+        <div class="flex justify-end">
+          <button type="button" onclick="window.handleSendNotice()"
+            class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-1.5 rounded-lg text-xs shadow">
+            Phát thông báo
+          </button>
+        </div>
+      </div>
+
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
+        <div class="flex items-center justify-between border-b pb-1.5">
+          <h2 class="font-bold text-slate-800 text-sm">📋 Danh Sách Quản Lý Chương Trình</h2>
+          <button type="button" onclick="window.loadAdminPrograms()" class="text-xs text-blue-600 font-bold hover:underline">
+            🔄 Làm mới
+          </button>
+        </div>
+        <div id="adminProgramList" class="divide-y divide-slate-200 text-xs"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- POP-UP NHẬP MÃ PIN -->
+  <div id="pinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl space-y-3.5 text-center">
+      <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center mx-auto text-2xl shadow-inner">
+        🔐
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-800">Xác Thực Quản Lý</h3>
+        <p class="text-[11px] text-slate-500 mt-0.5">Nhập mã PIN để mở Bảng điều hành đoàn</p>
+      </div>
+      <input type="password" id="pinInputBox" maxlength="8" placeholder="••••" inputmode="numeric"
+        onkeydown="if(event.key==='Enter') window.confirmPinModal()"
+        class="w-full text-center text-2xl tracking-widest font-extrabold border-2 border-slate-300 rounded-xl py-2 focus:border-blue-600 outline-none" />
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button type="button" onclick="window.closePinModal()" class="py-2 rounded-lg bg-slate-100 hover:bg-slate-200 font-semibold text-slate-700 text-xs">
+          Hủy
+        </button>
+        <button type="button" onclick="window.confirmPinModal()" class="py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-bold text-white shadow text-xs">
+          Xác nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       LOGIC JAVASCRIPT ĐIỀU HÀNH
+       ============================================================== -->
+  <script>
+    const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0OWxGSx5QGYilJwtRxhd_6rklcpdI1vngSqDs3cY9wExtx5m3kToyh8DvUmT4PGC4/exec';
+    const REQUIRED_PIN = '8888';
+
+    const LS_API_URL = 'TOUR_APP_SCRIPT_URL';
+    const LS_HDV_NAME = 'TOUR_HDV_NAME';
+    const LS_HDV_PHONE = 'TOUR_HDV_PHONE';
+    const LS_LOCKED_VEHICLES = 'TOUR_LOCKED_VEHICLES_MAP';
+    const LS_LAST_PROGRAM = 'TOUR_LAST_PROGRAM_ID';
+    const LS_ACK_PREFIX = 'TOUR_ACK_NOTICE_';
+
+    let unlockedPinSession = false;
+    let pendingTargetTab = null;
+    let activeProgramsCache = [];
+    let adminProgramsCache = [];
+
+    function triggerDeviceVibration() {
+      try {
+        if ("vibrate" in navigator) {
+          navigator.vibrate([400, 200, 400, 200, 600]);
+        }
+      } catch (err) {
+        console.warn("Thiết bị không hỗ trợ rung:", err);
+      }
+    }
+
+    function normalizeScriptUrl(url) {
+      let clean = String(url || '').trim();
+      if (!clean || !clean.startsWith('https://script.google.com/')) return '';
+      if (clean.endsWith('/')) clean = clean + 'exec';
+      else if (!clean.endsWith('/exec') && !clean.endsWith('/dev')) clean = clean + '/exec';
+      return clean;
+    }
+
+    function getApiUrl() {
+      const saved = normalizeScriptUrl(localStorage.getItem(LS_API_URL));
+      return saved || normalizeScriptUrl(DEFAULT_SCRIPT_URL);
+    }
+
+    function saveApiEndpoint() {
+      const rawVal = document.getElementById('apiEndpointInput').value.trim();
+      const val = normalizeScriptUrl(rawVal);
+      if (!val) return showToast('Vui lòng nhập link Apps Script hợp lệ!', 'error');
+      document.getElementById('apiEndpointInput').value = val;
+      localStorage.setItem(LS_API_URL, val);
+      showToast('Đã lưu cấu hình API URL!', 'success');
+      loadActivePrograms();
+    }
+
+    function formatVehicleOrClassName(rawInput) {
+      if (!rawInput) return '';
+      let s = rawInput.trim().replace(/\s+/g, ' ');
+      if (!s) return '';
+      if (/^\d+$/.test(s)) return 'Xe ' + s;
+      if (/^xe(\s+|$)/i.test(s)) return 'Xe ' + s.replace(/^xe\s*/i, '').trim();
+      if (/^(lớp|lop)(\s+|$)/i.test(s)) return 'Lớp ' + s.replace(/^(lớp|lop)\s*/i, '').trim();
+      return 'Lớp ' + s;
+    }
+
+    function handleVehicleBlur() {
+      const input = document.getElementById('hdvVehicleInput');
+      const formatted = formatVehicleOrClassName(input.value);
+      input.value = formatted;
+      const progId = document.getElementById('hdvProgramSelect').value;
+      if (progId && formatted) fetchExistingVehicleInfo(progId, formatted);
+    }
+
+    function getLockedMap() {
+      try { return JSON.parse(localStorage.getItem(LS_LOCKED_VEHICLES) || '{}'); } catch (e) { return {}; }
+    }
+
+    function setLockedVehicleForTour(progId, vehicleName) {
+      if (!progId || !vehicleName) return;
+      const map = getLockedMap();
+      map[progId] = vehicleName;
+      localStorage.setItem(LS_LOCKED_VEHICLES, JSON.stringify(map));
+      localStorage.setItem(LS_LAST_PROGRAM, progId);
+      applyLockUiState(progId);
+    }
+
+    function applyLockUiState(progId) {
+      const map = getLockedMap();
+      const lockedVehicle = map[progId] || '';
+      const vehicleInput = document.getElementById('hdvVehicleInput');
+      const badge = document.getElementById('deviceLockBadge');
+      const unlockBtn = document.getElementById('unlockVehicleBtn');
+
+      if (lockedVehicle) {
+        vehicleInput.value = lockedVehicle;
+        vehicleInput.readOnly = true;
+        vehicleInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+        badge.classList.remove('hidden');
+        badge.textContent = '🔒 Đã nhớ: ' + lockedVehicle;
+        unlockBtn.classList.remove('hidden');
+      } else {
+        vehicleInput.readOnly = false;
+        vehicleInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+        badge.classList.add('hidden');
+        unlockBtn.classList.add('hidden');
+      }
+    }
+
+    function unlockVehicleForCurrentTour() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      if (!progId || !confirm('Bạn có chắc muốn đổi sang số xe khác?')) return;
+      const map = getLockedMap();
+      delete map[progId];
+      localStorage.setItem(LS_LOCKED_VEHICLES, JSON.stringify(map));
+      applyLockUiState(progId);
+      document.getElementById('hdvVehicleInput').focus();
+    }
+
+    function syncHdvName() {
+      localStorage.setItem(LS_HDV_NAME, document.getElementById('hdvNameInput').value.trim());
+      localStorage.setItem(LS_HDV_PHONE, document.getElementById('hdvPhoneInput').value.trim());
+    }
+
+    function renderClassRows(classesData) {
+      const container = document.getElementById('classListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      const list = (classesData && classesData.length > 0)
+        ? classesData
+        : [{ className: '', students: 0, parents: 0, children: 0 }];
+      list.forEach((cls, idx) => appendSingleClassRow(cls, idx));
+      calculateRealtimeTotals();
+    }
+
+    function appendSingleClassRow(cls = { className: '', students: 0, parents: 0, children: 0 }, idx = null) {
+      const container = document.getElementById('classListContainer');
+      if (!container) return;
+      const rowIndex = idx !== null ? idx : container.children.length;
+      const div = document.createElement('div');
+      div.className = 'class-item-row bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-2';
+      div.innerHTML = `
+        <div class="flex items-center justify-between border-b border-slate-200 pb-1">
+          <span class="text-[11px] font-bold text-blue-800 uppercase class-row-title">Lớp thứ ${rowIndex + 1}</span>
+          ${rowIndex > 0 ? `<button type="button" onclick="window.removeClassRow(this)" class="text-[11px] text-red-600 font-bold hover:underline">&times; Xóa lớp</button>` : ''}
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              Tên lớp <span class="text-rose-500">*</span>
+            </label>
+            <input type="text" placeholder="VD: 11C, 8D" value="${escapeHtml(cls.className || '')}"
+              class="cls-name w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+              Số Học sinh <span class="text-rose-500">*</span>
+            </label>
+            <input type="number" min="1" value="${cls.students !== undefined ? cls.students : ''}" placeholder="VD: 35" oninput="window.calculateRealtimeTotals()"
+              class="cls-students w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-emerald-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số Phụ huynh</label>
+            <input type="number" min="0" value="${Number(cls.parents || 0)}" oninput="window.calculateRealtimeTotals()"
+              class="cls-parents w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-orange-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Trẻ em đi kèm</label>
+            <input type="number" min="0" value="${Number(cls.children || 0)}" oninput="window.calculateRealtimeTotals()"
+              class="cls-children w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-pink-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+
+    function addClassRow() {
+      appendSingleClassRow();
+      refreshClassRowTitles();
+      calculateRealtimeTotals();
+    }
+
+    function removeClassRow(btn) {
+      const container = document.getElementById('classListContainer');
+      if (container.children.length <= 1) {
+        return showToast('Phải có ít nhất 1 lớp trên xe!', 'error');
+      }
+      const row = btn.closest('.class-item-row');
+      if (row) row.remove();
+      refreshClassRowTitles();
+      calculateRealtimeTotals();
+    }
+
+    function refreshClassRowTitles() {
+      document.querySelectorAll('#classListContainer .class-item-row').forEach((r, idx) => {
+        const titleEl = r.querySelector('.class-row-title');
+        if (titleEl) titleEl.textContent = 'Lớp thứ ' + (idx + 1);
+      });
+    }
+
+    function collectClassesAndTotals() {
+      const rows = document.querySelectorAll('#classListContainer .class-item-row');
+      let totalStudents = 0, totalParents = 0, totalChildren = 0;
+      const classes = [], classSummaryParts = [];
+
+      rows.forEach((r) => {
+        const cName = r.querySelector('.cls-name').value.trim();
+        const st = Math.max(0, parseInt(r.querySelector('.cls-students').value, 10) || 0);
+        const pa = Math.max(0, parseInt(r.querySelector('.cls-parents').value, 10) || 0);
+        const ch = Math.max(0, parseInt(r.querySelector('.cls-children').value, 10) || 0);
+        totalStudents += st;
+        totalParents += pa;
+        totalChildren += ch;
+        classes.push({ className: cName, students: st, parents: pa, children: ch });
+        if (cName || st > 0) classSummaryParts.push(`${cName || 'Lớp'} (${st})`);
+      });
+
+      const teacherInput = document.getElementById('teacherCountInput');
+      const teacherCount = teacherInput ? Math.max(0, parseInt(teacherInput.value, 10) || 0) : 0;
+      const totalPeople = totalStudents + teacherCount + totalParents + totalChildren;
+
+      return {
+        classes, classSummary: classSummaryParts.join(', '),
+        totalStudents, teacherCount, parentCount: totalParents, childCount: totalChildren, totalPeople
+      };
+    }
+
+    function calculateRealtimeTotals() {
+      const t = collectClassesAndTotals();
+      const elStudents = document.getElementById('rtStudents');
+      const elTeachers = document.getElementById('rtTeachers');
+      const elParents = document.getElementById('rtParents');
+      const elChildren = document.getElementById('rtChildren');
+      const elTotalAll = document.getElementById('realtimeTotalAll');
+
+      if (elStudents) elStudents.textContent = t.totalStudents;
+      if (elTeachers) elTeachers.textContent = t.teacherCount;
+      if (elParents) elParents.textContent = t.parentCount;
+      if (elChildren) elChildren.textContent = t.childCount;
+      if (elTotalAll) elTotalAll.textContent = t.totalPeople + ' người';
+    }
+
+    async function callApi(payload) {
+      const url = getApiUrl();
+      if (!url) throw new Error('Chưa cấu hình Google Apps Script URL!');
+      const res = await fetch(url, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      return await res.json();
+    }
+
+    async function loadActivePrograms(isBackground = false) {
+      try {
+        const result = await callApi({ action: 'getInitData' });
+        if (!result.success) throw new Error(result.message);
+
+        activeProgramsCache = result.programs || [];
+        const select = document.getElementById('hdvProgramSelect');
+        if (!select) return;
+
+        const currentVal = select.value;
+        select.innerHTML = '';
+
+        if (activeProgramsCache.length === 0) {
+          select.innerHTML = '<option value="">-- Không có chương trình nào Đang diễn ra --</option>';
+          const banner = document.getElementById('adminNoticeBanner');
+          if (banner) banner.classList.add('hidden');
+          return;
+        }
+
+        activeProgramsCache.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `${p.name} (${p.date || 'Chưa rõ ngày'})`;
+          select.appendChild(opt);
+        });
+
+        const savedProgId = localStorage.getItem(LS_LAST_PROGRAM);
+        const chosenId = (currentVal && activeProgramsCache.some(p => p.id === currentVal))
+          ? currentVal
+          : ((savedProgId && activeProgramsCache.some(p => p.id === savedProgId)) ? savedProgId : activeProgramsCache[0].id);
+
+        select.value = chosenId;
+
+        if (isBackground) {
+          checkNoticeOnly(chosenId);
+        } else {
+          onProgramChange();
+        }
+      } catch (err) {
+        if (!isBackground) showToast(err.message, 'error');
+      }
+    }
+
+    function checkNoticeOnly(progId) {
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const banner = document.getElementById('adminNoticeBanner');
+      const noticeText = document.getElementById('adminNoticeText');
+      if (banner && noticeText) {
+        if (progObj && progObj.notice && progObj.notice.trim() !== '') {
+          noticeText.textContent = progObj.notice;
+          banner.classList.remove('hidden');
+
+          const lastAck = localStorage.getItem(LS_ACK_PREFIX + progId) || '';
+          if (lastAck !== progObj.notice.trim()) {
+            triggerDeviceVibration();
+            showAdminNoticeModal(progObj.notice);
+          }
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+    }
+
+    function onProgramChange() {
+      const select = document.getElementById('hdvProgramSelect');
+      if (!select) return;
+      const progId = select.value;
+      if (!progId) return;
+
+      localStorage.setItem(LS_LAST_PROGRAM, progId);
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+
+      const banner = document.getElementById('adminNoticeBanner');
+      const noticeText = document.getElementById('adminNoticeText');
+      if (banner && noticeText) {
+        if (progObj && progObj.notice && progObj.notice.trim() !== '') {
+          noticeText.textContent = progObj.notice;
+          banner.classList.remove('hidden');
+
+          const lastAck = localStorage.getItem(LS_ACK_PREFIX + progId) || '';
+          if (lastAck !== progObj.notice.trim()) {
+            triggerDeviceVibration();
+            showAdminNoticeModal(progObj.notice);
+          }
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+
+      applyLockUiState(progId);
+      const map = getLockedMap();
+      const lockedVehicle = map[progId] || '';
+
+      if (lockedVehicle) {
+        fetchExistingVehicleInfo(progId, lockedVehicle);
+      } else {
+        resetVehicleFormFields();
+      }
+    }
+
+    function showAdminNoticeModal(content) {
+      alert("📢 THÔNG BÁO TỪ ĐIỀU HÀNH:\n\n" + content);
+      const progId = document.getElementById('hdvProgramSelect').value;
+      if (progId) localStorage.setItem(LS_ACK_PREFIX + progId, content.trim());
+    }
+
+    function openCurrentNoticeModal() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      if (progObj && progObj.notice) showAdminNoticeModal(progObj.notice);
+    }
+
+    function resetVehicleFormFields() {
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      setVal('hdvVehicleInput', '');
+      setVal('hdvStatusSelect', '🚩 Đang xuất phát');
+      setVal('teacherCountInput', '0');
+      setVal('leaderNameInput', '');
+      setVal('leaderPhoneInput', '');
+      setVal('licensePlateInput', '');
+      setVal('driverNameInput', '');
+      setVal('driverPhoneInput', '');
+
+      const setChecked = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+      setChecked('chkHieuTruong', false);
+      setChecked('chkHieuPho', false);
+      setChecked('chkTruongDoan', false);
+
+      const lastSavedEl = document.getElementById('lastSavedTime');
+      if (lastSavedEl) lastSavedEl.textContent = '';
+
+      renderClassRows([]);
+    }
+
+    async function fetchExistingVehicleInfo(progId, vehicleName) {
+      try {
+        const res = await callApi({ action: 'getVehicleData', programId: progId, vehicleName });
+        if (res.success && res.found && res.data) {
+          const d = res.data;
+          document.getElementById('hdvVehicleInput').value = d.vehicleName || vehicleName;
+          document.getElementById('hdvStatusSelect').value = d.status || '🚩 Đang xuất phát';
+          document.getElementById('lastSavedTime').textContent = d.updatedAt ? ('Cập nhật: ' + d.updatedAt) : '';
+
+          if (d.hdvName) {
+            document.getElementById('hdvNameInput').value = d.hdvName;
+            localStorage.setItem(LS_HDV_NAME, d.hdvName);
+          }
+          if (d.hdvPhone) {
+            document.getElementById('hdvPhoneInput').value = d.hdvPhone;
+            localStorage.setItem(LS_HDV_PHONE, d.hdvPhone);
+          }
+          document.getElementById('teacherCountInput').value = d.teacherCount !== undefined ? d.teacherCount : 0;
+          document.getElementById('leaderNameInput').value = d.leaderName || '';
+          document.getElementById('leaderPhoneInput').value = d.leaderPhone || '';
+
+          const roles = d.vipRoles || '';
+          document.getElementById('chkHieuTruong').checked = roles.includes('Hiệu trưởng');
+          document.getElementById('chkHieuPho').checked = roles.includes('Hiệu phó');
+          document.getElementById('chkTruongDoan').checked = roles.includes('Trưởng đoàn');
+
+          document.getElementById('licensePlateInput').value = d.licensePlate || '';
+          document.getElementById('driverNameInput').value = d.driverName || '';
+          document.getElementById('driverPhoneInput').value = d.driverPhone || '';
+
+          renderClassRows(d.classes || []);
+          showToast('Đã tải lại dữ liệu xe ' + d.vehicleName, 'info');
+        }
+      } catch (err) {
+        console.warn('Lỗi tải dữ liệu xe:', err);
+      }
+    }
+
+    async function saveQuickStatus() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+      const hdvName = document.getElementById('hdvNameInput').value.trim();
+      const status = document.getElementById('hdvStatusSelect').value;
+
+      if (!progId) {
+        showToast('Vui lòng chọn tour đang diễn ra!', 'error');
+        document.getElementById('hdvProgramSelect').focus();
+        return;
+      }
+      if (!vehicleName) {
+        showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
+        document.getElementById('hdvVehicleInput').focus();
+        return;
+      }
+      if (!hdvName) {
+        showToast('Vui lòng nhập Họ tên HDV!', 'error');
+        document.getElementById('hdvNameInput').focus();
+        return;
+      }
+
+      const btn = document.getElementById('btnQuickStatus');
+      const oldText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Đang lưu...';
+
+      try {
+        const res = await callApi({
+          action: 'updateStatusOnly',
+          programId: progId,
+          programName: progObj ? progObj.name : '',
+          vehicleName: vehicleName,
+          status: status,
+          hdvName: hdvName,
+          lat: '',
+          lng: '',
+          gpsTime: ''
+        });
+
+        if (!res.success) throw new Error(res.message);
+        setLockedVehicleForTour(progId, vehicleName);
+        document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
+        showToast(res.message, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+      }
+    }
+
+    // HÀM KIỂM TRA BẮT BUỘC NHẬP TOÀN BỘ THÔNG TIN TRƯỚC KHI LƯU
+    async function submitFullVehicleForm() {
+      const progId = document.getElementById('hdvProgramSelect').value;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+      const hdvName = document.getElementById('hdvNameInput').value.trim();
+      const hdvPhone = document.getElementById('hdvPhoneInput').value.trim();
+
+      const leaderName = document.getElementById('leaderNameInput').value.trim();
+      const leaderPhone = document.getElementById('leaderPhoneInput').value.trim();
+      const teacherCountRaw = document.getElementById('teacherCountInput').value.trim();
+      const licensePlate = document.getElementById('licensePlateInput').value.trim();
+      const driverName = document.getElementById('driverNameInput').value.trim();
+      const driverPhone = document.getElementById('driverPhoneInput').value.trim();
+
+      // 1. Kiểm tra khối 1
+      if (!progId) {
+        showToast('Vui lòng chọn Chương trình đang diễn ra!', 'error');
+        document.getElementById('hdvProgramSelect').focus();
+        return;
+      }
+      if (!vehicleName) {
+        showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
+        document.getElementById('hdvVehicleInput').focus();
+        return;
+      }
+      if (!hdvName) {
+        showToast('Vui lòng nhập Họ tên HDV!', 'error');
+        document.getElementById('hdvNameInput').focus();
+        return;
+      }
+      if (!hdvPhone) {
+        showToast('Vui lòng nhập Số điện thoại HDV!', 'error');
+        document.getElementById('hdvPhoneInput').focus();
+        return;
+      }
+
+      // 2. Kiểm tra khối 2: Quản lý Nhân sự & Trưởng xe
+      if (!leaderName) {
+        showToast('Vui lòng nhập Tên GVCN / Trưởng xe!', 'error');
+        document.getElementById('leaderNameInput').focus();
+        return;
+      }
+      if (!leaderPhone) {
+        showToast('Vui lòng nhập SĐT GVCN / Trưởng xe!', 'error');
+        document.getElementById('leaderPhoneInput').focus();
+        return;
+      }
+      if (teacherCountRaw === '' || isNaN(teacherCountRaw) || parseInt(teacherCountRaw, 10) < 0) {
+        showToast('Vui lòng nhập Tổng Giáo viên trên xe (ít nhất 0)!', 'error');
+        document.getElementById('teacherCountInput').focus();
+        return;
+      }
+      if (!licensePlate) {
+        showToast('Vui lòng nhập Biển số xe!', 'error');
+        document.getElementById('licensePlateInput').focus();
+        return;
+      }
+      if (!driverName) {
+        showToast('Vui lòng nhập Tên Lái xe!', 'error');
+        document.getElementById('driverNameInput').focus();
+        return;
+      }
+      if (!driverPhone) {
+        showToast('Vui lòng nhập SĐT Lái xe!', 'error');
+        document.getElementById('driverPhoneInput').focus();
+        return;
+      }
+
+      // 3. Kiểm tra khối 3: Quản lý Sĩ số theo Lớp
+      const rows = document.querySelectorAll('#classListContainer .class-item-row');
+      if (rows.length === 0) {
+        showToast('Vui lòng thêm ít nhất 1 lớp học!', 'error');
+        return;
+      }
+
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const cName = r.querySelector('.cls-name').value.trim();
+        const stRaw = r.querySelector('.cls-students').value.trim();
+        const stVal = parseInt(stRaw, 10);
+
+        if (!cName) {
+          showToast(`Vui lòng nhập Tên lớp ở Lớp thứ ${i + 1}!`, 'error');
+          r.querySelector('.cls-name').focus();
+          return;
+        }
+        if (stRaw === '' || isNaN(stVal) || stVal <= 0) {
+          showToast(`Vui lòng nhập Số Học sinh (> 0) cho lớp ${cName}!`, 'error');
+          r.querySelector('.cls-students').focus();
+          return;
+        }
+      }
+
+      // 4. Chuẩn bị dữ liệu gửi đi khi đã điền đầy đủ
+      const vipArr = [];
+      if (document.getElementById('chkHieuTruong').checked) vipArr.push('Hiệu trưởng');
+      if (document.getElementById('chkHieuPho').checked) vipArr.push('Hiệu phó');
+      if (document.getElementById('chkTruongDoan').checked) vipArr.push('Trưởng đoàn');
+
+      const totals = collectClassesAndTotals();
+
+      const btn = document.getElementById('btnSaveAll');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Đang lưu dữ liệu...';
+
+      const payloadData = {
+        programId: progId,
+        programName: progObj ? progObj.name : '',
+        vehicleName: vehicleName,
+        status: document.getElementById('hdvStatusSelect').value,
+        hdvName: hdvName,
+        hdvPhone: hdvPhone,
+        leaderName: leaderName,
+        leaderPhone: leaderPhone,
+        vipRoles: vipArr.join(', '),
+        driverName: driverName,
+        driverPhone: driverPhone,
+        licensePlate: licensePlate,
+        teacherCount: totals.teacherCount,
+        totalStudents: totals.totalStudents,
+        parentCount: totals.parentCount,
+        childCount: totals.childCount,
+        totalPeople: totals.totalPeople,
+        classSummary: totals.classSummary,
+        classes: totals.classes,
+        lat: '',
+        lng: '',
+        gpsTime: ''
+      };
+
+      try {
+        const res = await callApi({ action: 'saveVehicleData', data: payloadData });
+        if (!res.success) throw new Error(res.message);
+        setLockedVehicleForTour(progId, vehicleName);
+        document.getElementById('lastSavedTime').textContent = 'Cập nhật: ' + (res.updatedAt || '');
+        showToast(res.message, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function switchTab(tabName) {
+      if ((tabName === 'summary' || tabName === 'admin') && !unlockedPinSession) {
+        pendingTargetTab = tabName;
+        const modal = document.getElementById('pinModal');
+        const input = document.getElementById('pinInputBox');
+        if (modal && input) {
+          input.value = '';
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+          setTimeout(() => input.focus(), 100);
+        }
+        return;
+      }
+      activateTabView(tabName);
+    }
+
+    function closePinModal() {
+      const modal = document.getElementById('pinModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+      pendingTargetTab = null;
+    }
+
+    function confirmPinModal() {
+      const input = document.getElementById('pinInputBox');
+      if (input && input.value.trim() === REQUIRED_PIN) {
+        unlockedPinSession = true;
+        const target = pendingTargetTab || 'summary';
+        closePinModal();
+        activateTabView(target);
+        showToast('Xác thực quản lý thành công!', 'success');
+      } else {
+        showToast('Mã PIN không đúng!', 'error');
+      }
+    }
+
+    function activateTabView(tabName) {
+      const sections = {
+        hdv: document.getElementById('sectionHDV'),
+        summary: document.getElementById('sectionSummary'),
+        admin: document.getElementById('sectionAdmin')
+      };
+      const buttons = {
+        hdv: document.getElementById('tabBtnHDV'),
+        summary: document.getElementById('tabBtnSummary'),
+        admin: document.getElementById('tabBtnAdmin')
+      };
+
+      Object.keys(sections).forEach(k => {
+        if (sections[k]) {
+          if (k === tabName) {
+            sections[k].classList.remove('hidden');
+            buttons[k].className = 'py-1.5 px-2 rounded bg-white text-blue-800 shadow transition text-center';
+          } else {
+            sections[k].classList.add('hidden');
+            buttons[k].className = 'py-1.5 px-2 rounded text-blue-100 hover:bg-blue-700 transition text-center';
+          }
+        }
+      });
+
+      if (tabName === 'hdv') {
+        loadActivePrograms();
+      } else if (tabName === 'summary') {
+        loadAdminProgramsForSummary();
+      } else if (tabName === 'admin') {
+        loadAdminPrograms();
+      }
+    }
+
+    async function loadAdminProgramsForSummary() {
+      try {
+        const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
+        if (!res.success) throw new Error(res.message);
+        adminProgramsCache = res.programs || [];
+
+        const sel = document.getElementById('summaryProgramSelect');
+        if (!sel) return;
+        const currentVal = sel.value;
+        sel.innerHTML = '';
+
+        if (adminProgramsCache.length === 0) {
+          sel.innerHTML = '<option value="">-- Chưa có chương trình nào --</option>';
+          return;
+        }
+
+        adminProgramsCache.forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = `[${p.status}] ${p.name} (${p.date || ''})`;
+          sel.appendChild(opt);
+        });
+
+        if (currentVal && adminProgramsCache.some(p => p.id === currentVal)) {
+          sel.value = currentVal;
+        } else {
+          const activeOne = adminProgramsCache.find(p => p.status === 'Đang diễn ra');
+          sel.value = activeOne ? activeOne.id : adminProgramsCache[0].id;
+        }
+
+        loadSummaryDashboard();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function getStatusBadgeHtml(statusText) {
+      const s = String(statusText || '');
+      let colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      if (s.includes('bảo tàng') || s.includes('di tích')) colorClass = 'bg-amber-100 text-amber-800 border-amber-300';
+      else if (s.includes('nhận phòng')) colorClass = 'bg-blue-100 text-blue-800 border-blue-300';
+      else if (s.includes('trả phòng')) colorClass = 'bg-purple-100 text-purple-800 border-purple-300';
+      else if (s.includes('Đang về trường')) colorClass = 'bg-orange-100 text-orange-800 border-orange-300';
+      else if (s.includes('Đã về tới trường')) colorClass = 'bg-red-100 text-red-800 border-red-300';
+
+      return `<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorClass}">${escapeHtml(s)}</span>`;
+    }
+
+    function formatCallLink(phone) {
+      const clean = String(phone || '').trim();
+      if (!clean) return '<span class="text-slate-300">-</span>';
+      return `<a href="tel:${escapeHtml(clean)}" class="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold underline">📞 ${escapeHtml(clean)}</a>`;
+    }
+
+    function formatTimeDisplay(rawTime) {
+      if (!rawTime) return '-';
+      try {
+        const d = new Date(rawTime);
+        if (!isNaN(d.getTime())) {
+          const pad = n => String(n).padStart(2, '0');
+          return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+        }
+      } catch (e) {}
+      return String(rawTime);
+    }
+
+    async function loadSummaryDashboard(isSilent = false) {
+      const progSel = document.getElementById('summaryProgramSelect');
+      if (!progSel) return;
+      const progId = progSel.value;
+      if (!progId) return;
+
+      try {
+        const res = await callApi({
+          action: 'getSummaryData',
+          pin: REQUIRED_PIN,
+          programId: progId
+        });
+        if (!res.success) throw new Error(res.message);
+
+        const list = res.vehicles || [];
+
+        list.sort((a, b) =>
+          String(a.vehicleName).localeCompare(String(b.vehicleName), 'vi', { numeric: true, sensitivity: 'base' })
+        );
+
+        let sumPeople = 0, sumStudents = 0, sumTeachers = 0, sumParents = 0, sumChildren = 0;
+        const tbody = document.getElementById('summaryTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (list.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="16" class="py-6 text-center text-slate-400">Chưa có xe nào gửi báo cáo.</td></tr>`;
+        } else {
+          list.forEach(v => {
+            sumPeople += Number(v.totalPeople || 0);
+            sumStudents += Number(v.totalStudents || 0);
+            sumTeachers += Number(v.teacherCount || 0);
+            sumParents += Number(v.parentCount || 0);
+            sumChildren += Number(v.childCount || 0);
+
+            const vipTag = v.vipRoles ? `<div class="text-[9px] text-rose-600 font-bold">(${escapeHtml(v.vipRoles)})</div>` : '';
+
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-blue-50/40 transition';
+            tr.innerHTML = `
+              <td class="py-2 px-3 font-extrabold text-blue-900 sticky-col">${escapeHtml(v.vehicleName)}</td>
+              <td class="py-2 px-3">${getStatusBadgeHtml(v.status)}</td>
+              <td class="py-2 px-3 text-center font-extrabold text-emerald-700 text-xs">${v.totalStudents}</td>
+              <td class="py-2 px-3 font-semibold text-slate-700">${escapeHtml(v.classSummary || '-')}</td>
+              <td class="py-2 px-3 text-center font-bold text-indigo-700">${v.teacherCount}${vipTag}</td>
+              <td class="py-2 px-3 text-center font-bold text-orange-600">${v.parentCount}</td>
+              <td class="py-2.5 px-3 text-center font-bold text-pink-600">${v.childCount}</td>
+              <td class="py-2 px-3 text-center font-extrabold text-blue-900 bg-slate-100">${v.totalPeople}</td>
+              <td class="py-2 px-3 font-semibold">${escapeHtml(v.hdvName || '-')}</td>
+              <td class="py-2 px-3">${formatCallLink(v.hdvPhone)}</td>
+              <td class="py-2 px-3 font-medium">${escapeHtml(v.leaderName || '-')}</td>
+              <td class="py-2 px-3">${formatCallLink(v.leaderPhone)}</td>
+              <td class="py-2 px-3 font-medium">${escapeHtml(v.driverName || '-')}</td>
+              <td class="py-2 px-3">${formatCallLink(v.driverPhone)}</td>
+              <td class="py-2 px-3 font-bold uppercase text-slate-700">${escapeHtml(v.licensePlate || '-')}</td>
+              <td class="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">${formatTimeDisplay(v.updatedAt)}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        const setCard = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setCard('sumCardTotalPeople', sumPeople);
+        setCard('sumCardStudents', sumStudents);
+        setCard('sumCardTeachers', sumTeachers);
+        setCard('sumCardParents', sumParents);
+        setCard('sumCardChildren', sumChildren);
+        setCard('sumCardVehicles', list.length);
+        setCard('summaryCountText', `Đã có ${list.length} xe báo cáo`);
+
+        if (!isSilent) showToast('Đã làm mới dữ liệu!', 'info');
+      } catch (err) {
+        if (!isSilent) showToast(err.message, 'error');
+      }
+    }
+
+    async function loadAdminPrograms() {
+      try {
+        const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
+        if (!res.success) throw new Error(res.message);
+        adminProgramsCache = res.programs || [];
+        renderAdminProgramList();
+        populateAdminNoticeSelect();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function populateAdminNoticeSelect() {
+      const sel = document.getElementById('adminNoticeProgSelect');
+      if (!sel) return;
+      sel.innerHTML = '';
+      const running = adminProgramsCache.filter(p => p.status === 'Đang diễn ra');
+      if (running.length === 0) {
+        sel.innerHTML = '<option value="">-- Không có tour Đang diễn ra --</option>';
+        document.getElementById('adminNoticeInput').value = '';
+        return;
+      }
+      running.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.name} (${p.date || ''})`;
+        sel.appendChild(opt);
+      });
+      syncNoticeTextarea();
+    }
+
+    function syncNoticeTextarea() {
+      const progId = document.getElementById('adminNoticeProgSelect').value;
+      const prog = adminProgramsCache.find(p => p.id === progId);
+      const inputEl = document.getElementById('adminNoticeInput');
+      if (inputEl) inputEl.value = prog ? (prog.notice || '') : '';
+    }
+
+    async function handleSendNotice() {
+      const programId = document.getElementById('adminNoticeProgSelect').value;
+      const notice = document.getElementById('adminNoticeInput').value.trim();
+      if (!programId) return showToast('Vui lòng chọn một chương trình đang vận hành!', 'error');
+
+      try {
+        const res = await callApi({ action: 'updateProgramNotice', pin: REQUIRED_PIN, programId, notice });
+        if (!res.success) throw new Error(res.message);
+        showToast('Đã gửi thông báo đến toàn bộ HDV!', 'success');
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function renderAdminProgramList() {
+      const container = document.getElementById('adminProgramList');
+      if (!container) return;
+      container.innerHTML = '';
+      if (adminProgramsCache.length === 0) {
+        container.innerHTML = '<p class="py-4 text-center text-slate-400">Chưa có chương trình nào.</p>';
+        return;
+      }
+      adminProgramsCache.slice().reverse().forEach(p => {
+        let badgeClass = 'bg-amber-100 text-amber-800';
+        if (p.status === 'Đang diễn ra') badgeClass = 'bg-emerald-100 text-emerald-800';
+        if (p.status === 'Đã kết thúc') badgeClass = 'bg-slate-200 text-slate-700';
+
+        let actionBtns = '';
+        if (p.status === 'Sắp diễn ra') {
+          actionBtns = `<button onclick="window.changeProgramStatus('${p.id}', 'Đang diễn ra')" class="px-2.5 py-1 bg-emerald-600 text-white rounded text-xs font-bold shadow">▶️ Bắt đầu</button>`;
+        } else if (p.status === 'Đang diễn ra') {
+          actionBtns = `<button onclick="window.changeProgramStatus('${p.id}', 'Đã kết thúc')" class="px-2.5 py-1 bg-rose-600 text-white rounded text-xs font-bold shadow">⏹️ Kết thúc</button>`;
+        } else if (p.status === 'Đã kết thúc') {
+          actionBtns = `<button onclick="window.changeProgramStatus('${p.id}', 'Đang diễn ra')" class="px-2.5 py-1 bg-blue-600 text-white rounded text-xs font-bold shadow">🔄 Mở lại</button>`;
+        }
+
+        const div = document.createElement('div');
+        div.className = 'py-2 flex items-center justify-between gap-2';
+        div.innerHTML = `
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}">${escapeHtml(p.status)}</span>
+              <span class="font-bold text-slate-800">${escapeHtml(p.name)}</span>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-0.5">Ngày: <b>${escapeHtml(p.date || 'Chưa chọn')}</b></p>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">${actionBtns}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function handleCreateProgram() {
+      const name = document.getElementById('newProgName').value.trim();
+      const date = document.getElementById('newProgDate').value;
+      if (!name) return showToast('Vui lòng nhập Tên chương trình!', 'error');
+
+      try {
+        const res = await callApi({ action: 'createProgram', pin: REQUIRED_PIN, name, date, status: 'Đang diễn ra' });
+        if (!res.success) throw new Error(res.message);
+        document.getElementById('newProgName').value = '';
+        showToast(res.message, 'success');
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function changeProgramStatus(programId, newStatus) {
+      try {
+        const res = await callApi({ action: 'updateProgramStatus', pin: REQUIRED_PIN, programId, status: newStatus });
+        if (!res.success) throw new Error(res.message);
+        showToast(res.message, 'success');
+        loadAdminPrograms();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function showToast(msg, type = 'info') {
+      const box = document.getElementById('toastBox');
+      const content = document.getElementById('toastContent');
+      const text = document.getElementById('toastText');
+      if (!box || !content || !text) return;
+
+      let bg = 'bg-slate-800';
+      if (type === 'success') bg = 'bg-emerald-600';
+      if (type === 'error') bg = 'bg-rose-600';
+      content.className = `p-2.5 rounded-xl shadow-lg text-white font-medium text-xs flex items-center justify-between ${bg}`;
+      text.textContent = msg;
+      box.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(hideToast, 4000);
+    }
+
+    function hideToast() {
+      const box = document.getElementById('toastBox');
+      if (box) box.classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // GẮN CÁC HÀM VÀO WINDOW
+    window.switchTab = switchTab;
+    window.hideToast = hideToast;
+    window.saveQuickStatus = saveQuickStatus;
+    window.addClassRow = addClassRow;
+    window.removeClassRow = removeClassRow;
+    window.submitFullVehicleForm = submitFullVehicleForm;
+    window.loadSummaryDashboard = loadSummaryDashboard;
+    window.saveApiEndpoint = saveApiEndpoint;
+    window.onProgramChange = onProgramChange;
+    window.handleVehicleBlur = handleVehicleBlur;
+    window.syncHdvName = syncHdvName;
+    window.unlockVehicleForCurrentTour = unlockVehicleForCurrentTour;
+    window.loadActivePrograms = loadActivePrograms;
+    window.calculateRealtimeTotals = calculateRealtimeTotals;
+    window.openCurrentNoticeModal = openCurrentNoticeModal;
+    window.handleCreateProgram = handleCreateProgram;
+    window.changeProgramStatus = changeProgramStatus;
+    window.loadAdminPrograms = loadAdminPrograms;
+    window.closePinModal = closePinModal;
+    window.confirmPinModal = confirmPinModal;
+    window.syncNoticeTextarea = syncNoticeTextarea;
+    window.handleSendNotice = handleSendNotice;
+
+    // KHỞI CHẠY LẦN ĐẦU
+    window.addEventListener('DOMContentLoaded', () => {
+      const hdvEl = document.getElementById('hdvNameInput');
+      const hdvPhoneEl = document.getElementById('hdvPhoneInput');
+      const apiEl = document.getElementById('apiEndpointInput');
+
+      if (hdvEl) hdvEl.value = localStorage.getItem(LS_HDV_NAME) || '';
+      if (hdvPhoneEl) hdvPhoneEl.value = localStorage.getItem(LS_HDV_PHONE) || '';
+      if (apiEl) apiEl.value = getApiUrl();
+
+      renderClassRows([]);
+      loadActivePrograms();
+    });
+
+    // MỞ SÁNG MÀN HÌNH -> CHỈ QUÉT THÔNG BÁO VÀ RUNG, KHÔNG RESET FORM
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        if (getApiUrl()) {
+          loadActivePrograms(true);
+        }
+      }
+    });
+
+    // CHẠY NGẦM ĐỊNH KỲ 30 GIÂY -> CHỈ QUÉT THÔNG BÁO VÀ RUNG, KHÔNG RESET FORM
+    setInterval(() => {
+      if (document.visibilityState === "visible" && getApiUrl()) {
+        loadActivePrograms(true);
+      }
+    }, 30000);
+  </script>
+</body>
+</html>

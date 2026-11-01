@@ -1,0 +1,455 @@
+/**
+ * BACKEND API GOOGLE APPS SCRIPT CHO ZALO MINI APP / WEB APP
+ * - Tự động đồng bộ cấu hình trạng thái xe tùy biến từ Admin
+ * - Tối ưu hóa API cập nhật GPS liên tục 15s không bị nghẽn
+ * - Khắc phục triệt để lỗi Google Sheets tự biến dấu chấm thập phân tọa độ thành số hàng nghìn
+ */
+
+const SHEET_PROGRAMS = 'DanhSachChuongTrinh';
+const SHEET_DATA = 'TongHopDuLieu';
+const SHEET_STATUSES = 'DanhSachTrangThai';
+const ADMIN_PIN = '8888';
+
+// 1. Tự động khởi tạo và chuẩn hóa cấu trúc 3 Sheets
+function initSheets() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Sheet 1: Danh sách chương trình
+  let progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  if (!progSheet) {
+    progSheet = ss.insertSheet(SHEET_PROGRAMS);
+    progSheet.appendRow([
+      'Mã Chương Trình', 'Tên Chương Trình', 'Ngày Thực Hiện',
+      'Trạng Thái', 'Thông Báo Admin', 'Ngày Tạo'
+    ]);
+    progSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#d9ead3');
+  }
+
+  // Sheet 2: Danh sách trạng thái xe (Admin có thể thêm mới)
+  let statusSheet = ss.getSheetByName(SHEET_STATUSES);
+  if (!statusSheet) {
+    statusSheet = ss.insertSheet(SHEET_STATUSES);
+    statusSheet.appendRow(['Tên Trạng Thái', 'Màu Sắc', 'Kích Hoạt GPS 15s']);
+    statusSheet.getRange('A1:C1').setFontWeight('bold').setBackground('#fce5cd');
+    
+    // Khởi tạo các trạng thái mặc định
+    const defaultStatuses = [
+      ['🚩 Đang xuất phát', '#10b981', true],
+      ['🚌 Đang di chuyển', '#059669', true],
+      ['🏛️ Đã đến bảo tàng/di tích', '#eab308', false],
+      ['🏨 Đã nhận phòng', '#2563eb', false],
+      ['🔑 Đã trả phòng', '#9333ea', false],
+      ['🚌 Đang về trường', '#ea580c', true],
+      ['🏫 Đã về tới trường', '#e11d48', false]
+    ];
+    defaultStatuses.forEach(r => statusSheet.appendRow(r));
+  }
+
+  // Sheet 3: Dữ liệu tổng hợp xe
+  let dataSheet = ss.getSheetByName(SHEET_DATA);
+  if (!dataSheet) {
+    dataSheet = ss.insertSheet(SHEET_DATA);
+    dataSheet.appendRow([
+      'Thời Gian Cập Nhật', 'Mã Chương Trình', 'Tên Chương Trình', 'Số Xe',
+      'Trạng Thái Xe', 'Tổng HS', 'Chi Tiết Lớp (Hiển thị)', 'Số Lượng GV',
+      'Số Lượng PH', 'Số Lượng Trẻ Em', 'Tổng Số Người', 'Tên HDV',
+      'SĐT HDV', 'GVCN / Trưởng Xe', 'SĐT GVCN / Trưởng Xe',
+      'Chức Vụ Đoàn (HT/HP/TĐ)', 'Họ Tên Lái Xe', 'SĐT Lái Xe', 'Biển Số Xe',
+      'Dữ Liệu Lớp (JSON)', 'Vĩ Độ (Lat)', 'Kinh Độ (Lng)', 'Thời Gian GPS'
+    ]);
+    dataSheet.getRange('A1:W1').setFontWeight('bold').setBackground('#cfe2f3');
+  } else {
+    const headers = dataSheet.getRange(1, 1, 1, Math.max(dataSheet.getLastColumn(), 23)).getValues()[0];
+    if (headers.length < 23 || !headers[20]) {
+      dataSheet.getRange(1, 21).setValue('Vĩ Độ (Lat)');
+      dataSheet.getRange(1, 22).setValue('Kinh Độ (Lng)');
+      dataSheet.getRange(1, 23).setValue('Thời Gian GPS');
+      dataSheet.getRange('U1:W1').setFontWeight('bold').setBackground('#cfe2f3');
+    }
+  }
+  return ss;
+}
+
+function normalizeVehicleKey(str) {
+  return String(str || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function doGet(e) { return handleRequest(e); }
+function doPost(e) { return handleRequest(e); }
+
+function handleRequest(e) {
+  try {
+    const ss = initSheets();
+    let params = {};
+    if (e.postData && e.postData.contents) {
+      params = JSON.parse(e.postData.contents);
+    } else if (e.parameter) {
+      params = e.parameter;
+    }
+
+    // --- CHÈN ĐOẠN ĐÓN WEBHOOK VÀO ĐÂY (NGAY SAU DÒNG 88) ---
+    if (params.event_name === 'user_revoke_consent' || !params.action) {
+      return jsonResponse({ error: 0, message: 'Đã tiếp nhận yêu cầu xóa dữ liệu' });
+    }
+    // --------------------------------------------------------
+
+    const action = params.action || 'getInitData';
+
+    // Các tác vụ đọc dữ liệu nhanh (không cần chờ Lock)
+    if (action === 'getInitData') return jsonResponse(getInitData(ss, params));
+    if (action === 'getVehicleData') return jsonResponse(getVehicleData(ss, params));
+    if (action === 'getSummaryData') return jsonResponse(getSummaryData(ss, params));
+
+    // Riêng tác vụ ping GPS tự động 15s: dùng lock ngắn 5s để tránh nghẽn hàng đợi
+    if (action === 'updateGpsAuto15s') {
+      const pingLock = LockService.getScriptLock();
+      if (pingLock.tryLock(5000)) {
+        try {
+          const res = updateStatusAndGps(ss, params, true);
+          SpreadsheetApp.flush();
+          return jsonResponse(res);
+        } finally {
+          pingLock.releaseLock();
+        }
+      } else {
+        return jsonResponse({ success: false, message: 'Server busy, skip tick' });
+      }
+    }
+
+    // Các tác vụ ghi dữ liệu tiêu chuẩn (Khóa 30 giây)
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      let result = {};
+      if (action === 'saveVehicleData') {
+        result = saveVehicleData(ss, params);
+      } else if (action === 'updateStatusOnly') {
+        result = updateStatusAndGps(ss, params, false);
+      } else if (action === 'createProgram') {
+        result = createProgram(ss, params);
+      } else if (action === 'updateProgramStatus') {
+        result = updateProgramStatus(ss, params);
+      } else if (action === 'updateProgramNotice') {
+        result = updateProgramNotice(ss, params);
+      } else if (action === 'addCustomStatus') {
+        result = addCustomStatus(ss, params);
+      } else if (action === 'deleteCustomStatus') {
+        result = deleteCustomStatus(ss, params);
+      } else {
+        result = { success: false, message: 'Hành động không hợp lệ!' };
+      }
+      SpreadsheetApp.flush();
+      return jsonResponse(result);
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    return jsonResponse({ success: false, message: 'Lỗi máy chủ: ' + err.toString() });
+  }
+}
+
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Lấy danh sách tour và danh mục trạng thái xe (bao gồm trạng thái Admin tạo thêm)
+function getInitData(ss, params) {
+  const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  const rows = progSheet.getDataRange().getValues();
+  const isAdmin = String(params.pin || '') === ADMIN_PIN;
+  const programs = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    const prog = {
+      id: String(r[0]),
+      name: String(r[1]),
+      date: r[2] ? Utilities.formatDate(new Date(r[2]), Session.getScriptTimeZone(), 'yyyy-MM-dd') : '',
+      status: String(r[3] || 'Sắp diễn ra'),
+      notice: String(r[4] || ''),
+      createdAt: r[5] || ''
+    };
+    if (isAdmin || prog.status === 'Đang diễn ra') {
+      programs.push(prog);
+    }
+  }
+
+  // Lấy danh sách trạng thái xe
+  const statusSheet = ss.getSheetByName(SHEET_STATUSES);
+  const statusRows = statusSheet.getDataRange().getValues();
+  const vehicleStatuses = [];
+  for (let j = 1; j < statusRows.length; j++) {
+    if (statusRows[j][0]) {
+      vehicleStatuses.push({
+        name: String(statusRows[j][0]),
+        color: String(statusRows[j][1] || '#10b981'),
+        isMoving: Boolean(statusRows[j][2])
+      });
+    }
+  }
+
+  return { success: true, programs: programs, statuses: vehicleStatuses };
+}
+
+function getVehicleData(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const vehicleName = String(params.vehicleName || '').trim();
+  if (!progId || !vehicleName) return { success: false, message: 'Thiếu thông tin' };
+
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  const rows = dataSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(vehicleName);
+
+  for (let i = rows.length - 1; i >= 1; i--) {
+    const r = rows[i];
+    if (String(r[1]) === progId && normalizeVehicleKey(r[3]) === targetKey) {
+      let classes = [];
+      try { classes = JSON.parse(r[19] || '[]'); } catch (e) { classes = []; }
+      return {
+        success: true,
+        found: true,
+        data: {
+          updatedAt: r[0],
+          programId: String(r[1]),
+          programName: String(r[2]),
+          vehicleName: String(r[3]),
+          status: String(r[4] || '🚩 Đang xuất phát'),
+          totalStudents: Number(r[5] || 0),
+          classSummary: String(r[6] || ''),
+          teacherCount: Number(r[7] || 0),
+          parentCount: Number(r[8] || 0),
+          childCount: Number(r[9] || 0),
+          totalPeople: Number(r[10] || 0),
+          hdvName: String(r[11] || ''),
+          hdvPhone: String(r[12] || '').replace(/^'+/, ''),
+          leaderName: String(r[13] || ''),
+          leaderPhone: String(r[14] || '').replace(/^'+/, ''),
+          vipRoles: String(r[15] || ''),
+          driverName: String(r[16] || ''),
+          driverPhone: String(r[17] || '').replace(/^'+/, ''),
+          licensePlate: String(r[18] || ''),
+          classes: classes,
+          lat: String(r[20] || '').replace(/^'+/, ''),
+          lng: String(r[21] || '').replace(/^'+/, ''),
+          gpsTime: r[22] || ''
+        }
+      };
+    }
+  }
+  return { success: true, found: false };
+}
+
+// Lưu toàn bộ biểu mẫu xe (Thêm dấu ' để Sheets lưu dạng chuỗi tọa độ chuẩn)
+function saveVehicleData(ss, params) {
+  const d = params.data || {};
+  const progId = String(d.programId || '').trim();
+  const vehicleName = String(d.vehicleName || '').trim();
+  if (!progId || !vehicleName) return { success: false, message: 'Vui lòng chọn tour và số xe!' };
+
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  const rows = dataSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(vehicleName);
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+
+  const latStr = d.lat ? ("'" + String(d.lat).replace(/^'+/, '')) : '';
+  const lngStr = d.lng ? ("'" + String(d.lng).replace(/^'+/, '')) : '';
+  const gpsTimeStr = d.gpsTime || (d.lat ? nowStr : '');
+
+  const rowValues = [
+    nowStr,
+    progId,
+    d.programName || '',
+    vehicleName,
+    d.status || '🚩 Đang xuất phát',
+    Number(d.totalStudents || 0),
+    d.classSummary || '',
+    Number(d.teacherCount || 0),
+    Number(d.parentCount || 0),
+    Number(d.childCount || 0),
+    Number(d.totalPeople || 0),
+    d.hdvName || '',
+    "'" + String(d.hdvPhone || '').replace(/^'+/, ''),
+    d.leaderName || '',
+    "'" + String(d.leaderPhone || '').replace(/^'+/, ''),
+    d.vipRoles || '',
+    d.driverName || '',
+    "'" + String(d.driverPhone || '').replace(/^'+/, ''),
+    d.licensePlate || '',
+    JSON.stringify(d.classes || []),
+    latStr,
+    lngStr,
+    gpsTimeStr
+  ];
+
+  let targetRowIndex = -1;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][3]) === targetKey) {
+      targetRowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (targetRowIndex !== -1) {
+    dataSheet.getRange(targetRowIndex, 1, 1, rowValues.length).setValues([rowValues]);
+  } else {
+    dataSheet.appendRow(rowValues);
+  }
+
+  return { success: true, message: 'Đã lưu & đồng bộ vị trí GPS cho ' + vehicleName, updatedAt: nowStr };
+}
+
+// Cập nhật trạng thái hoặc ping GPS tự động mỗi 15s
+function updateStatusAndGps(ss, params, isAutoPing) {
+  const progId = String(params.programId || '').trim();
+  const progName = String(params.programName || '').trim();
+  const vehicleName = String(params.vehicleName || '').trim();
+  const status = String(params.status || '').trim();
+  const hdvName = String(params.hdvName || '').trim();
+  
+  const latStr = params.lat ? ("'" + String(params.lat).replace(/^'+/, '')) : '';
+  const lngStr = params.lng ? ("'" + String(params.lng).replace(/^'+/, '')) : '';
+  const gpsTime = params.gpsTime || '';
+
+  if (!progId || !vehicleName) return { success: false, message: 'Thiếu thông tin xe!' };
+
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  const rows = dataSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(vehicleName);
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+
+  let targetRowIndex = -1;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][3]) === targetKey) {
+      targetRowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (targetRowIndex !== -1) {
+    dataSheet.getRange(targetRowIndex, 1).setValue(nowStr);
+    if (status) dataSheet.getRange(targetRowIndex, 5).setValue(status);
+    if (latStr && lngStr) {
+      dataSheet.getRange(targetRowIndex, 21).setValue(latStr);
+      dataSheet.getRange(targetRowIndex, 22).setValue(lngStr);
+      dataSheet.getRange(targetRowIndex, 23).setValue(gpsTime || nowStr);
+    }
+  } else {
+    const newRow = [
+      nowStr, progId, progName, vehicleName, status || '🚩 Đang xuất phát',
+      0, '', 0, 0, 0, 0,
+      hdvName, '', '', '', '', '', '', '', '[]',
+      latStr, lngStr, gpsTime || (latStr ? nowStr : '')
+    ];
+    dataSheet.appendRow(newRow);
+  }
+
+  return { success: true, message: isAutoPing ? 'Ping GPS 15s OK' : 'Đã cập nhật trạng thái!', updatedAt: nowStr };
+}
+
+// Báo cáo tổng hợp toàn đoàn (Không cần mã PIN)
+function getSummaryData(ss, params) {
+  const progId = String(params.programId || '').trim();
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  const rows = dataSheet.getDataRange().getValues();
+
+  const latestMap = {};
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[1] || (progId && String(r[1]) !== progId)) continue;
+    const vKey = String(r[1]) + '__' + normalizeVehicleKey(r[3]);
+    latestMap[vKey] = {
+      updatedAt: r[0],
+      programId: String(r[1]),
+      programName: String(r[2]),
+      vehicleName: String(r[3]),
+      status: String(r[4] || '🚩 Đang xuất phát'),
+      totalStudents: Number(r[5] || 0),
+      classSummary: String(r[6] || ''),
+      teacherCount: Number(r[7] || 0),
+      parentCount: Number(r[8] || 0),
+      childCount: Number(r[9] || 0),
+      totalPeople: Number(r[10] || 0),
+      hdvName: String(r[11] || ''),
+      hdvPhone: String(r[12] || '').replace(/^'+/, ''),
+      leaderName: String(r[13] || ''),
+      leaderPhone: String(r[14] || '').replace(/^'+/, ''),
+      vipRoles: String(r[15] || ''),
+      driverName: String(r[16] || ''),
+      driverPhone: String(r[17] || '').replace(/^'+/, ''),
+      licensePlate: String(r[18] || ''),
+      lat: String(r[20] || '').replace(/^'+/, ''),
+      lng: String(r[21] || '').replace(/^'+/, ''),
+      gpsTime: r[22] || ''
+    };
+  }
+
+  return { success: true, vehicles: Object.keys(latestMap).map(k => latestMap[k]) };
+}
+
+// Admin: Thêm trạng thái xe mới tùy biến
+function addCustomStatus(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const name = String(params.name || '').trim();
+  const color = String(params.color || '#10b981').trim();
+  const isMoving = Boolean(params.isMoving);
+
+  if (!name) return { success: false, message: 'Vui lòng nhập tên trạng thái!' };
+
+  const statusSheet = ss.getSheetByName(SHEET_STATUSES);
+  statusSheet.appendRow([name, color, isMoving]);
+  return { success: true, message: 'Đã thêm trạng thái mới thành công!' };
+}
+
+// Admin: Xóa trạng thái xe
+function deleteCustomStatus(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const name = String(params.name || '').trim();
+  const statusSheet = ss.getSheetByName(SHEET_STATUSES);
+  const rows = statusSheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === name) {
+      statusSheet.deleteRow(i + 1);
+      return { success: true, message: 'Đã xóa trạng thái: ' + name };
+    }
+  }
+  return { success: false, message: 'Không tìm thấy trạng thái để xóa!' };
+}
+
+// Quản trị: Tạo chương trình mới
+function createProgram(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  const id = 'TOUR_' + new Date().getTime();
+  const nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  progSheet.appendRow([id, params.name || 'Tour mới', params.date || '', params.status || 'Đang diễn ra', '', nowStr]);
+  return { success: true, message: 'Đã tạo chương trình thành công!', programId: id };
+}
+
+function updateProgramStatus(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  const rows = progSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(params.programId)) {
+      progSheet.getRange(i + 1, 4).setValue(params.status);
+      return { success: true, message: 'Đã cập nhật trạng thái thành: ' + params.status };
+    }
+  }
+  return { success: false, message: 'Không tìm thấy tour!' };
+}
+
+function updateProgramNotice(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progSheet = ss.getSheetByName(SHEET_PROGRAMS);
+  const rows = progSheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === String(params.programId)) {
+      progSheet.getRange(i + 1, 5).setValue(params.notice || '');
+      return { success: true, message: 'Đã gửi thông báo đến HDV!' };
+    }
+  }
+  return { success: false, message: 'Không tìm thấy tour!' };
+}
