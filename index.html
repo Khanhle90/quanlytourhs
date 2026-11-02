@@ -61,6 +61,12 @@
       overflow-y: auto !important;
       -webkit-overflow-scrolling: touch;
     }
+    /* Marker hình giọt nước cho xe trên bản đồ */
+    .custom-teardrop-marker {
+      background: transparent !important;
+      border: none !important;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -2407,7 +2413,10 @@
         loadAdminProgramsForSummary();
         initOrStartSummaryMapAutoRefresh();
         setTimeout(() => {
-          if (leafletMapInstance) leafletMapInstance.invalidateSize(true);
+          if (leafletMapInstance) {
+            leafletMapInstance.invalidateSize(true);
+            if (leafletMapInstance.scrollWheelZoom) leafletMapInstance.scrollWheelZoom.enable();
+          }
         }, 300);
       } else if (tabName === 'admin') {
         loadAdminPrograms();
@@ -2548,7 +2557,13 @@
             <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800">${escapeHtml(v.driverName || '-')}</td>
             <td class="py-2 px-3 whitespace-nowrap">${v.driverPhone ? `<a href="tel:${escapeHtml(v.driverPhone)}" class="inline-flex items-center gap-1 font-bold text-emerald-600 hover:text-emerald-800 text-xs transition"><span>📞</span>${escapeHtml(v.driverPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
             <td class="py-2 px-3 font-bold uppercase text-slate-700">${escapeHtml(v.licensePlate || '-')}</td>
-            <td class="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">${formatTimeDisplay(v.updatedAt)}</td>
+            <td class="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">
+              <div>${formatTimeDisplay(v.updatedAt || v.gpsTime)}</div>
+              ${(() => {
+                const ta = getRelativeTimeAgo(v.gpsTime || v.updatedAt);
+                return ta ? `<div class="text-[10px] text-sky-600 font-sans font-medium">(${escapeHtml(ta)})</div>` : '';
+              })()}
+            </td>
           `;
           tbody.appendChild(tr);
         });
@@ -2679,6 +2694,94 @@
       }
     }
 
+    // Rút gọn tên xe / tên lớp thành ký hiệu ngắn hiển thị trên giọt nước (VD: Xe 3 -> 3, Xe lớp 12A9 -> 12A9)
+    function getVehicleShortLabel(name) {
+      if (!name) return "Xe";
+      var s = String(name).trim();
+
+      // TH: Có lớp trong ngoặc đơn, VD: "Xe 01 (Lớp 10A2)" hoặc "Xe 01 (10A2)"
+      var classInParen = s.match(/\((?:lớp|lop)?\s*([^)]+)\)/i);
+      if (classInParen && classInParen[1].trim()) {
+        var inside = classInParen[1].trim().replace(/^(?:lớp|lop)\s*/i, "");
+        if (inside.length <= 6) return inside;
+      }
+
+      // TH: "Xe lớp 12A9", "Lớp 12A9", "Lop 12A9"
+      var mClass = s.match(/^(?:xe\s+)?(?:lớp|lop)\s*(.+)$/i);
+      if (mClass) return mClass[1].trim();
+
+      // TH: "Xe 3", "Xe 03", "xe 10" -> lấy phần số
+      var mNum = s.match(/^(?:xe\s*)0*(\d+)$/i);
+      if (mNum) return mNum[1];
+
+      // TH: "Xe 12A9" (không có chữ lớp)
+      var mXeAlphanum = s.match(/^xe\s+([0-9]+[A-Za-z0-9_-]*)$/i);
+      if (mXeAlphanum) return mXeAlphanum[1].trim();
+
+      // TH: "Xe Test", "Xe VIP"
+      var mXeOther = s.match(/^xe\s+(.+)$/i);
+      if (mXeOther) {
+        var rem = mXeOther[1].trim();
+        return rem.length <= 5 ? rem : rem.substring(0, 5);
+      }
+
+      return s.length <= 5 ? s : s.substring(0, 5);
+    }
+
+    // Phân tích an toàn thời gian dạng chuỗi hoặc Date (hỗ trợ YYYY-MM-DD HH:mm:ss, ISO, DD/MM/YYYY)
+    function parseDateSafe(rawTime) {
+      if (!rawTime) return null;
+      if (rawTime instanceof Date) return isNaN(rawTime.getTime()) ? null : rawTime;
+      var s = String(rawTime).trim();
+      if (!s) return null;
+
+      // Chuỗi YYYY-MM-DD HH:mm:ss
+      if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(s)) {
+        var d = new Date(s.replace(' ', 'T'));
+        if (!isNaN(d.getTime())) return d;
+      }
+
+      // Chuỗi chuẩn Việt Nam: DD/MM/YYYY HH:mm:ss hoặc DD/MM/YYYY
+      var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+      if (m) {
+        var day = parseInt(m[1], 10);
+        var month = parseInt(m[2], 10) - 1;
+        var year = parseInt(m[3], 10);
+        var hour = m[4] ? parseInt(m[4], 10) : 0;
+        var min = m[5] ? parseInt(m[5], 10) : 0;
+        var sec = m[6] ? parseInt(m[6], 10) : 0;
+        var d2 = new Date(year, month, day, hour, min, sec);
+        if (!isNaN(d2.getTime())) return d2;
+      }
+
+      // Parse tiêu chuẩn ISO / Date
+      var d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+
+      return null;
+    }
+
+    // Tính thời gian tương đối (bao nhiêu phút trước, vừa xong, X giờ trước)
+    function getRelativeTimeAgo(rawTime) {
+      var d = parseDateSafe(rawTime);
+      if (!d) return '';
+      var now = Date.now();
+      var diffMs = now - d.getTime();
+      if (diffMs < 0) diffMs = 0;
+      var diffSec = Math.floor(diffMs / 1000);
+      var diffMin = Math.floor(diffSec / 60);
+      var diffHour = Math.floor(diffMin / 60);
+
+      if (diffMin < 1) return 'Vừa xong';
+      if (diffMin < 60) return diffMin + ' phút trước';
+      if (diffHour < 24) {
+        var remMin = diffMin % 60;
+        return remMin > 0 ? (diffHour + ' giờ ' + remMin + ' phút trước') : (diffHour + ' giờ trước');
+      }
+      var diffDay = Math.floor(diffHour / 24);
+      return diffDay + ' ngày trước';
+    }
+
     // Cập nhật Leaflet Map mượt mà với Google Maps Tiles
     function updateLeafletMapWithVehicles(vehicles, isSilent = false) {
       const mapEl = document.getElementById('tourVehiclesMap');
@@ -2687,9 +2790,10 @@
       const isFirstInit = !leafletMapInstance;
 
       if (!leafletMapInstance) {
+        // scrollWheelZoom: true cho phép cuộn chuột phóng to thu nhỏ trên máy tính
         leafletMapInstance = L.map('tourVehiclesMap', {
           zoomControl: true,
-          scrollWheelZoom: false
+          scrollWheelZoom: true
         }).setView([21.0285, 105.8542], 12);
 
         // Sử dụng Google Maps Tiles: Tải siêu tốc qua Google CDN, không bị lỗi xám, hiển thị rõ tên đường tiếng Việt
@@ -2738,18 +2842,46 @@
         else if (sLower.includes('về trường')) markerColor = '#ea580c';
         else if (sLower.includes('tới trường') || sLower.includes('final')) markerColor = '#e11d48';
 
+        // Lấy ký hiệu ngắn (số xe hoặc tên lớp: VD "Xe 3" -> "3", "Xe lớp 12A9" -> "12A9")
+        const shortLabel = getVehicleShortLabel(v.vehicleName);
+        const len = shortLabel.length;
+        let fontSize = 12;
+        if (len === 1) fontSize = 13.5;
+        else if (len === 2) fontSize = 11.5;
+        else if (len === 3) fontSize = 10;
+        else if (len === 4) fontSize = 8.5;
+        else fontSize = 7.5;
+
+        // SVG hình giọt nước (Map Pin) chúc đầu nhọn chính xác xuống tọa độ GPS [lat, lng]
+        const teardropSvg = `
+          <div style="position:relative; width:34px; height:44px; display:flex; justify-content:center;">
+            <svg width="34" height="44" viewBox="0 0 34 44" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 3px 5px rgba(0,0,0,0.4));">
+              <path d="M17 1 C8.716 1 2 7.716 2 16 C2 27 17 43 17 43 C17 43 32 27 32 16 C32 7.716 25.284 1 17 1 Z" fill="${markerColor}" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+              <circle cx="17" cy="15.5" r="10" fill="#ffffff"/>
+              <text x="17" y="16" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-size="${fontSize}px" font-weight="900" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">${escapeHtml(shortLabel)}</text>
+            </svg>
+          </div>
+        `;
+
         const customIcon = L.divIcon({
-          className: 'custom-bus-marker',
-          html: `<div style="background:${markerColor}; color:#fff; font-weight:bold; font-size:11px; padding:4px 9px; border-radius:14px; border:2px solid #fff; box-shadow:0 3px 8px rgba(0,0,0,0.35); white-space:nowrap; display:flex; align-items:center; gap:4px;"><span>🚌</span> ${escapeHtml(v.vehicleName)}</div>`,
-          iconSize: [85, 28],
-          iconAnchor: [42, 14]
+          className: 'custom-teardrop-marker',
+          html: teardropSvg,
+          iconSize: [34, 44],
+          iconAnchor: [17, 43],
+          popupAnchor: [0, -43]
         });
 
         const hdvCallBtn = v.hdvPhone ? `<a href="tel:${escapeHtml(v.hdvPhone)}" style="display:inline-flex; align-items:center; gap:2px; margin-left:6px; background:#10b981; color:#fff; padding:2px 7px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:11px;">📞 Gọi</a>` : '';
         const driverCallBtn = v.driverPhone ? `<a href="tel:${escapeHtml(v.driverPhone)}" style="display:inline-flex; align-items:center; gap:2px; margin-left:6px; background:#2563eb; color:#fff; padding:2px 7px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:11px;">📞 Gọi</a>` : '';
 
+        // Tính thời gian GPS cập nhật và hiển thị X phút trước
+        const rawGpsTime = v.gpsTime || v.updatedAt;
+        const gpsTimeFormatted = formatTimeDisplay(rawGpsTime);
+        const timeAgoStr = getRelativeTimeAgo(rawGpsTime);
+        const timeAgoBadge = timeAgoStr ? `<span style="display:inline-block; margin-left:4px; padding:1px 6px; border-radius:4px; background:#e0f2fe; color:#0369a1; font-weight:700; font-size:10px;">(${escapeHtml(timeAgoStr)})</span>` : '';
+
         const popupContent = `
-          <div style="font-size:12px; line-height:1.5; min-width:180px;">
+          <div style="font-size:12px; line-height:1.5; min-width:185px;">
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:3px;">
               <b style="font-size:13px; color:#1e3a8a;">🚌 ${escapeHtml(v.vehicleName)}</b>
               <button onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" style="background:#e0e7ff; color:#3730a3; border:none; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">📋 Điểm danh</button>
@@ -2758,7 +2890,10 @@
             <div style="margin:3px 0;">HDV: <b>${escapeHtml(v.hdvName || '-')}</b>${hdvCallBtn}</div>
             <div style="margin:3px 0;">Lái xe: <b>${escapeHtml(v.driverName || '-')}</b>${driverCallBtn}</div>
             <div style="margin:2px 0;">Biển số: <b>${escapeHtml(v.licensePlate || '-')}</b></div>
-            <div style="font-size:10px; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:2px;">GPS cập nhật: ${formatTimeDisplay(v.gpsTime || v.updatedAt)}</div>
+            <div style="font-size:10px; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:3px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:2px;">
+              <span>GPS cập nhật: <b>${gpsTimeFormatted}</b></span>
+              ${timeAgoBadge}
+            </div>
           </div>
         `;
 
@@ -3788,8 +3923,8 @@
     function formatTimeDisplay(rawTime) {
       if (!rawTime) return '-';
       try {
-        const d = new Date(rawTime);
-        if (!isNaN(d.getTime())) {
+        const d = parseDateSafe(rawTime);
+        if (d && !isNaN(d.getTime())) {
           const pad = n => String(n).padStart(2, '0');
           return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
         }
