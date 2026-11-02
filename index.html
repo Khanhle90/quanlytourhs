@@ -141,18 +141,40 @@
         </div>
 
         <div>
-          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-            Số Xe / Lớp <span class="text-rose-500">*</span>
-          </label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-[11px] font-bold text-slate-600 uppercase">
+              Chọn Xe / Lớp Phụ Trách <span class="text-rose-500">*</span>
+            </label>
+            <button type="button" onclick="window.reloadTourClasses()" class="text-[10px] text-blue-600 font-bold hover:underline">
+              🔄 Tải lại danh sách xe
+            </button>
+          </div>
           <div class="flex gap-2">
-            <input type="text" id="hdvVehicleInput" onblur="window.handleVehicleBlur()" placeholder="VD: 01, 2, 8D..."
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none" />
+            <select id="hdvVehicleSelect" onchange="window.onVehicleSelectChange()"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-blue-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="">-- Chọn xe / lớp phụ trách --</option>
+            </select>
+            <input type="hidden" id="hdvVehicleInput" />
             <button type="button" id="unlockVehicleBtn" onclick="window.unlockVehicleForCurrentTour()"
               class="hidden px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold shrink-0">
               Đổi xe
             </button>
           </div>
-          <p class="text-[10px] text-slate-500 mt-0.5">Viết đúng tên xe hoặc tên lớp, không thêm ký hiệu khác</p>
+          <!-- Ô nhập xe tùy chỉnh nếu chưa có trong danh sách Excel -->
+          <div id="customVehicleBox" class="hidden mt-2 p-2 bg-amber-50 border border-amber-300 rounded-lg space-y-1.5">
+            <label class="block text-[10px] font-bold text-amber-800 uppercase">Nhập tên xe / lớp mới:</label>
+            <div class="flex gap-2">
+              <input type="text" id="hdvCustomVehicleInput" placeholder="Ví dụ: Xe 05, Lớp 11B2..."
+                class="flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-bold text-blue-900 focus:ring-2 focus:ring-amber-500 outline-none" />
+              <button type="button" onclick="window.confirmCustomVehicle()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-lg shadow">
+                Xác nhận
+              </button>
+              <button type="button" onclick="window.cancelCustomVehicle()" class="px-2 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs rounded-lg">
+                Hủy
+              </button>
+            </div>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-0.5" id="vehicleSelectHint">Danh sách xe/lớp được nạp tự động từ file Excel do điều hành tour tải lên</p>
         </div>
 
         <div class="space-y-1.5">
@@ -292,96 +314,68 @@
         </div>
       </div>
 
-      <!-- Khối 4: CHỤP ẢNH & ĐIỂM DANH HỌC SINH BẰNG GEMINI AI -->
-      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-indigo-200 space-y-3">
-        <div class="flex items-center justify-between border-b pb-1.5">
+      <!-- Khối 3: DANH SÁCH ĐIỂM DANH HỌC SINH THEO XE / LỚP -->
+      <div id="hdvAttendanceSection" class="bg-white p-3.5 rounded-xl shadow-sm border border-blue-200 space-y-3">
+        <div class="flex items-center justify-between border-b pb-2">
           <div>
-            <h2 class="font-bold text-indigo-900 text-sm flex items-center gap-1.5">
-              <span>📸</span> 3. Chụp ảnh danh sách điểm danh
+            <h2 class="font-bold text-blue-900 text-sm flex items-center gap-1.5">
+              <span>📋</span> 3. Danh Sách Điểm Danh Học Sinh
             </h2>
-            <p class="text-[10px] text-slate-500">Điểm danh và tích dấu trên danh sách, sau đó Chụp lại, gửi lên và ấn gửi. Nếu đổi ảnh thì ấn gửi lại.</p>
+            <p class="text-[10px] text-slate-500">
+              Chạm vào học sinh để chuyển [Có mặt / Vắng]. Hệ thống tự động tính sĩ số.
+            </p>
+          </div>
+          <button type="button" onclick="window.reloadCurrentClassStudents()" class="text-xs text-blue-600 font-semibold hover:underline">
+            🔄 Tải lại
+          </button>
+        </div>
+
+        <!-- Thống kê sĩ số -->
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-slate-100 p-2 rounded-xl">
+            <p class="text-[10px] font-bold text-slate-500 uppercase">Tổng Sĩ Số</p>
+            <p id="hdvAttTotalStudents" class="text-base font-black text-slate-800">0</p>
+          </div>
+          <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
+            <p class="text-[10px] font-bold text-emerald-700 uppercase">Có Mặt</p>
+            <p id="hdvAttPresentCount" class="text-base font-black text-emerald-600">0</p>
+          </div>
+          <div class="bg-rose-50 border border-rose-200 p-2 rounded-xl">
+            <p class="text-[10px] font-bold text-rose-700 uppercase">Vắng Mặt</p>
+            <p id="hdvAttAbsentCount" class="text-base font-black text-rose-600">0</p>
           </div>
         </div>
 
-        <!-- Bản lưu ảnh đã gửi trước đó (nếu có) -->
-        <div id="hdvSavedPhotosBox" class="hidden bg-emerald-50 border border-emerald-300 p-2.5 rounded-xl space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-emerald-800 flex items-center gap-1">
-              <span>✅</span> Bản lưu ảnh danh sách trên hệ thống
-            </span>
-            <span id="savedAttendanceSummaryBadge" class="text-[11px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full"></span>
+        <!-- Thanh công cụ nhanh & bộ lọc -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div class="flex items-center gap-1">
+            <button type="button" id="btnFilterAll" onclick="window.setAttendanceFilter('all')"
+              class="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-sm transition">
+              Tất cả (<span id="filterAllCount">0</span>)
+            </button>
+            <button type="button" id="btnFilterAbsent" onclick="window.setAttendanceFilter('absent')"
+              class="text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-rose-700 hover:bg-rose-100 transition">
+              Vắng (<span id="filterAbsentCount">0</span>)
+            </button>
           </div>
-          <p class="text-[10px] text-emerald-700">Ảnh đã gửi được lưu an toàn trên Google Drive. Ảnh này không thể xóa thủ công và sẽ bị thay thế khi bạn gửi ảnh chụp mới.</p>
-          
-          <div id="savedPhotosThumbContainer" class="flex gap-2 overflow-x-auto py-1"></div>
 
-          <div class="flex justify-end">
-            <button type="button" onclick="window.viewCurrentVehicleAttendanceModal()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg shadow">
-              📋 Xem kết quả điểm danh chi tiết
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="window.markAllStudentsPresent()"
+              class="text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 transition">
+              ✅ Tất cả có mặt
+            </button>
+            <button type="button" id="btnQuickSaveAttendance" onclick="window.saveCurrentAttendance()"
+              class="text-xs font-bold px-3 py-1 rounded-lg bg-blue-700 hover:bg-blue-800 text-white shadow transition">
+              💾 Lưu điểm danh
             </button>
           </div>
         </div>
 
-        <!-- Khay chọn/chụp ảnh tạm (tối đa 2 ảnh 1 lượt) -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="text-[11px] font-bold text-slate-700 uppercase">
-              Khay chụp ảnh (Tối đa 2 ảnh / 1 lượt):
-            </label>
-            <span id="trayPhotoCount" class="text-[11px] font-bold text-indigo-700">0 / 2 ảnh</span>
+        <!-- Container danh sách học sinh -->
+        <div id="hdvStudentListContainer" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs max-h-96 overflow-y-auto">
+          <div class="p-6 text-center text-slate-400">
+            Vui lòng chọn Xe / Lớp ở mục 1 để hiển thị danh sách học sinh.
           </div>
-
-          <div class="grid grid-cols-2 gap-2.5" id="photoTrayGrid">
-            <!-- Slot 1 -->
-            <div id="slotCard1" class="border-2 border-dashed border-slate-300 rounded-xl p-2.5 text-center bg-slate-50 relative min-h-[130px] flex flex-col items-center justify-center">
-              <div id="slotEmpty1" class="space-y-1.5">
-                <span class="text-2xl text-slate-400">📷</span>
-                <p class="text-[10px] font-semibold text-slate-500">Ảnh danh sách 1</p>
-                <div class="flex flex-wrap gap-1.5 justify-center">
-                  <button type="button" onclick="window.triggerCamera(1)" class="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1 transition">
-                    <span>📸</span> Chụp ảnh
-                  </button>
-                  <button type="button" onclick="window.triggerFileInput(1)" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
-                    <span>📁</span> Chọn ảnh
-                  </button>
-                </div>
-              </div>
-              <div id="slotPreview1" class="hidden w-full h-full relative">
-                <img id="slotImg1" class="w-full h-28 object-cover rounded-lg border" src="" alt="Ảnh 1" />
-                <button type="button" onclick="window.removeTrayPhoto(1)" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-xs shadow" title="Xóa ảnh này">&times;</button>
-              </div>
-            </div>
-
-            <!-- Slot 2 -->
-            <div id="slotCard2" class="border-2 border-dashed border-slate-300 rounded-xl p-2.5 text-center bg-slate-50 relative min-h-[130px] flex flex-col items-center justify-center">
-              <div id="slotEmpty2" class="space-y-1.5">
-                <span class="text-2xl text-slate-400">📷</span>
-                <p class="text-[10px] font-semibold text-slate-500">Ảnh danh sách 2 (nếu có)</p>
-                <div class="flex flex-wrap gap-1.5 justify-center">
-                  <button type="button" onclick="window.triggerCamera(2)" class="text-[10px] bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1 rounded-lg shadow flex items-center gap-1 transition">
-                    <span>📸</span> Chụp ảnh
-                  </button>
-                  <button type="button" onclick="window.triggerFileInput(2)" class="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
-                    <span>📁</span> Chọn ảnh
-                  </button>
-                </div>
-              </div>
-              <div id="slotPreview2" class="hidden w-full h-full relative">
-                <img id="slotImg2" class="w-full h-28 object-cover rounded-lg border" src="" alt="Ảnh 2" />
-                <button type="button" onclick="window.removeTrayPhoto(2)" class="absolute -top-1.5 -right-1.5 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-xs shadow" title="Xóa ảnh này">&times;</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Hidden inputs for camera & file upload -->
-          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="window.handleImageSelected(this)" />
-          <input type="file" id="fileImageInput" accept="image/*" class="hidden" onchange="window.handleImageSelected(this)" />
-
-          <!-- Nút Gửi Ảnh và Điểm Danh -->
-          <button type="button" id="btnSendPhotos" onclick="window.confirmAndSendPhotos()"
-            class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-extrabold py-2.5 rounded-xl text-xs shadow flex items-center justify-center gap-1.5 transition">
-            <span>🚀</span> GỬI ẢNH ĐIỂM DANH & TỰ ĐỘNG PHÂN TÍCH
-          </button>
         </div>
       </div>
 
@@ -840,18 +834,18 @@
         <!-- PHẦN TRÊN: DANH SÁCH HỌC SINH (HỌC SINH VẮNG BÔI MÀU NỔI BẬT) -->
         <div class="space-y-1.5">
           <h4 class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
-            <span>📝</span> Danh sách học sinh sau khi phân tích từ ảnh
+            <span>📝</span> Danh sách điểm danh học sinh
           </h4>
           <div id="attStudentListContainer" class="divide-y divide-slate-100 border rounded-xl overflow-hidden text-xs">
             <!-- Render học sinh -->
           </div>
         </div>
 
-        <!-- PHẦN DƯỚI: ẢNH CHỤP DANH SÁCH GỐC CỦA HDV (BẤM VÀO ĐỂ XEM FULL MÀN HÌNH) -->
-        <div class="space-y-2 pt-2 border-t border-slate-200">
+        <!-- PHẦN DƯỚI: ẢNH CHỤP DANH SÁCH GỐC (NẾU CÓ BẢN GHI CŨ) -->
+        <div id="attModalPhotoSection" class="hidden space-y-2 pt-2 border-t border-slate-200">
           <div class="flex items-center justify-between">
             <h4 class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
-              <span>📸</span> Ảnh chụp danh sách gốc (HDV gửi)
+              <span>📸</span> Ảnh chụp danh sách gốc
             </h4>
             <span class="text-[10px] text-blue-600 font-semibold">Chạm để phóng to</span>
           </div>
@@ -944,41 +938,7 @@
     </div>
   </div>
 
-  <!-- ==============================================================
-       MODAL 4: CHỤP ẢNH TRỰC TIẾP TỪ CAMERA (HDV)
-       ============================================================== -->
-  <div id="liveCameraModal" class="fixed inset-0 bg-black/95 z-50 hidden items-center justify-center p-3">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl flex flex-col max-h-[95vh]">
-      <div class="p-3 bg-slate-800 text-white flex items-center justify-between border-b border-slate-700">
-        <h3 class="text-xs font-bold flex items-center gap-1.5 text-blue-400">
-          <span>📷</span> <span id="cameraModalTitle">Chụp ảnh danh sách học sinh</span>
-        </h3>
-        <button type="button" onclick="window.closeLiveCamera()" class="text-slate-400 hover:text-white text-xl font-bold px-2 py-0.5 rounded leading-none">&times;</button>
-      </div>
 
-      <div class="relative bg-black flex-1 flex items-center justify-center overflow-hidden min-h-[320px]">
-        <video id="liveCameraVideo" autoplay playsinline muted class="w-full h-auto max-h-[65vh] object-contain"></video>
-        <canvas id="liveCameraCanvas" class="hidden"></canvas>
-        <div id="cameraLoadingSpinner" class="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-xs font-bold gap-2">
-          <span>⏳</span> Đang mở camera...
-        </div>
-      </div>
-
-      <div class="p-3 bg-slate-800 flex items-center justify-between gap-2 border-t border-slate-700">
-        <button type="button" onclick="window.switchCameraFacingMode()" id="btnSwitchCamera" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold flex items-center gap-1 transition">
-          <span>🔄</span> Đổi camera
-        </button>
-
-        <button type="button" onclick="window.captureLivePhoto()" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-sm font-extrabold flex items-center gap-1.5 shadow-lg transition">
-          <span>📸</span> BẤM CHỤP
-        </button>
-
-        <button type="button" onclick="window.closeLiveCamera()" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white text-xs font-bold transition">
-          Đóng
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- ==============================================================
        LOGIC JAVASCRIPT ĐIỀU HÀNH TOÀN DIỆN
@@ -1006,9 +966,10 @@
     let currentLoadedVehicleName = '';
     let currentLoadedProgramId = '';
 
-    // Khay ảnh chụp tạm của HDV (Tối đa 2 ảnh base64)
-    let trayPhotos = [null, null]; // [base64_slot1, base64_slot2]
-    let activeSlotIndex = 1;
+    // Danh sách học sinh theo xe & Quản lý điểm danh trực tiếp
+    let currentHdvStudents = []; // [{ stt, name, present: true, note: '' }]
+    let currentAttendanceFilter = 'all'; // 'all' hoặc 'absent'
+    let currentLoadedProgramClasses = []; // [{ className, count }]
     let existingVehicleAttendanceRecord = null;
 
     // GPS Auto Tracking (15s)
@@ -1090,19 +1051,9 @@
     }
 
     function handleVehicleBlur() {
+      // Giữ tương thích
       const input = document.getElementById('hdvVehicleInput');
-      if (!input) return;
-      const formatted = formatVehicleOrClassName(input.value);
-      input.value = formatted;
-      const progId = document.getElementById('hdvProgramSelect')?.value;
-      if (!progId || !formatted) return;
-
-      // Chỉ fetch nếu thực sự thay đổi xe hoặc tour khác, tránh gọi API đè dữ liệu đang nhập
-      if (formatted !== currentLoadedVehicleName || progId !== currentLoadedProgramId) {
-        currentLoadedVehicleName = formatted;
-        currentLoadedProgramId = progId;
-        fetchExistingVehicleInfo(progId, formatted);
-      }
+      if (input && input.value) onVehicleSelectChange();
     }
 
     function getLockedMap() {
@@ -1121,33 +1072,58 @@
     function applyLockUiState(progId) {
       const map = getLockedMap();
       const lockedVehicle = map[progId] || '';
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
       const vehicleInput = document.getElementById('hdvVehicleInput');
       const badge = document.getElementById('deviceLockBadge');
       const unlockBtn = document.getElementById('unlockVehicleBtn');
 
       if (lockedVehicle) {
-        vehicleInput.value = lockedVehicle;
-        vehicleInput.readOnly = true;
-        vehicleInput.classList.add('bg-slate-100', 'cursor-not-allowed');
-        badge.classList.remove('hidden');
-        badge.textContent = '🔒 Đã nhớ: ' + lockedVehicle;
-        unlockBtn.classList.remove('hidden');
+        if (vehicleInput) vehicleInput.value = lockedVehicle;
+        if (vehicleSelect) {
+          let opt = Array.from(vehicleSelect.options).find(o => o.value === lockedVehicle || normalizeVehicleKey(o.value) === normalizeVehicleKey(lockedVehicle));
+          if (!opt && lockedVehicle) {
+            opt = document.createElement('option');
+            opt.value = lockedVehicle;
+            opt.textContent = lockedVehicle;
+            const customOpt = vehicleSelect.querySelector('option[value="__custom__"]');
+            if (customOpt) vehicleSelect.insertBefore(opt, customOpt);
+            else vehicleSelect.appendChild(opt);
+          }
+          if (opt) vehicleSelect.value = opt.value;
+          vehicleSelect.disabled = true;
+          vehicleSelect.classList.add('bg-slate-100', 'cursor-not-allowed');
+        }
+        if (badge) {
+          badge.classList.remove('hidden');
+          badge.textContent = '🔒 Đã nhớ: ' + lockedVehicle;
+        }
+        if (unlockBtn) unlockBtn.classList.remove('hidden');
       } else {
-        vehicleInput.readOnly = false;
-        vehicleInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
-        badge.classList.add('hidden');
-        unlockBtn.classList.add('hidden');
+        if (vehicleSelect) {
+          vehicleSelect.disabled = false;
+          vehicleSelect.classList.remove('bg-slate-100', 'cursor-not-allowed');
+        }
+        if (badge) badge.classList.add('hidden');
+        if (unlockBtn) unlockBtn.classList.add('hidden');
       }
     }
 
     function unlockVehicleForCurrentTour() {
       const progId = document.getElementById('hdvProgramSelect').value;
-      if (!progId || !confirm('Bạn có chắc muốn đổi sang số xe khác?')) return;
+      if (!progId || !confirm('Bạn có chắc muốn đổi sang xe/lớp khác?')) return;
       const map = getLockedMap();
       delete map[progId];
       localStorage.setItem(LS_LOCKED_VEHICLES, JSON.stringify(map));
       applyLockUiState(progId);
-      document.getElementById('hdvVehicleInput').focus();
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      if (vehicleSelect) {
+        vehicleSelect.value = '';
+        vehicleSelect.focus();
+      }
+      const vehicleInput = document.getElementById('hdvVehicleInput');
+      if (vehicleInput) vehicleInput.value = '';
+      resetVehicleFormFields();
+      resetHdvAttendanceView();
     }
 
     function syncHdvName() {
@@ -1371,727 +1347,409 @@
     }
 
     // ==============================================================
-    // CHỤP ẢNH & KHAY ẢNH ĐIỂM DANH (HDV)
+    // 3. QUẢN LÝ XE & ĐIỂM DANH HỌC SINH TRỰC TIẾP (KHÔNG DÙNG AI ẢNH)
     // ==============================================================
-    let liveCameraStream = null;
-    let currentCameraFacing = 'environment';
+    async function loadTourVehiclesForSelect(progId) {
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      if (!vehicleSelect) return;
 
-    async function openLiveCamera(slot) {
-      activeSlotIndex = slot;
-      const modal = document.getElementById('liveCameraModal');
-      const spinner = document.getElementById('cameraLoadingSpinner');
-      const title = document.getElementById('cameraModalTitle');
+      vehicleSelect.innerHTML = '<option value="">-- Đang nạp danh sách xe/lớp... --</option>';
 
-      if (title) title.textContent = `Chụp ảnh danh sách ${slot}`;
+      try {
+        const res = await callApi({ action: 'getProgramClasses', programId: progId });
+        currentLoadedProgramClasses = (res && res.success && res.classes) ? res.classes : [];
 
-      // Kiểm tra nếu trình duyệt không hỗ trợ getUserMedia thì fallback mở camera file input
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        triggerFallbackCamera(slot);
+        vehicleSelect.innerHTML = '<option value="">-- Chọn xe / lớp phụ trách --</option>';
+
+        if (currentLoadedProgramClasses.length > 0) {
+          currentLoadedProgramClasses.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.className;
+            opt.textContent = `${c.className} (${c.count} học sinh)`;
+            vehicleSelect.appendChild(opt);
+          });
+        } else {
+          const emptyOpt = document.createElement('option');
+          emptyOpt.value = '';
+          emptyOpt.disabled = true;
+          emptyOpt.textContent = '⚠️ Điều hành chưa nạp danh sách Excel';
+          vehicleSelect.appendChild(emptyOpt);
+        }
+
+        const customOpt = document.createElement('option');
+        customOpt.value = '__custom__';
+        customOpt.textContent = '➕ Nhập xe / lớp khác...';
+        vehicleSelect.appendChild(customOpt);
+
+        applyLockUiState(progId);
+      } catch (err) {
+        console.warn('Lỗi tải danh sách lớp:', err);
+        vehicleSelect.innerHTML = `
+          <option value="">-- Chọn xe / lớp phụ trách --</option>
+          <option value="__custom__">➕ Nhập xe / lớp khác...</option>
+        `;
+        applyLockUiState(progId);
+      }
+    }
+
+    async function reloadTourClasses() {
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      if (!progId) return showToast('Vui lòng chọn Chương trình!', 'error');
+      showToast('Đang tải lại danh sách xe...', 'info');
+      await loadTourVehiclesForSelect(progId);
+      showToast('Đã cập nhật danh sách xe!', 'success');
+    }
+
+    function onVehicleSelectChange() {
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      const customBox = document.getElementById('customVehicleBox');
+      const val = vehicleSelect ? vehicleSelect.value : '';
+
+      if (val === '__custom__') {
+        if (customBox) customBox.classList.remove('hidden');
+        const customInput = document.getElementById('hdvCustomVehicleInput');
+        if (customInput) customInput.focus();
         return;
       }
 
-      if (modal) {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+      if (customBox) customBox.classList.add('hidden');
+
+      if (!val) {
+        resetVehicleFormFields();
+        resetHdvAttendanceView();
+        return;
       }
-      if (spinner) spinner.classList.remove('hidden');
+
+      const formatted = formatVehicleOrClassName(val);
+      const vehicleInput = document.getElementById('hdvVehicleInput');
+      if (vehicleInput) vehicleInput.value = formatted;
+
+      setLockedVehicleForTour(progId, formatted);
+      fetchExistingVehicleInfo(progId, formatted);
+      fetchClassStudentListForHdv(progId, formatted);
+    }
+
+    function confirmCustomVehicle() {
+      const customInput = document.getElementById('hdvCustomVehicleInput');
+      const rawVal = customInput ? customInput.value.trim() : '';
+      if (!rawVal) return showToast('Vui lòng nhập tên xe hoặc lớp!', 'error');
+
+      const formatted = formatVehicleOrClassName(rawVal);
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+
+      if (vehicleSelect) {
+        let opt = Array.from(vehicleSelect.options).find(o => o.value === formatted);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = formatted;
+          opt.textContent = formatted;
+          const customOpt = vehicleSelect.querySelector('option[value="__custom__"]');
+          if (customOpt) vehicleSelect.insertBefore(opt, customOpt);
+          else vehicleSelect.appendChild(opt);
+        }
+        vehicleSelect.value = formatted;
+      }
+
+      const customBox = document.getElementById('customVehicleBox');
+      if (customBox) customBox.classList.add('hidden');
+      if (customInput) customInput.value = '';
+
+      const vehicleInput = document.getElementById('hdvVehicleInput');
+      if (vehicleInput) vehicleInput.value = formatted;
+
+      setLockedVehicleForTour(progId, formatted);
+      fetchExistingVehicleInfo(progId, formatted);
+      fetchClassStudentListForHdv(progId, formatted);
+    }
+
+    function cancelCustomVehicle() {
+      const customBox = document.getElementById('customVehicleBox');
+      if (customBox) customBox.classList.add('hidden');
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      if (vehicleSelect && vehicleSelect.value === '__custom__') {
+        vehicleSelect.value = '';
+      }
+    }
+
+    async function fetchClassStudentListForHdv(progId, vehicleName) {
+      const container = document.getElementById('hdvStudentListContainer');
+      if (!container) return;
+
+      container.innerHTML = '<div class="p-6 text-center text-slate-500 font-medium">⏳ Đang tải danh sách học sinh từ hệ thống...</div>';
 
       try {
-        await startCameraStream(currentCameraFacing);
-      } catch (err) {
-        console.warn('Không thể mở camera WebRTC, chuyển sang chế độ chụp thông thường:', err);
-        closeLiveCamera();
-        triggerFallbackCamera(slot);
-      }
-    }
-
-    async function startCameraStream(facing) {
-      const video = document.getElementById('liveCameraVideo');
-      const spinner = document.getElementById('cameraLoadingSpinner');
-
-      if (liveCameraStream) {
-        liveCameraStream.getTracks().forEach(t => t.stop());
-        liveCameraStream = null;
-      }
-
-      const constraints = {
-        video: {
-          facingMode: { ideal: facing },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        },
-        audio: false
-      };
-
-      liveCameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (video) {
-        video.srcObject = liveCameraStream;
-        await video.play();
-      }
-      if (spinner) spinner.classList.add('hidden');
-    }
-
-    async function switchCameraFacingMode() {
-      currentCameraFacing = (currentCameraFacing === 'environment') ? 'user' : 'environment';
-      const spinner = document.getElementById('cameraLoadingSpinner');
-      if (spinner) spinner.classList.remove('hidden');
-      try {
-        await startCameraStream(currentCameraFacing);
-      } catch (e) {
-        console.warn('Lỗi đổi camera:', e);
-        if (spinner) spinner.classList.add('hidden');
-      }
-    }
-
-    async function captureLivePhoto() {
-      const video = document.getElementById('liveCameraVideo');
-      const canvas = document.getElementById('liveCameraCanvas');
-      if (!video || !canvas || !video.videoWidth) return;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      const rawBase64 = canvas.toDataURL('image/jpeg', 0.92);
-      closeLiveCamera();
-
-      try {
-        const compressed = await resizeAndCompressBase64(rawBase64, 1600, 0.85);
-        setTrayPhoto(activeSlotIndex, compressed);
-        showToast(`Đã chụp và lưu ảnh vào ô ${activeSlotIndex}!`, 'success');
-      } catch (e) {
-        setTrayPhoto(activeSlotIndex, rawBase64);
-        showToast(`Đã chụp ảnh vào ô ${activeSlotIndex}!`, 'success');
-      }
-    }
-
-    function closeLiveCamera() {
-      if (liveCameraStream) {
-        liveCameraStream.getTracks().forEach(t => t.stop());
-        liveCameraStream = null;
-      }
-      const modal = document.getElementById('liveCameraModal');
-      if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-      }
-    }
-
-    function triggerFallbackCamera(slot) {
-      activeSlotIndex = slot;
-      const input = document.getElementById('cameraInput');
-      if (input) {
-        input.value = '';
-        input.click();
-      }
-    }
-
-    function triggerCamera(slot) {
-      openLiveCamera(slot);
-    }
-
-    function triggerFileInput(slot) {
-      activeSlotIndex = slot;
-      const input = document.getElementById('fileImageInput');
-      if (input) {
-        input.value = '';
-        input.click();
-      }
-    }
-
-    async function handleImageSelected(inputEl) {
-      if (!inputEl.files || inputEl.files.length === 0) return;
-      const file = inputEl.files[0];
-
-      try {
-        const compressedBase64 = await resizeAndCompressImage(file, 1600, 0.85);
-        setTrayPhoto(activeSlotIndex, compressedBase64);
-        showToast(`Đã thêm ảnh vào ô ${activeSlotIndex}`, 'success');
-      } catch (err) {
-        showToast('Lỗi nén ảnh: ' + err.message, 'error');
-      }
-    }
-
-    function setTrayPhoto(slot, base64) {
-      trayPhotos[slot - 1] = base64;
-      const emptyEl = document.getElementById(`slotEmpty${slot}`);
-      const prevEl = document.getElementById(`slotPreview${slot}`);
-      const imgEl = document.getElementById(`slotImg${slot}`);
-
-      if (base64) {
-        imgEl.src = base64;
-        emptyEl.classList.add('hidden');
-        prevEl.classList.remove('hidden');
-      } else {
-        imgEl.src = '';
-        emptyEl.classList.remove('hidden');
-        prevEl.classList.add('hidden');
-      }
-      updateTrayCounter();
-    }
-
-    function removeTrayPhoto(slot) {
-      setTrayPhoto(slot, null);
-    }
-
-    function updateTrayCounter() {
-      const count = trayPhotos.filter(Boolean).length;
-      const el = document.getElementById('trayPhotoCount');
-      if (el) el.textContent = `${count} / 2 ảnh`;
-
-      const btn = document.getElementById('btnSendPhotos');
-      if (btn) {
-        btn.innerHTML = `<span>🚀</span> GỬI ẢNH ĐIỂM DANH (${count} ảnh)`;
-      }
-    }
-
-    // Nén ảnh để tải lên Google Apps Script siêu nhanh và nhẹ (1200px, 0.75)
-    function resizeAndCompressImage(file, maxDim = 1200, quality = 0.75) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', quality));
-          };
-          img.onerror = reject;
-          img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
-
-    function resizeAndCompressBase64(base64Data, maxDim = 1600, quality = 0.85) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-          if (width > maxDim || height > maxDim) {
-            if (width > height) {
-              height = Math.round((height * maxDim) / width);
-              width = maxDim;
-            } else {
-              width = Math.round((width * maxDim) / height);
-              height = maxDim;
-            }
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', quality));
-        };
-        img.onerror = reject;
-        img.src = base64Data;
-      });
-    }
-
-    function getGeminiApiKey() {
-      const custom = localStorage.getItem(LS_GEMINI_KEY);
-      if (custom && custom.trim()) return custom.trim();
-      return ['AQ.', 'Ab8RN6IQX3jtg2xv', '21Y9-yt0_s5xXyg', 'KVF1Szyz3tLlMnmcwjw'].join('');
-    }
-
-    // GỌI TRỰC TIẾP GEMINI API TỪ TRÌNH DUYỆT (TỰ ĐỘNG THỬ CÁC MODEL TƯƠNG THÍCH MỚI NHẤT)
-    async function callGeminiOcrDirect(imagesBase64, apiKey, officialStudents) {
-      if (!apiKey) {
-        apiKey = getGeminiApiKey();
-      }
-      if (!apiKey) {
-        throw new Error('Chưa có Gemini API Key để phân tích ảnh.');
-      }
-
-      let officialListText = '';
-      if (officialStudents && officialStudents.length > 0) {
-        officialListText = '\nDƯỚI ĐÂY LÀ DANH SÁCH HỌC SINH CHÍNH THỨC CỦA LỚP/XE (TỪ STT 1 ĐẾN ' + officialStudents.length + '):\n' +
-          officialStudents.map(function(s) { return s.stt + '. ' + s.name; }).join('\n') +
-          '\n-> HÃY ĐỐI CHIẾU TỪNG HỌC SINH THEO DANH SÁCH TRÊN VỚI ẢNH CHỤP ĐIỂM DANH ĐỂ XÁC ĐỊNH CHÍNH XÁC PRESENT: TRUE / FALSE.\n';
-      }
-
-      const promptText = "Bạn là chuyên gia phân tích ảnh chụp bảng điểm danh học sinh đi tour dã ngoại.\n" +
-        "Nhiệm vụ của bạn là kiểm tra từng hàng học sinh trong tất cả các ảnh để xác định chính xác ai CÓ MẶT (present: true) và ai VẮNG MẶT (present: false).\n" +
-        officialListText + "\n" +
-        "VỊ TRÍ VÀ CÁCH ĐÁNH DẤU CỦA HƯỚNG DẪN VIÊN (HDV) - ĐẶC BIỆT LƯU Ý:\n" +
-        "1. VỊ TRÍ ĐÁNH DẤU:\n" +
-        "   - Dấu điểm danh thường được HDV vẽ bằng bút mực ở LỀ BÊN NGOÀI CỦA BẢNG (ngay bên trái cột STT số thứ tự), hoặc trong các ô của bảng, hoặc ngay cạnh tên học sinh.\n" +
-        "   - Bạn PHẢI quét kỹ toàn bộ dải lề mép giấy bên trái cột STT cho đến hết dòng của mỗi học sinh.\n\n" +
-        "2. CÁC KIỂU ĐÁNH DẤU XÁC NHẬN CÓ MẶT (BẮT BUỘC KẾT LUẬN: present = true):\n" +
-        "   - Dấu tích: '✓', 'v' (nét bút mực viết tay ở lề trước STT hoặc trên hàng).\n" +
-        "   - Dấu gạch ngang: '-' (RẤT QUAN TRỌNG: HDV thường gạch ngang '-' ở lề trước số STT để xác nhận học sinh có mặt. ĐÂY LÀ ĐÁNH DẤU CÓ MẶT, BẮT BUỘC KẾT LUẬN present = true, KHÔNG ĐƯỢC COI LÀ VẮNG!).\n" +
-        "   - Dấu chéo: 'x', dấu chấm '.', khoanh tròn, hoặc bất kỳ nét bút mực viết tay nào ngang hàng học sinh đó.\n" +
-        "   => BẤT KỲ DÒNG NÀO CÓ MỘT TRONG CÁC DẤU BÚT MỰC TRÊN -> BẮT BUỘC LÀ CÓ MẶT (present: true).\n\n" +
-        "3. ĐIỀU KIỆN KẾT LUẬN VẮNG MẶT (present = false):\n" +
-        "   - CHỈ KHI hàng học sinh đó HOÀN TOÀN TRỐNG TRƠN (lề bên trái cột STT trắng tinh, không có bất kỳ dấu tích, không có dấu gạch ngang, không có nét bút nào) -> MỚI LÀ VẮNG MẶT (present: false).\n\n" +
-        "Hãy trả về kết quả JSON chuẩn (chỉ JSON thuần, không bọc markdown ```json):\n" +
-        "[\n" +
-        "  {\"stt\": 1, \"name\": \"Lê Bảo Châu\", \"present\": true},\n" +
-        "  {\"stt\": 17, \"name\": \"Hoàng Diệp Anh\", \"present\": false}\n" +
-        "]";
-
-      const parts = [
-        { text: promptText }
-      ];
-
-      imagesBase64.forEach(img => {
-        let mime = 'image/jpeg';
-        let data = img;
-        const match = img.match(/^data:([^;]+);base64,(.+)$/);
-        if (match) {
-          mime = match[1];
-          data = match[2];
-        }
-        parts.push({
-          inlineData: { mimeType: mime, data: data }
-        });
-      });
-
-      const payloadBody = JSON.stringify({
-        contents: [{ parts: parts }],
-        generationConfig: {
-          temperature: 0.0,
-          responseMimeType: "application/json"
-        }
-      });
-
-      const candidateModels = [
-        'gemini-3.1-flash-lite',
-        'gemini-3.5-flash',
-        'gemini-3.5-flash-lite',
-        'gemini-flash-lite-latest',
-        'gemini-flash-latest'
-      ];
-      const cachedModel = localStorage.getItem('GEMINI_WORKING_MODEL') || '';
-      if (cachedModel) {
-        const cIdx = candidateModels.indexOf(cachedModel);
-        if (cIdx !== -1) candidateModels.splice(cIdx, 1);
-        candidateModels.unshift(cachedModel);
-      }
-
-      let lastError = null;
-
-      for (const modelName of candidateModels) {
-        try {
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: payloadBody
-          });
-
-          if (res.status === 404) {
-            console.warn(`Model ${modelName} báo 404, tự động chuyển sang model tiếp theo...`);
-            continue;
-          }
-
-          if (!res.ok) {
-            const errText = await res.text();
-            throw new Error(`Lỗi từ Gemini API (${res.status}): ${errText}`);
-          }
-
-          const resJson = await res.json();
-          const rawText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (!rawText) throw new Error('Gemini không phản hồi dữ liệu.');
-
-          let clean = rawText.trim();
-          if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-          else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-
-          localStorage.setItem('GEMINI_WORKING_MODEL', modelName);
-          console.log(`Đã phân tích thành công với model: ${modelName}`);
-          return JSON.parse(clean);
-        } catch (err) {
-          lastError = err;
-          if (err.message && err.message.includes('404')) {
-            continue;
-          } else {
-            throw err;
-          }
-        }
-      }
-
-      // NẾU TẤT CẢ CANDIDATE BỊ 404: Tự động truy vấn ModelService.ListModels từ Google để tìm model khả dụng
-      try {
-        console.log('Đang tự động khám phá danh sách model khả dụng cho API Key từ Google...');
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          if (listData.models && Array.isArray(listData.models)) {
-            const dynamicModels = listData.models
-              .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
-              .map(m => m.name.replace(/^models\//, ''));
-            for (const dynModel of dynamicModels) {
-              if (candidateModels.includes(dynModel)) continue;
-              try {
-                const dynUrl = `https://generativelanguage.googleapis.com/v1beta/models/${dynModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
-                const dynRes = await fetch(dynUrl, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: payloadBody
-                });
-                if (dynRes.ok) {
-                  const dynJson = await dynRes.json();
-                  const dynText = dynJson.candidates?.[0]?.content?.parts?.[0]?.text;
-                  if (dynText) {
-                    let clean = dynText.trim();
-                    if (clean.startsWith('```json')) clean = clean.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-                    else if (clean.startsWith('```')) clean = clean.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-                    localStorage.setItem('GEMINI_WORKING_MODEL', dynModel);
-                    console.log(`Đã phân tích thành công với model tự động khám phá: ${dynModel}`);
-                    return JSON.parse(clean);
-                  }
-                }
-              } catch (e) {
-                console.warn(`Thử model ${dynModel} thất bại:`, e);
-              }
-            }
-          }
-        }
-      } catch (listErr) {
-        console.warn('Lỗi khi gọi ListModels:', listErr);
-      }
-
-      throw lastError || new Error('Không tìm thấy model Gemini phù hợp với API Key của bạn.');
-    }
-
-    // ĐỐI CHIẾU DANH SÁCH TẠI TRÌNH DUYỆT (HỌC SINH KHÔNG DẤU & TRÙNG TÊN)
-    function matchAttendanceClientSide(officialStudents, ocrStudents) {
-      function cleanStr(s) {
-        return removeVietnameseTones(s).toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-      }
-
-      if (!officialStudents || officialStudents.length === 0) {
-        let pCount = 0, aCount = 0;
-        const directList = (ocrStudents || []).map((o, idx) => {
-          const isPres = Boolean(o.present);
-          if (isPres) pCount++; else aCount++;
-          return {
-            stt: o.stt !== undefined ? Number(o.stt) : (idx + 1),
-            name: o.name || ('Học sinh ' + (idx + 1)),
-            cleanName: cleanStr(o.name || ''),
-            present: isPres
-          };
-        });
-        return {
-          students: directList,
-          totalStudents: directList.length,
-          presentCount: pCount,
-          absentCount: aCount
-        };
-      }
-
-      const ocrList = (ocrStudents || []).map((o, idx) => ({
-        rawName: o.name || '',
-        cleanName: cleanStr(o.name || ''),
-        present: Boolean(o.present),
-        stt: o.stt !== undefined ? Number(o.stt) : (idx + 1),
-        used: false
-      }));
-
-      const officialNameCount = {};
-      officialStudents.forEach(s => {
-        const c = cleanStr(s.name);
-        officialNameCount[c] = (officialNameCount[c] || 0) + 1;
-      });
-
-      const result = [];
-      let presentCount = 0, absentCount = 0;
-
-      officialStudents.forEach(stu => {
-        const cName = cleanStr(stu.name);
-        const stuStt = Number(stu.stt);
-        const isDuplicate = (officialNameCount[cName] > 1);
-
-        let matchedOcr = null;
-
-        // Ưu tiên 1: Khớp chính xác theo STT VÀ tương đồng tên
-        matchedOcr = ocrList.find(o => !o.used && o.stt === stuStt && (o.cleanName === cName || (typeof calcTextSimilarity === 'function' && calcTextSimilarity(cName, o.cleanName) >= 0.6)));
-
-        // Ưu tiên 2: Khớp chính xác theo STT
-        if (!matchedOcr) {
-          matchedOcr = ocrList.find(o => !o.used && o.stt === stuStt);
-        }
-
-        // Ưu tiên 3: Nếu trùng tên, ưu tiên khớp theo STT gần nhất
-        if (!matchedOcr && isDuplicate) {
-          matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName && Math.abs(o.stt - stuStt) <= 1);
-        }
-
-        // Ưu tiên 4: Khớp chính xác tên không dấu
-        if (!matchedOcr) {
-          matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName);
-        }
-
-        let isPresent = false;
-        let ocrFoundName = '';
-        if (matchedOcr) {
-          matchedOcr.used = true;
-          isPresent = Boolean(matchedOcr.present);
-          ocrFoundName = matchedOcr.rawName;
-        } else {
-          isPresent = false;
-        }
-
-        if (isPresent) presentCount++;
-        else absentCount++;
-
-        result.push({
-          stt: stu.stt,
-          name: stu.name,
-          cleanName: cName,
-          present: isPresent,
-          ocrName: ocrFoundName
-        });
-      });
-
-      return {
-        students: result,
-        totalStudents: result.length,
-        presentCount: presentCount,
-        absentCount: absentCount
-      };
-    }
-
-    // THỰC THI PHÂN TÍCH ĐIỂM DANH (HỖ TRỢ CẢ BACKEND & CLIENT-SIDE GEMINI TRỰC TIẾP)
-    async function executeAttendanceAnalysis(validPhotos, isAutoSave = false) {
-      const progId = document.getElementById('hdvProgramSelect').value;
-      const progObj = activeProgramsCache.find(p => p.id === progId);
-      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
-
-      let apiKey = getGeminiApiKey();
-
-      // 1. Thử gọi qua backend Apps Script trước
-      let serverRes = null;
-      try {
-        serverRes = await callApi({
-          action: 'uploadAndAnalyzeAttendanceImage',
+        const res = await callApi({
+          action: 'getClassStudentList',
           programId: progId,
-          programName: progObj ? progObj.name : '',
-          tourDate: progObj ? progObj.date : '',
-          vehicleName: vehicleName,
-          images: validPhotos,
-          geminiApiKey: apiKey
+          vehicleName: vehicleName
         });
+
+        if (res && res.success && res.students && res.students.length > 0) {
+          currentHdvStudents = res.students;
+          existingVehicleAttendanceRecord = {
+            updatedAt: res.updatedAt || new Date().toLocaleString('vi-VN'),
+            programId: progId,
+            vehicleName: vehicleName,
+            totalStudents: res.totalStudents,
+            presentCount: res.presentCount,
+            absentCount: res.absentCount,
+            students: res.students,
+            fileIds: [],
+            imageUrls: []
+          };
+          renderHdvStudentAttendanceList();
+          autoSyncClassRowFromAttendance(vehicleName, currentHdvStudents);
+        } else {
+          currentHdvStudents = [];
+          existingVehicleAttendanceRecord = null;
+          container.innerHTML = `
+            <div class="p-6 text-center space-y-1">
+              <p class="text-xs font-bold text-slate-700">Chưa có danh sách học sinh cho xe/lớp này.</p>
+              <p class="text-[11px] text-slate-500">Điều hành tour chưa tải file Excel lên hệ thống hoặc xe chưa có danh sách. Bạn vẫn có thể nhập sĩ số tại Mục 4 phía dưới.</p>
+            </div>
+          `;
+          updateHdvAttendanceStats();
+        }
       } catch (err) {
-        serverRes = { success: false, message: err.message };
+        container.innerHTML = `<div class="p-4 text-center text-rose-600 text-xs">Lỗi tải danh sách: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function reloadCurrentClassStudents() {
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      const vehicleName = document.getElementById('hdvVehicleInput')?.value;
+      if (!progId || !vehicleName) return showToast('Vui lòng chọn Xe / Lớp trước!', 'error');
+      showToast('Đang tải lại danh sách học sinh...', 'info');
+      await fetchClassStudentListForHdv(progId, vehicleName);
+    }
+
+    function autoSyncClassRowFromAttendance(vehicleName, students) {
+      if (!students || students.length === 0) return;
+      const presentCount = students.filter(s => s.present).length;
+      const rows = document.querySelectorAll('#classListContainer .class-item-row');
+      
+      if (rows.length === 0) {
+        addClassRow(vehicleName, presentCount);
+      } else if (rows.length === 1) {
+        const firstRow = rows[0];
+        const nameInput = firstRow.querySelector('.cls-name');
+        const stuInput = firstRow.querySelector('.cls-students');
+        if (!nameInput.value || nameInput.value === 'Lớp 1' || normalizeVehicleKey(nameInput.value) === normalizeVehicleKey(vehicleName)) {
+          nameInput.value = vehicleName;
+          stuInput.value = presentCount;
+          calculateRealtimeTotals();
+        }
+      }
+    }
+
+    function renderHdvStudentAttendanceList() {
+      const container = document.getElementById('hdvStudentListContainer');
+      if (!container) return;
+
+      updateHdvAttendanceStats();
+
+      if (!currentHdvStudents || currentHdvStudents.length === 0) {
+        container.innerHTML = '<div class="p-6 text-center text-slate-400">Chưa có danh sách học sinh.</div>';
+        return;
       }
 
-      // 2. Nếu Backend đã cập nhật và phân tích thành công có danh sách
-      if (serverRes && serverRes.success && serverRes.students && serverRes.students.length > 0) {
+      const listToRender = currentHdvStudents.map((s, idx) => ({ ...s, originalIdx: idx })).filter(s => {
+        if (currentAttendanceFilter === 'absent') return !s.present;
+        return true;
+      });
+
+      if (listToRender.length === 0) {
+        if (currentAttendanceFilter === 'absent') {
+          container.innerHTML = '<div class="p-6 text-center text-emerald-600 font-bold text-xs py-8">🎉 Tuyệt vời! Không có học sinh nào vắng mặt.</div>';
+        } else {
+          container.innerHTML = '<div class="p-6 text-center text-slate-400 py-8">Không có dữ liệu hiển thị.</div>';
+        }
+        return;
+      }
+
+      container.innerHTML = '';
+      listToRender.forEach(s => {
+        const isPresent = Boolean(s.present);
+        const div = document.createElement('div');
+        div.className = isPresent
+          ? 'py-2 px-3 flex items-center justify-between bg-white hover:bg-slate-50 transition cursor-pointer select-none border-b border-slate-100 last:border-b-0'
+          : 'py-2 px-3 flex items-center justify-between bg-rose-50 border-l-4 border-rose-500 text-rose-900 transition cursor-pointer select-none border-b border-rose-100 last:border-b-0';
+
+        div.onclick = () => window.toggleStudentAttendance(s.originalIdx);
+
+        const badgeHtml = isPresent
+          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+              <span>✅</span> Có mặt
+            </span>`
+          : `<span class="bg-rose-200 text-rose-900 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+              <span>❌</span> VẮNG
+            </span>`;
+
+        div.innerHTML = `
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 text-[11px] font-mono ${isPresent ? 'text-slate-400' : 'text-rose-600 font-bold'}">${s.stt || (s.originalIdx + 1)}.</span>
+            <span class="font-bold text-xs ${isPresent ? 'text-slate-800' : 'text-rose-900'}">${escapeHtml(s.name)}</span>
+          </div>
+          <div>${badgeHtml}</div>
+        `;
+
+        container.appendChild(div);
+      });
+    }
+
+    function toggleStudentAttendance(originalIdx) {
+      if (!currentHdvStudents || !currentHdvStudents[originalIdx]) return;
+      const s = currentHdvStudents[originalIdx];
+      s.present = !s.present;
+
+      renderHdvStudentAttendanceList();
+
+      const vehicleName = document.getElementById('hdvVehicleInput')?.value || '';
+      autoSyncClassRowFromAttendance(vehicleName, currentHdvStudents);
+
+      triggerDeviceVibration();
+    }
+
+    function markAllStudentsPresent() {
+      if (!currentHdvStudents || currentHdvStudents.length === 0) return;
+      currentHdvStudents.forEach(s => { s.present = true; });
+      renderHdvStudentAttendanceList();
+
+      const vehicleName = document.getElementById('hdvVehicleInput')?.value || '';
+      autoSyncClassRowFromAttendance(vehicleName, currentHdvStudents);
+
+      showToast('Đã đánh dấu tất cả học sinh CÓ MẶT!', 'success');
+      triggerDeviceVibration();
+    }
+
+    function setAttendanceFilter(filter) {
+      currentAttendanceFilter = filter;
+      const btnAll = document.getElementById('btnFilterAll');
+      const btnAbsent = document.getElementById('btnFilterAbsent');
+
+      if (btnAll && btnAbsent) {
+        if (filter === 'all') {
+          btnAll.className = 'text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-sm transition';
+          btnAbsent.className = 'text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-rose-700 hover:bg-rose-100 transition';
+        } else {
+          btnAll.className = 'text-xs font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-blue-700 hover:bg-blue-100 transition';
+          btnAbsent.className = 'text-xs font-bold px-2.5 py-1 rounded-lg bg-rose-600 text-white shadow-sm transition';
+        }
+      }
+
+      renderHdvStudentAttendanceList();
+    }
+
+    function updateHdvAttendanceStats() {
+      const totalEl = document.getElementById('hdvAttTotalStudents');
+      const presentEl = document.getElementById('hdvAttPresentCount');
+      const absentEl = document.getElementById('hdvAttAbsentCount');
+      const filterAllEl = document.getElementById('filterAllCount');
+      const filterAbsentEl = document.getElementById('filterAbsentCount');
+
+      const total = currentHdvStudents ? currentHdvStudents.length : 0;
+      const present = currentHdvStudents ? currentHdvStudents.filter(s => s.present).length : 0;
+      const absent = currentHdvStudents ? currentHdvStudents.filter(s => !s.present).length : 0;
+
+      if (totalEl) totalEl.textContent = total;
+      if (presentEl) presentEl.textContent = present;
+      if (absentEl) absentEl.textContent = absent;
+      if (filterAllEl) filterAllEl.textContent = total;
+      if (filterAbsentEl) filterAbsentEl.textContent = absent;
+    }
+
+    function resetHdvAttendanceView() {
+      currentHdvStudents = [];
+      existingVehicleAttendanceRecord = null;
+      updateHdvAttendanceStats();
+      const container = document.getElementById('hdvStudentListContainer');
+      if (container) {
+        container.innerHTML = '<div class="p-6 text-center text-slate-400">Vui lòng chọn Xe / Lớp ở mục 1 để hiển thị danh sách học sinh.</div>';
+      }
+    }
+
+    async function saveCurrentAttendance() {
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value);
+
+      if (!progId) return showToast('Vui lòng chọn Chương trình!', 'error');
+      if (!vehicleName) return showToast('Vui lòng chọn Số Xe / Lớp!', 'error');
+      if (!currentHdvStudents || currentHdvStudents.length === 0) {
+        return showToast('Chưa có danh sách học sinh để điểm danh!', 'error');
+      }
+
+      const presentCount = currentHdvStudents.filter(s => s.present).length;
+      const absentCount = currentHdvStudents.filter(s => !s.present).length;
+
+      const btn = document.getElementById('btnQuickSaveAttendance');
+      const oldText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Đang lưu...';
+      }
+
+      try {
+        const res = await callApi({
+          action: 'saveAttendanceRecord',
+          programId: progId,
+          vehicleName: vehicleName,
+          presentCount: presentCount,
+          absentCount: absentCount,
+          students: currentHdvStudents
+        });
+
+        if (!res.success) throw new Error(res.message);
+
         existingVehicleAttendanceRecord = {
           updatedAt: new Date().toLocaleString('vi-VN'),
           programId: progId,
           vehicleName: vehicleName,
-          fileIds: serverRes.fileIds || [],
-          imageUrls: serverRes.imageUrls || [],
-          totalStudents: serverRes.totalStudents,
-          presentCount: serverRes.presentCount || 0,
-          absentCount: serverRes.absentCount || 0,
-          students: serverRes.students || [],
-          warning: serverRes.warning || ''
+          totalStudents: currentHdvStudents.length,
+          presentCount: presentCount,
+          absentCount: absentCount,
+          students: currentHdvStudents,
+          fileIds: [],
+          imageUrls: []
         };
-        return existingVehicleAttendanceRecord;
-      }
 
-      // Nếu server báo lỗi hệ thống KHÔNG PHẢI do Gemini/UrlFetchApp (ví dụ thiếu tham số số xe)
-      if (serverRes && !serverRes.success && serverRes.message && !serverRes.message.includes('UrlFetchApp') && !serverRes.message.includes('external_request') && !serverRes.message.includes('Gemini') && !serverRes.message.includes('404')) {
-        throw new Error(serverRes.message);
-      }
-
-      // Lấy danh sách lớp chính thức nếu có để đối chiếu và cung cấp cho Gemini
-      let officialStudents = [];
-      try {
-        const offRes = await callApi({ action: 'getClassStudentList', programId: progId, vehicleName: vehicleName });
-        if (offRes && offRes.success) officialStudents = offRes.students || [];
-      } catch (e) {}
-
-      // 3. NẾU BACKEND GẶP LỖI URLFETCHAPP / CHƯA CẤP QUYỀN HOẶC MẠNG NGHẼN:
-      // TỰ ĐỘNG CHUYỂN SANG CHẾ ĐỘ PHÂN TÍCH BẰNG GEMINI AI TRỰC TIẾP TẠI TRÌNH DUYỆT (CLIENT-SIDE FALLBACK)
-      console.warn('Backend chưa cấp quyền UrlFetchApp hoặc báo lỗi, tự động kích hoạt Gemini AI trực tiếp từ trình duyệt...', serverRes ? serverRes.message : '');
-
-      const ocrStudents = await callGeminiOcrDirect(validPhotos, apiKey, officialStudents);
-
-      const matched = matchAttendanceClientSide(officialStudents, ocrStudents);
-
-      const fallbackFileIds = (serverRes && serverRes.fileIds && serverRes.fileIds.length > 0) ? serverRes.fileIds : [];
-      const fallbackImageUrls = (serverRes && serverRes.imageUrls && serverRes.imageUrls.length > 0) ? serverRes.imageUrls : validPhotos;
-
-      existingVehicleAttendanceRecord = {
-        updatedAt: new Date().toLocaleString('vi-VN'),
-        programId: progId,
-        vehicleName: vehicleName,
-        fileIds: fallbackFileIds,
-        imageUrls: fallbackImageUrls,
-        totalStudents: matched.totalStudents,
-        presentCount: matched.presentCount,
-        absentCount: matched.absentCount,
-        students: matched.students,
-        isLocalFallback: true
-      };
-
-      // ĐỒNG THỜI GỌI API LƯU BẢN GHI ĐIỂM DANH NÀY VÀO GOOGLE SHEETS NGAY LẬP TỨC (BẢO VỆ 2 TẦNG)!
-      try {
-        const attRes = await callApi({
-          action: 'saveAttendanceRecord',
-          programId: progId,
-          vehicleName: vehicleName,
-          fileIds: fallbackFileIds,
-          imageUrls: fallbackImageUrls,
-          presentCount: matched.presentCount,
-          absentCount: matched.absentCount,
-          students: matched.students
-        });
-        if (!attRes || !attRes.success) {
-          // Tầng bảo vệ 2: Lưu đồng bộ qua saveVehicleData
-          await callApi({
-            action: 'saveVehicleData',
-            data: {
-              programId: progId,
-              programName: progObj ? progObj.name : '',
-              vehicleName: vehicleName,
-              status: document.getElementById('hdvStatusSelect').value || '🚩 Đang xuất phát',
-              hdvName: document.getElementById('hdvNameInput').value.trim(),
-              hdvPhone: document.getElementById('hdvPhoneInput').value.trim(),
-              attendance: {
-                presentCount: matched.presentCount,
-                absentCount: matched.absentCount,
-                students: matched.students,
-                fileIds: [],
-                imageUrls: []
-              }
-            }
-          });
-        }
-      } catch (saveErr) {
-        console.warn('Lỗi lưu bản ghi điểm danh vào Sheet:', saveErr);
-      }
-
-      return existingVehicleAttendanceRecord;
-    }
-
-    // XÁC NHẬN VÀ GỬI ẢNH ĐIỂM DANH THỦ CÔNG
-    async function confirmAndSendPhotos() {
-      const progId = document.getElementById('hdvProgramSelect').value;
-      const progObj = activeProgramsCache.find(p => p.id === progId);
-      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
-
-      if (!progId) return showToast('Vui lòng chọn Chương trình', 'error');
-      if (!vehicleName) return showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
-
-      const validPhotos = trayPhotos.filter(Boolean);
-      if (validPhotos.length === 0) {
-        return showToast('Vui lòng chụp hoặc chọn ít nhất 1 ảnh danh sách!', 'error');
-      }
-
-      const hasOldPhotos = Boolean(existingVehicleAttendanceRecord && (existingVehicleAttendanceRecord.fileIds?.length > 0 || existingVehicleAttendanceRecord.imageUrls?.length > 0));
-
-      let confirmMsg = '';
-      if (hasOldPhotos) {
-        const oldCnt = existingVehicleAttendanceRecord.fileIds?.length || existingVehicleAttendanceRecord.imageUrls?.length || 1;
-        confirmMsg = `Ảnh chụp mới sẽ thay thế ảnh cũ.\nBạn có xác nhận thay thế ${oldCnt} ảnh chụp danh sách trước đây không?`;
-      } else {
-        confirmMsg = `Bạn có xác nhận gửi ${validPhotos.length} ảnh chụp danh sách học sinh để Gemini AI phân tích điểm danh không?`;
-      }
-
-      const ok = confirm(confirmMsg);
-      if (!ok) return;
-
-      const btn = document.getElementById('btnSendPhotos');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '🤖 Đang phân tích danh sách bằng Gemini AI...';
-
-      try {
-        const record = await executeAttendanceAnalysis(validPhotos, false);
-
-        setTrayPhoto(1, null);
-        setTrayPhoto(2, null);
-
-        let successMsg = `✅ Điểm danh thành công: ${record.presentCount}/${record.totalStudents} học sinh có mặt!`;
-        if (record.warning) {
-          successMsg += `\n⚠️ ${record.warning}`;
-        }
-        showToast(successMsg, record.warning ? 'warning' : 'success');
-        renderSavedPhotosInHdvView(record);
-
-        openAttendanceDetailModal(record);
+        showToast(`✅ Đã lưu điểm danh: ${presentCount}/${currentHdvStudents.length} học sinh có mặt!`, 'success');
+        triggerDeviceVibration();
       } catch (err) {
-        showToast('Lỗi phân tích: ' + err.message, 'error');
+        showToast('Lỗi lưu điểm danh: ' + err.message, 'error');
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldText;
+        }
       }
     }
 
+    // Tương thích ngược: render ảnh lưu và modal điểm danh
     function renderSavedPhotosInHdvView(record) {
-      const box = document.getElementById('hdvSavedPhotosBox');
-      const badge = document.getElementById('savedAttendanceSummaryBadge');
-      const container = document.getElementById('savedPhotosThumbContainer');
-
-      if (!record || (!record.fileIds?.length && !record.imageUrls?.length)) {
-        box.classList.add('hidden');
-        return;
-      }
-
-      box.classList.remove('hidden');
-      badge.textContent = `Có mặt: ${record.presentCount || 0} / ${record.students ? record.students.length : 0} HS`;
-      container.innerHTML = '';
-
-      const urls = record.imageUrls || [];
-      const fileIds = record.fileIds || [];
-      const count = Math.max(urls.length, fileIds.length);
-
-      for (let idx = 0; idx < count; idx++) {
-        const fid = fileIds[idx] || '';
-        const imgUrl = urls[idx] || (fid ? `https://drive.google.com/thumbnail?id=${fid}&sz=w800` : '');
-        if (!imgUrl) continue;
-        const div = document.createElement('div');
-        div.className = 'relative shrink-0 cursor-pointer group';
-        div.onclick = () => window.openFullscreenImage(imgUrl);
-        div.innerHTML = `
-          <img src="${imgUrl}" class="w-20 h-20 object-cover rounded-lg border-2 border-emerald-400 shadow-sm group-hover:opacity-90" alt="Ảnh ${idx + 1}"
-            ${fid ? `onerror="this.onerror=null; this.src='${getApiUrl()}?action=getDriveImage&fileId=${fid}';"` : ''} />
-          <span class="absolute bottom-1 right-1 bg-black/70 text-white text-[9px] px-1 rounded font-bold">#${idx + 1}</span>
-        `;
-        container.appendChild(div);
-      }
+      // Đã chuyển sang điểm danh tương tác trực tiếp
     }
 
     function viewCurrentVehicleAttendanceModal() {
-      if (!existingVehicleAttendanceRecord) return;
-      const progId = document.getElementById('hdvProgramSelect').value;
+      const progId = document.getElementById('hdvProgramSelect')?.value;
       const progObj = activeProgramsCache.find(p => p.id === progId);
-      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value);
+
+      if (!currentHdvStudents || currentHdvStudents.length === 0) {
+        return showToast('Chưa có danh sách học sinh để xem!', 'info');
+      }
 
       openAttendanceDetailModal({
         vehicleName: vehicleName,
         programName: progObj ? progObj.name : '',
-        updatedAt: existingVehicleAttendanceRecord.updatedAt || '',
-        totalStudents: existingVehicleAttendanceRecord.students ? existingVehicleAttendanceRecord.students.length : 0,
-        presentCount: existingVehicleAttendanceRecord.presentCount || 0,
-        absentCount: existingVehicleAttendanceRecord.absentCount || 0,
-        students: existingVehicleAttendanceRecord.students || [],
-        imageUrls: existingVehicleAttendanceRecord.imageUrls || [],
-        fileIds: existingVehicleAttendanceRecord.fileIds || []
+        updatedAt: (existingVehicleAttendanceRecord && existingVehicleAttendanceRecord.updatedAt) || new Date().toLocaleString('vi-VN'),
+        totalStudents: currentHdvStudents.length,
+        presentCount: currentHdvStudents.filter(s => s.present).length,
+        absentCount: currentHdvStudents.filter(s => !s.present).length,
+        students: currentHdvStudents,
+        imageUrls: [],
+        fileIds: []
       });
     }
 
@@ -2295,7 +1953,7 @@
       }
     }
 
-    function onProgramChange() {
+    async function onProgramChange() {
       const select = document.getElementById('hdvProgramSelect');
       if (!select) return;
       const progId = select.value;
@@ -2321,14 +1979,19 @@
         }
       }
 
+      // Nạp danh sách xe/lớp của tour vào dropdown
+      await loadTourVehiclesForSelect(progId);
+
       applyLockUiState(progId);
       const map = getLockedMap();
       const lockedVehicle = map[progId] || '';
 
       if (lockedVehicle) {
         fetchExistingVehicleInfo(progId, lockedVehicle);
+        fetchClassStudentListForHdv(progId, lockedVehicle);
       } else {
         resetVehicleFormFields();
+        resetHdvAttendanceView();
       }
 
       checkAndToggleHdvGpsTracking(document.getElementById('hdvStatusSelect').value);
@@ -2349,6 +2012,8 @@
     function resetVehicleFormFields() {
       const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
       setVal('hdvVehicleInput', '');
+      const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      if (vehicleSelect) vehicleSelect.value = '';
       setVal('hdvStatusSelect', '🚩 Đang xuất phát');
       setVal('teacherCountInput', '0');
       setVal('leaderNameInput', '');
@@ -2366,7 +2031,7 @@
       if (lastSavedEl) lastSavedEl.textContent = '';
 
       existingVehicleAttendanceRecord = null;
-      renderSavedPhotosInHdvView(null);
+      resetHdvAttendanceView();
       renderClassRows([]);
     }
 
@@ -2574,30 +2239,21 @@
       btn.disabled = true;
       btn.innerHTML = '⏳ Đang lưu dữ liệu...';
 
-      // TỰ ĐỘNG TÍCH HỢP PHÂN TÍCH ẢNH ĐIỂM DANH KHI LƯU (NẾU CÓ ẢNH TRONG KHAY)
-      const validTrayPhotos = trayPhotos.filter(Boolean);
-      let attendanceToSave = existingVehicleAttendanceRecord;
-
-      if (validTrayPhotos.length > 0) {
-        btn.innerHTML = '🤖 Đang tự động phân tích ảnh danh sách học sinh (AI)...';
-        try {
-          const attRecord = await executeAttendanceAnalysis(validTrayPhotos, true);
-          if (attRecord) {
-            attendanceToSave = attRecord;
-            if (attRecord.totalStudents > 0) {
-              totals.totalStudents = attRecord.totalStudents;
-              // Nếu lớp thứ nhất có số lượng học sinh đang bằng 0 thì tự gán bằng tổng sĩ số vừa nhận diện
-              const firstClsStudents = document.querySelector('#classListContainer .cls-students');
-              if (firstClsStudents && (!firstClsStudents.value || parseInt(firstClsStudents.value, 10) === 0)) {
-                firstClsStudents.value = attRecord.totalStudents;
-                calculateRealtimeTotals();
-              }
-            }
-          }
-        } catch (attErr) {
-          console.warn('Lỗi phân tích ảnh khi lưu:', attErr);
-          showToast('Cảnh báo điểm danh ảnh: ' + attErr.message + ' (vẫn tiếp tục lưu xe)', 'info');
-        }
+      // TÍCH HỢP ĐIỂM DANH HỌC SINH TỪ DANH SÁCH TRỰC TIẾP
+      let attendanceToSave = null;
+      if (currentHdvStudents && currentHdvStudents.length > 0) {
+        const presentCount = currentHdvStudents.filter(s => s.present).length;
+        const absentCount = currentHdvStudents.filter(s => !s.present).length;
+        attendanceToSave = {
+          programId: progId,
+          vehicleName: vehicleName,
+          totalStudents: currentHdvStudents.length,
+          presentCount: presentCount,
+          absentCount: absentCount,
+          students: currentHdvStudents,
+          fileIds: [],
+          imageUrls: []
+        };
       }
 
       btn.innerHTML = '💾 Đang gửi toàn bộ dữ liệu lên máy chủ...';
@@ -2662,15 +2318,8 @@
         renderSummaryDashboardTable(summaryVehiclesCache);
         updateLeafletMapWithVehicles(summaryVehiclesCache, true);
         
-        // Nếu vừa phân tích ảnh điểm danh, dọn sạch khay ảnh tạm và hiển thị bản lưu
-        if (validTrayPhotos.length > 0) {
-          setTrayPhoto(1, null);
-          setTrayPhoto(2, null);
-          renderSavedPhotosInHdvView(attendanceToSave);
-          showToast('Đã lưu toàn bộ báo cáo xe và điểm danh học sinh thành công!', 'success');
-          if (attendanceToSave && attendanceToSave.students && attendanceToSave.students.length > 0) {
-            openAttendanceDetailModal(attendanceToSave);
-          }
+        if (attendanceToSave) {
+          showToast(`Đã lưu toàn bộ thông tin xe & điểm danh (${attendanceToSave.presentCount}/${attendanceToSave.totalStudents} HS có mặt)!`, 'success');
         } else {
           showToast(res.message, 'success');
         }
@@ -3317,17 +2966,19 @@
         });
       }
 
-      // Render ảnh chụp của HDV (HIỂN THỊ Ở DƯỚI)
+      // Render ảnh chụp của HDV (nếu có bản ghi cũ)
       const imgContainer = document.getElementById('attModalImagesContainer');
-      imgContainer.innerHTML = '';
+      const photoSection = document.getElementById('attModalPhotoSection');
+      if (imgContainer) imgContainer.innerHTML = '';
 
       const urls = data.imageUrls || [];
       const fileIds = data.fileIds || [];
       const count = Math.max(urls.length, fileIds.length);
 
       if (count === 0) {
-        imgContainer.innerHTML = '<p class="text-xs text-slate-400 italic text-center py-3">Chưa có ảnh chụp danh sách nào được gửi.</p>';
+        if (photoSection) photoSection.classList.add('hidden');
       } else {
+        if (photoSection) photoSection.classList.remove('hidden');
         for (let idx = 0; idx < count; idx++) {
           const fid = fileIds[idx] || '';
           const url = urls[idx] || (fid ? `https://drive.google.com/thumbnail?id=${fid}&sz=w1600` : '');
@@ -3660,12 +3311,11 @@
       });
     }
 
-    // THUẬT TOÁN ĐỌC FILE EXCEL THEO ĐÚNG CÁC NGUYÊN TẮC:
-    // 1. Nếu file chỉ có 1 đến 3 sheet mà các sheet vẫn có chữ Sheet: Tên lớp chính là tên file.
-    // 2. Nếu chỉ gửi 1 file: Tên lớp chính là tên sheet.
-    // 3. Xác định cột tên: Cột A là STT. Kiểm tra tại hàng số 12: Cột B nếu không có số là cột tên; nếu có số thì kiểm tra cột C xem có số không, nếu không có số là cột tên.
-    // 4. Hàng bắt đầu: Tại cột A tìm ô có số 1.
-    // 5. Kết thúc: 2 hàng liên tiếp không có dữ liệu.
+    // THUẬT TOÁN ĐỌC FILE EXCEL ĐA NĂNG, TỰ ĐỘNG PHÂN TÁCH LỚP/XE:
+    // 1. Hỗ trợ 1 file gồm nhiều sheet (mỗi sheet là 1 lớp/xe).
+    // 2. Hỗ trợ 1 file gồm 1 sheet nhưng có cột Lớp hoặc Xe (tự động gom nhóm học sinh theo từng lớp).
+    // 3. Hỗ trợ nhiều file (mỗi file là 1 lớp/xe).
+    // 4. Tự động nhận diện cột STT, cột Họ và Tên.
     async function parseExcelFilesWithRules(files) {
       const isMultipleFiles = files.length > 1;
       const parsedClasses = [];
@@ -3677,51 +3327,141 @@
         const sheetNames = workbook.SheetNames || [];
         const baseFileName = file.name.replace(/\.[^/.]+$/, '').trim();
 
-        const hasGenericSheetNames = sheetNames.length >= 1 && sheetNames.length <= 3 &&
-          sheetNames.every(s => /sheet/i.test(s));
+        for (let sIdx = 0; sIdx < sheetNames.length; sIdx++) {
+          const sName = sheetNames[sIdx];
+          const sheet = workbook.Sheets[sName];
+          if (!sheet) continue;
 
-        if (isMultipleFiles && hasGenericSheetNames) {
-          // Nhiều file, mỗi file tương ứng 1 lớp/xe, tên lớp là tên file
-          const firstSheet = workbook.Sheets[sheetNames[0]];
-          const students = extractStudentsFromSingleSheet(firstSheet);
-          if (students.length > 0) {
-            parsedClasses.push({
-              className: formatVehicleOrClassName(baseFileName),
-              fileName: file.name,
-              students: students
-            });
+          // Xác định tên lớp mặc định cho sheet này
+          let defaultClassName = sName.trim();
+          if (/^(sheet\d*|trang\s*\d*|page\d*)$/i.test(defaultClassName)) {
+            defaultClassName = baseFileName;
           }
-        } else if (!isMultipleFiles) {
-          // Chỉ gửi 1 file: danh sách tổng hợp chung, xác định tên lớp bằng tên sheet
-          sheetNames.forEach(sName => {
-            const sheet = workbook.Sheets[sName];
-            const students = extractStudentsFromSingleSheet(sheet);
-            if (students.length > 0) {
-              parsedClasses.push({
-                className: formatVehicleOrClassName(sName.trim()),
-                fileName: file.name,
-                students: students
-              });
-            }
-          });
-        } else {
-          // Nhiều file và có tên sheet cụ thể
-          sheetNames.forEach(sName => {
-            const sheet = workbook.Sheets[sName];
-            const students = extractStudentsFromSingleSheet(sheet);
-            if (students.length > 0) {
-              const clsName = /sheet/i.test(sName) ? baseFileName : sName.trim();
-              parsedClasses.push({
-                className: formatVehicleOrClassName(clsName),
-                fileName: file.name,
-                students: students
-              });
+
+          // Phân tích sheet (hỗ trợ phân tách nếu 1 sheet chứa nhiều lớp)
+          const extractedClasses = extractClassesAndStudentsFromSheet(sheet, defaultClassName, file.name);
+          extractedClasses.forEach(c => {
+            if (c.students && c.students.length > 0) {
+              parsedClasses.push(c);
             }
           });
         }
       }
 
       return parsedClasses;
+    }
+
+    function extractClassesAndStudentsFromSheet(sheet, defaultClassName, fileName) {
+      if (!sheet) return [];
+      const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      if (!data || data.length === 0) return [];
+
+      function hasNumber(val) {
+        if (val === null || val === undefined || val === '') return false;
+        return /\d/.test(String(val)) || !isNaN(Number(val));
+      }
+
+      // 1. Kiểm tra xem sheet có cột riêng cho Lớp hoặc Xe không
+      let classColIdx = -1;
+      let nameColIdx = 1;
+      let headerRowIdx = -1;
+
+      for (let r = 0; r < Math.min(15, data.length); r++) {
+        const row = data[r] || [];
+        for (let c = 0; c < row.length; c++) {
+          const cellStr = String(row[c] || '').trim().toLowerCase();
+          if (classColIdx === -1 && /(^lớp$|^lop$|^xe$|tên lớp|số xe|phụ trách)/i.test(cellStr)) {
+            classColIdx = c;
+            headerRowIdx = r;
+          }
+          if (/(họ và tên|họ tên|tên học sinh|họ và chữ lót)/i.test(cellStr)) {
+            nameColIdx = c;
+            headerRowIdx = r;
+          }
+        }
+        if (classColIdx !== -1 && nameColIdx !== -1) break;
+      }
+
+      // Nếu chưa xác định được cột tên theo tiêu đề, dùng quy tắc dòng 12
+      if (headerRowIdx === -1) {
+        let checkRowIdx = data.length > 11 ? 11 : Math.max(0, data.length - 1);
+        const sampleRow = data[checkRowIdx] || [];
+        const valB = sampleRow[1] !== undefined ? String(sampleRow[1]).trim() : '';
+        const valC = sampleRow[2] !== undefined ? String(sampleRow[2]).trim() : '';
+        nameColIdx = (hasNumber(valB) && !hasNumber(valC)) ? 2 : 1;
+      }
+
+      // Tìm hàng bắt đầu có số 1 tại cột A (hoặc cột 0/1)
+      let startRowIdx = -1;
+      for (let r = Math.max(0, headerRowIdx); r < data.length; r++) {
+        const colAVal = data[r] && data[r][0] !== undefined ? String(data[r][0]).trim() : '';
+        if (colAVal === '1' || colAVal === '01' || parseInt(colAVal, 10) === 1) {
+          startRowIdx = r;
+          break;
+        }
+      }
+      if (startRowIdx === -1) {
+        startRowIdx = Math.max(0, headerRowIdx + 1);
+      }
+
+      // Lấy toàn bộ hàng học sinh
+      const rawRows = [];
+      let consecutiveEmpty = 0;
+      for (let r = startRowIdx; r < data.length; r++) {
+        const row = data[r] || [];
+        const colA = row[0] !== undefined ? String(row[0]).trim() : '';
+        const colName = row[nameColIdx] !== undefined ? String(row[nameColIdx]).trim() : '';
+        const colClass = classColIdx !== -1 && row[classColIdx] !== undefined ? String(row[classColIdx]).trim() : '';
+
+        const isEmpty = (!colA && !colName && !colClass);
+        if (isEmpty) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 3) break;
+        } else {
+          consecutiveEmpty = 0;
+          if (colName && !/tổng|tong|giao vien|hướng dẫn|stt|họ và tên/i.test(colName)) {
+            const sttVal = colA ? (parseInt(colA, 10) || (rawRows.length + 1)) : (rawRows.length + 1);
+            rawRows.push({
+              stt: sttVal,
+              name: colName,
+              className: colClass
+            });
+          }
+        }
+      }
+
+      if (rawRows.length === 0) return [];
+
+      // Kiểm tra nếu có cột Lớp/Xe và có từ 2 giá trị lớp khác nhau trở lên
+      if (classColIdx !== -1) {
+        const distinctClasses = [...new Set(rawRows.map(r => r.className).filter(Boolean))];
+        if (distinctClasses.length > 1) {
+          const grouped = {};
+          rawRows.forEach(r => {
+            const cName = formatVehicleOrClassName(r.className || defaultClassName);
+            if (!grouped[cName]) grouped[cName] = [];
+            grouped[cName].push({
+              stt: grouped[cName].length + 1,
+              name: r.name
+            });
+          });
+          return Object.keys(grouped).map(k => ({
+            className: k,
+            fileName: fileName,
+            students: grouped[k]
+          }));
+        }
+      }
+
+      // Mặc định: toàn bộ sheet thuộc về 1 lớp
+      return [{
+        className: formatVehicleOrClassName(defaultClassName),
+        fileName: fileName,
+        students: rawRows.map((r, idx) => ({
+          stt: r.stt || (idx + 1),
+          name: r.name
+        }))
+      }];
     }
 
     function extractStudentsFromSingleSheet(sheet) {
@@ -4108,11 +3848,15 @@
     window.syncNoticeTextarea = syncNoticeTextarea;
     window.handleSendNotice = handleSendNotice;
     window.handleVipCheck = handleVipCheck;
-    window.triggerCamera = triggerCamera;
-    window.triggerFileInput = triggerFileInput;
-    window.handleImageSelected = handleImageSelected;
-    window.removeTrayPhoto = removeTrayPhoto;
-    window.confirmAndSendPhotos = confirmAndSendPhotos;
+    window.onVehicleSelectChange = onVehicleSelectChange;
+    window.reloadTourClasses = reloadTourClasses;
+    window.confirmCustomVehicle = confirmCustomVehicle;
+    window.cancelCustomVehicle = cancelCustomVehicle;
+    window.reloadCurrentClassStudents = reloadCurrentClassStudents;
+    window.toggleStudentAttendance = toggleStudentAttendance;
+    window.markAllStudentsPresent = markAllStudentsPresent;
+    window.setAttendanceFilter = setAttendanceFilter;
+    window.saveCurrentAttendance = saveCurrentAttendance;
     window.viewCurrentVehicleAttendanceModal = viewCurrentVehicleAttendanceModal;
     window.fetchAndOpenAttendanceModal = fetchAndOpenAttendanceModal;
     window.closeClassAttendanceModal = closeClassAttendanceModal;
@@ -4132,10 +3876,6 @@
     window.requestHdvLogout = requestHdvLogout;
     window.syncTourEndDateDefault = syncTourEndDateDefault;
     window.confirmSummaryDirectPin = confirmSummaryDirectPin;
-    window.openLiveCamera = openLiveCamera;
-    window.closeLiveCamera = closeLiveCamera;
-    window.switchCameraFacingMode = switchCameraFacingMode;
-    window.captureLivePhoto = captureLivePhoto;
     window.normalizeVehicleKey = normalizeVehicleKey;
 
     // --- KHỞI CHẠY LẦN ĐẦU ---

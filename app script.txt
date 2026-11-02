@@ -237,6 +237,7 @@ function handleRequest(e) {
     if (action === 'getVehicleData') return jsonResponse(getVehicleData(ss, params));
     if (action === 'getSummaryData') return jsonResponse(getSummaryData(ss, params));
     if (action === 'getTourDetails') return jsonResponse(getTourDetails(ss, params));
+    if (action === 'getProgramClasses') return jsonResponse(getProgramClasses(ss, params));
     if (action === 'getClassStudentList') return jsonResponse(getClassStudentList(ss, params));
     if (action === 'getAttendanceRecord') return jsonResponse(getAttendanceRecord(ss, params));
     if (action === 'getGeminiApiKeyStatus') return jsonResponse(getGeminiApiKeyStatus(ss, params));
@@ -890,59 +891,120 @@ function saveTourClassLists(ss, params) {
   }
 
   const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  if (!studentSheet) return { success: false, message: 'Không tìm thấy bảng DanhSachHocSinhGoc!' };
   const rows = studentSheet.getDataRange().getValues();
 
   // Xác định các lớp cần ghi đè
   const targetClassKeys = new Set(classes.map(c => normalizeVehicleKey(c.className)));
 
-  // Xóa danh sách cũ của các lớp tương ứng trong chương trình này (từ dưới lên trên)
-  for (let i = rows.length - 1; i >= 1; i--) {
+  // Lọc các hàng giữ lại (giữ header và các lớp không bị ghi đè)
+  const keptRows = [rows[0]];
+  for (let i = 1; i < rows.length; i++) {
     if (String(rows[i][0]) === progId && targetClassKeys.has(normalizeVehicleKey(rows[i][1]))) {
-      studentSheet.deleteRow(i + 1);
+      continue;
     }
+    keptRows.push(rows[i]);
   }
 
-  // Thêm dữ liệu học sinh mới
-  let totalSaved = 0;
+  // Chuẩn bị dữ liệu học sinh mới theo lô (batch setValues)
+  const newStudentRows = [];
   classes.forEach(c => {
     const cName = String(c.className || '').trim();
     const stuList = c.students || [];
-    stuList.forEach(s => {
+    stuList.forEach((s, sIdx) => {
       const stuName = String(s.name || '').trim();
       const cleanName = removeVietnameseTones(stuName).toLowerCase();
-      studentSheet.appendRow([
+      newStudentRows.push([
         progId,
         cName,
-        s.stt || (totalSaved + 1),
+        Number(s.stt || (sIdx + 1)),
         stuName,
         cleanName,
         ''
       ]);
-      totalSaved++;
     });
   });
 
+  const allRows = keptRows.concat(newStudentRows);
+  studentSheet.clearContents();
+  if (allRows.length > 0) {
+    studentSheet.getRange(1, 1, allRows.length, 6).setValues(allRows);
+    studentSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#fff2cc');
+  }
+
+  SpreadsheetApp.flush();
+
   return {
     success: true,
-    message: `Đã nạp thành công ${classes.length} lớp (${totalSaved} học sinh)!`,
+    message: `Đã nạp thành công ${classes.length} lớp (${newStudentRows.length} học sinh)!`,
     totalClasses: classes.length,
-    totalStudents: totalSaved
+    totalStudents: newStudentRows.length
   };
 }
 
-// Lấy danh sách học sinh gốc của lớp / xe để đối chiếu
+// Lấy danh sách các lớp / xe của một chương trình tour
+function getProgramClasses(ss, params) {
+  const progId = String(params.programId || '').trim();
+  if (!progId) return { success: false, classes: [] };
+
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  const stuRows = studentSheet ? studentSheet.getDataRange().getValues() : [];
+  const classMap = {};
+
+  for (let j = 1; j < stuRows.length; j++) {
+    if (String(stuRows[j][0]) === progId) {
+      const cName = String(stuRows[j][1] || '').trim();
+      if (!cName) continue;
+      if (!classMap[cName]) {
+        classMap[cName] = { className: cName, count: 0 };
+      }
+      classMap[cName].count++;
+    }
+  }
+
+  // Bổ sung các xe đã báo cáo trong SHEET_DATA nếu chưa có trong danh sách học sinh
+  const dataSheet = ss.getSheetByName(SHEET_DATA);
+  if (dataSheet) {
+    const dataRows = dataSheet.getDataRange().getValues();
+    for (let k = 1; k < dataRows.length; k++) {
+      if (String(dataRows[k][1]) === progId) {
+        const vName = String(dataRows[k][3] || '').trim();
+        if (vName && !classMap[vName]) {
+          const normV = normalizeVehicleKey(vName);
+          const exists = Object.keys(classMap).some(function(k) { return normalizeVehicleKey(k) === normV; });
+          if (!exists) {
+            classMap[vName] = { className: vName, count: Number(dataRows[k][5] || 0) };
+          }
+        }
+      }
+    }
+  }
+
+  const classes = Object.keys(classMap).map(function(k) { return classMap[k]; });
+  classes.sort(function(a, b) {
+    return a.className.localeCompare(b.className, 'vi', { numeric: true });
+  });
+
+  return { success: true, classes: classes };
+}
+
+// Lấy danh sách học sinh gốc của lớp / xe và trạng thái điểm danh
 function getClassStudentList(ss, params) {
   const progId = String(params.programId || '').trim();
   const vehicleOrClassName = String(params.className || params.vehicleName || '').trim();
   if (!progId || !vehicleOrClassName) return { success: false, students: [] };
 
   const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
-  const rows = studentSheet.getDataRange().getValues();
+  const rows = studentSheet ? studentSheet.getDataRange().getValues() : [];
   const targetKey = normalizeVehicleKey(vehicleOrClassName);
 
   const students = [];
   for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]) === progId && normalizeVehicleKey(rows[i][1]) === targetKey) {
+    const rProg = String(rows[i][0] || '').trim();
+    const rClass = String(rows[i][1] || '').trim();
+    const rKey = normalizeVehicleKey(rClass);
+
+    if (rProg === progId && (rKey === targetKey || rKey.indexOf(targetKey) !== -1 || targetKey.indexOf(rKey) !== -1)) {
       students.push({
         stt: Number(rows[i][2] || (students.length + 1)),
         name: String(rows[i][3]),
@@ -951,7 +1013,46 @@ function getClassStudentList(ss, params) {
     }
   }
 
-  return { success: true, students: students };
+  // Tìm bản ghi điểm danh đã lưu trước đó nếu có
+  let savedAttendance = null;
+  const attRes = getAttendanceRecord(ss, { programId: progId, vehicleName: vehicleOrClassName });
+  if (attRes && attRes.found && attRes.record && attRes.record.students && attRes.record.students.length > 0) {
+    savedAttendance = attRes.record.students;
+  }
+
+  const mappedStudents = students.map(function(s, idx) {
+    let isPresent = true;
+    let note = '';
+    if (savedAttendance) {
+      const match = savedAttendance.find(function(a) {
+        return (a.stt && Number(a.stt) === Number(s.stt)) ||
+          (normalizeVehicleKey(a.name) === normalizeVehicleKey(s.name));
+      });
+      if (match) {
+        isPresent = match.present !== false;
+        note = match.note || '';
+      }
+    }
+    return {
+      stt: s.stt || (idx + 1),
+      name: s.name,
+      present: isPresent,
+      note: note
+    };
+  });
+
+  const presentCount = mappedStudents.filter(function(s) { return s.present; }).length;
+  const absentCount = mappedStudents.filter(function(s) { return !s.present; }).length;
+
+  return {
+    success: true,
+    students: mappedStudents,
+    totalStudents: mappedStudents.length,
+    presentCount: presentCount,
+    absentCount: absentCount,
+    hasExistingAttendance: Boolean(savedAttendance),
+    updatedAt: (attRes && attRes.found && attRes.record) ? attRes.record.updatedAt : ''
+  };
 }
 
 // ==============================================================
