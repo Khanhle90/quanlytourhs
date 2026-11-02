@@ -954,11 +954,15 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
     }
   }
 
-  // 4. Phân tích ảnh bằng Gemini API
+  // 4. Lấy trước danh sách học sinh chính thức từ Excel (nếu có) để neo STT & Họ Tên cho Gemini
+  const officialRes = getClassStudentList(ss, { programId: progId, vehicleName: vehicleName });
+  const officialStudents = officialRes.students || [];
+
+  // 5. Phân tích ảnh bằng Gemini API (Định hướng quét lề trái, nhận diện dấu tích ✓ và gạch ngang -)
   let geminiApiKey = params.geminiApiKey || PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || DEFAULT_GEMINI_API_KEY;
   let ocrStudents = [];
   try {
-    ocrStudents = callGeminiForAttendance(images, geminiApiKey);
+    ocrStudents = callGeminiForAttendance(images, geminiApiKey, officialStudents);
   } catch (ocrErr) {
     console.warn('Gemini OCR lỗi:', ocrErr);
     saveAttendanceRecordInSheet(ss, progId, vehicleName, fileIds, imageUrls, 0, 0, []);
@@ -988,10 +992,6 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
       absentCount: 0
     };
   }
-
-  // 5. Đối chiếu kết quả OCR với danh sách học sinh gốc từ Excel
-  const officialRes = getClassStudentList(ss, { programId: progId, vehicleName: vehicleName });
-  const officialStudents = officialRes.students || [];
 
   const matched = matchAttendanceWithOfficialList(officialStudents, ocrStudents);
 
@@ -1024,27 +1024,45 @@ function uploadAndAnalyzeAttendanceImage(ss, params) {
 }
 
 // Gọi Gemini API để nhận diện danh sách học sinh và dấu tích điểm danh
-function callGeminiForAttendance(imagesBase64, apiKey) {
+function buildAttendancePrompt(officialStudents) {
+  let officialListText = '';
+  if (officialStudents && officialStudents.length > 0) {
+    officialListText = '\nDƯỚI ĐÂY LÀ DANH SÁCH HỌC SINH CHÍNH THỨC CỦA LỚP/XE (TỪ STT 1 ĐẾN ' + officialStudents.length + '):\n' +
+      officialStudents.map(function(s) { return s.stt + '. ' + s.name; }).join('\n') +
+      '\n-> HÃY ĐỐI CHIẾU TỪNG HỌC SINH THEO DANH SÁCH TRÊN VỚI ẢNH CHỤP ĐIỂM DANH ĐỂ XÁC ĐỊNH CHÍNH XÁC PRESENT: TRUE / FALSE.\n';
+  }
+
+  return "Bạn là chuyên gia phân tích ảnh chụp bảng điểm danh học sinh đi tour dã ngoại.\n" +
+    "Nhiệm vụ của bạn là kiểm tra từng hàng học sinh trong tất cả các ảnh để xác định chính xác ai CÓ MẶT (present: true) và ai VẮNG MẶT (present: false).\n" +
+    officialListText + "\n" +
+    "VỊ TRÍ VÀ CÁCH ĐÁNH DẤU CỦA HƯỚNG DẪN VIÊN (HDV) - ĐẶC BIỆT LƯU Ý:\n" +
+    "1. VỊ TRÍ ĐÁNH DẤU:\n" +
+    "   - Dấu điểm danh thường được HDV vẽ bằng bút mực ở LỀ BÊN NGOÀI CỦA BẢNG (ngay bên trái cột STT số thứ tự), hoặc trong các ô của bảng, hoặc ngay cạnh tên học sinh.\n" +
+    "   - Bạn PHẢI quét kỹ toàn bộ dải lề mép giấy bên trái cột STT cho đến hết dòng của mỗi học sinh.\n\n" +
+    "2. CÁC KIỂU ĐÁNH DẤU XÁC NHẬN CÓ MẶT (BẮT BUỘC KẾT LUẬN: present = true):\n" +
+    "   - Dấu tích: '✓', 'v' (nét bút mực viết tay ở lề trước STT hoặc trên hàng).\n" +
+    "   - Dấu gạch ngang: '-' (RẤT QUAN TRỌNG: HDV thường gạch ngang '-' ở lề trước số STT để xác nhận học sinh có mặt. ĐÂY LÀ ĐÁNH DẤU CÓ MẶT, BẮT BUỘC KẾT LUẬN present = true, KHÔNG ĐƯỢC COI LÀ VẮNG!).\n" +
+    "   - Dấu chéo: 'x', dấu chấm '.', khoanh tròn, hoặc bất kỳ nét bút mực viết tay nào ngang hàng học sinh đó.\n" +
+    "   => BẤT KỲ DÒNG NÀO CÓ MỘT TRONG CÁC DẤU BÚT MỰC TRÊN -> BẮT BUỘC LÀ CÓ MẶT (present: true).\n\n" +
+    "3. ĐIỀU KIỆN KẾT LUẬN VẮNG MẶT (present = false):\n" +
+    "   - CHỈ KHI hàng học sinh đó HOÀN TOÀN TRỐNG TRƠN (lề bên trái cột STT trắng tinh, không có bất kỳ dấu tích, không có dấu gạch ngang, không có nét bút nào) -> MỚI LÀ VẮNG MẶT (present: false).\n\n" +
+    "Hãy trả về kết quả JSON chuẩn (chỉ JSON thuần, không bọc markdown ```json):\n" +
+    "[\n" +
+    "  {\"stt\": 1, \"name\": \"Lê Bảo Châu\", \"present\": true},\n" +
+    "  {\"stt\": 17, \"name\": \"Hoàng Diệp Anh\", \"present\": false}\n" +
+    "]";
+}
+
+// Gọi Gemini API để nhận diện danh sách học sinh và dấu tích điểm danh
+function callGeminiForAttendance(imagesBase64, apiKey, officialStudents) {
   if (!apiKey) {
     apiKey = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || DEFAULT_GEMINI_API_KEY;
   }
 
+  const promptText = buildAttendancePrompt(officialStudents || []);
+
   const parts = [
-    {
-      text: "Bạn là chuyên gia phân tích danh sách học sinh từ ảnh chụp bảng điểm danh lớp học đi dã ngoại.\n" +
-            "Nhiệm vụ của bạn: Đọc toàn bộ danh sách học sinh trong tất cả các ảnh và xác định học sinh nào CÓ MẶT, học sinh nào VẮNG MẶT.\n\n" +
-            "QUY TẮC NHẬN DIỆN CỰC KỲ QUAN TRỌNG:\n" +
-            "1. Hướng dẫn viên điểm danh bằng cách đánh dấu cùng hàng với tên học sinh: có thể là dấu tích 'v', đánh 'x', gạch ngang '-', khoanh tròn hoặc dấu bất kỳ ở trước hoặc sau tên.\n" +
-            "2. Bất kỳ học sinh nào có đánh dấu cùng hàng tên -> ĐANG CÓ MẶT (present: true).\n" +
-            "3. Học sinh nào KHÔNG CÓ ĐÁNH DẤU gì cùng hàng tên -> MẶC ĐỊNH LÀ VẮNG MẶT (present: false).\n" +
-            "4. Đọc chuẩn xác họ và tên tiếng Việt (họ tên đầy đủ có dấu nếu đọc được), và số thứ tự (stt).\n" +
-            "5. Nếu có nhiều ảnh, hãy ghép toàn bộ học sinh của các ảnh thành MỘT danh sách duy nhất không trùng lặp theo đúng thứ tự.\n\n" +
-            "Hãy trả về kết quả ĐÚNG ĐỊNH DẠNG JSON sau (chỉ trả về JSON thuần, không bọc markdown ```json):\n" +
-            "[\n" +
-            "  {\"stt\": 1, \"name\": \"Nguyễn Văn An\", \"present\": true},\n" +
-            "  {\"stt\": 2, \"name\": \"Trần Thị Bình\", \"present\": false}\n" +
-            "]"
-    }
+    { text: promptText }
   ];
 
   imagesBase64.forEach(img => {
@@ -1066,7 +1084,7 @@ function callGeminiForAttendance(imagesBase64, apiKey) {
   const payload = {
     contents: [{ parts: parts }],
     generationConfig: {
-      temperature: 0.1,
+      temperature: 0.0,
       responseMimeType: "application/json"
     }
   };
@@ -1208,17 +1226,25 @@ function matchAttendanceWithOfficialList(officialStudents, ocrStudents) {
 
     let matchedOcr = null;
 
-    // Chiến lược 1: Nếu trùng tên, ưu tiên khớp theo cả STT gần nhất
-    if (isDuplicate) {
+    // Ưu tiên 1: Khớp theo số thứ tự STT VÀ tương đồng tên
+    matchedOcr = ocrList.find(o => !o.used && o.stt === stuStt && (o.cleanName === cName || calcTextSimilarity(cName, o.cleanName) >= 0.6));
+
+    // Ưu tiên 2: Khớp chính xác theo số thứ tự STT
+    if (!matchedOcr) {
+      matchedOcr = ocrList.find(o => !o.used && o.stt === stuStt);
+    }
+
+    // Ưu tiên 3: Nếu trùng tên không dấu, ưu tiên khớp theo cả STT gần nhất
+    if (!matchedOcr && isDuplicate) {
       matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName && Math.abs(o.stt - stuStt) <= 1);
     }
 
-    // Chiến lược 2: Khớp chính xác tên không dấu chưa dùng
+    // Ưu tiên 4: Khớp chính xác tên không dấu chưa dùng
     if (!matchedOcr) {
       matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName);
     }
 
-    // Chiến lược 3: Tìm kiếm theo từ khóa họ tên tương tự (> 80% khớp ký tự)
+    // Ưu tiên 5: Tìm kiếm theo từ khóa họ tên tương tự (> 80% khớp ký tự)
     if (!matchedOcr) {
       let maxSim = 0;
       let candidate = null;

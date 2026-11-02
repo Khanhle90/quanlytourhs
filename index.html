@@ -133,7 +133,7 @@
 
         <div>
           <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">
-            Chương trình đang diễn ra <span class="text-rose-500">*</span>
+            Chọn chương trình<span class="text-rose-500">*</span>
           </label>
           <select id="hdvProgramSelect" onchange="window.onProgramChange()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
             <option value="">-- Đang tải danh sách chương trình... --</option>
@@ -152,12 +152,12 @@
               Đổi xe
             </button>
           </div>
-          <p class="text-[10px] text-slate-500 mt-0.5">Gõ số (01) tự thành <b>Xe 01</b>; gõ lớp (8D) tự thành <b>Lớp 8D</b>.</p>
+          <p class="text-[10px] text-slate-500 mt-0.5">Viết đúng tên xe hoặc tên lớp, không thêm ký hiệu khác</p>
         </div>
 
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold text-slate-700 uppercase">Thông tin Hướng Dẫn Viên</span>
+            <span class="text-[11px] font-bold text-slate-700 uppercase">Thông tin HDV</span>
             <div id="hdvLockStatusBadge" class="flex items-center gap-1.5">
               <!-- Hiển thị badge cố định hoặc nút đăng xuất quản trị -->
             </div>
@@ -172,7 +172,7 @@
             </div>
             <div>
               <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">
-                Số điện thoại (Tài khoản) <span class="text-rose-500">*</span>
+                Số điện thoại<span class="text-rose-500">*</span>
               </label>
               <input type="tel" id="hdvPhoneInput" oninput="window.syncHdvName()" placeholder="SĐT HDV"
                 class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -241,7 +241,7 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
-              Tổng Giáo viên trên xe <span class="text-rose-500">*</span>
+              Tổng số Giáo viên trên xe <span class="text-rose-500">*</span>
             </label>
             <input type="number" min="0" id="teacherCountInput" value="0" oninput="window.calculateRealtimeTotals()"
               class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -1135,7 +1135,7 @@
               🔒 Cố định
             </span>
             <button type="button" onclick="window.requestHdvLogout()" class="text-[10px] bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-700 font-bold px-2 py-0.5 rounded-full transition flex items-center gap-1" title="Cần mã PIN Quản trị">
-              🚪 Thoát / Đổi
+              🚪 Đổi tài khoản
             </button>
           `;
         }
@@ -1422,36 +1422,43 @@
     }
 
     // GỌI TRỰC TIẾP GEMINI API TỪ TRÌNH DUYỆT (TỰ ĐỘNG THỬ CÁC MODEL TƯƠNG THÍCH MỚI NHẤT)
-    async function callGeminiOcrDirect(imagesBase64, apiKey) {
+    async function callGeminiOcrDirect(imagesBase64, apiKey, officialStudents) {
       if (!apiKey) {
         apiKey = getGeminiApiKey();
       }
       if (!apiKey) {
-        const inputKey = prompt('Vui lòng nhập Gemini API Key của bạn để sử dụng tính năng phân tích ảnh điểm danh:\n(Khóa bắt đầu bằng AIzaSy...)');
-        if (inputKey && inputKey.trim()) {
-          apiKey = inputKey.trim();
-          localStorage.setItem(LS_GEMINI_KEY, apiKey);
-        } else {
-          throw new Error('Chưa có Gemini API Key để phân tích ảnh.');
-        }
+        throw new Error('Chưa có Gemini API Key để phân tích ảnh.');
       }
 
+      let officialListText = '';
+      if (officialStudents && officialStudents.length > 0) {
+        officialListText = '\nDƯỚI ĐÂY LÀ DANH SÁCH HỌC SINH CHÍNH THỨC CỦA LỚP/XE (TỪ STT 1 ĐẾN ' + officialStudents.length + '):\n' +
+          officialStudents.map(function(s) { return s.stt + '. ' + s.name; }).join('\n') +
+          '\n-> HÃY ĐỐI CHIẾU TỪNG HỌC SINH THEO DANH SÁCH TRÊN VỚI ẢNH CHỤP ĐIỂM DANH ĐỂ XÁC ĐỊNH CHÍNH XÁC PRESENT: TRUE / FALSE.\n';
+      }
+
+      const promptText = "Bạn là chuyên gia phân tích ảnh chụp bảng điểm danh học sinh đi tour dã ngoại.\n" +
+        "Nhiệm vụ của bạn là kiểm tra từng hàng học sinh trong tất cả các ảnh để xác định chính xác ai CÓ MẶT (present: true) và ai VẮNG MẶT (present: false).\n" +
+        officialListText + "\n" +
+        "VỊ TRÍ VÀ CÁCH ĐÁNH DẤU CỦA HƯỚNG DẪN VIÊN (HDV) - ĐẶC BIỆT LƯU Ý:\n" +
+        "1. VỊ TRÍ ĐÁNH DẤU:\n" +
+        "   - Dấu điểm danh thường được HDV vẽ bằng bút mực ở LỀ BÊN NGOÀI CỦA BẢNG (ngay bên trái cột STT số thứ tự), hoặc trong các ô của bảng, hoặc ngay cạnh tên học sinh.\n" +
+        "   - Bạn PHẢI quét kỹ toàn bộ dải lề mép giấy bên trái cột STT cho đến hết dòng của mỗi học sinh.\n\n" +
+        "2. CÁC KIỂU ĐÁNH DẤU XÁC NHẬN CÓ MẶT (BẮT BUỘC KẾT LUẬN: present = true):\n" +
+        "   - Dấu tích: '✓', 'v' (nét bút mực viết tay ở lề trước STT hoặc trên hàng).\n" +
+        "   - Dấu gạch ngang: '-' (RẤT QUAN TRỌNG: HDV thường gạch ngang '-' ở lề trước số STT để xác nhận học sinh có mặt. ĐÂY LÀ ĐÁNH DẤU CÓ MẶT, BẮT BUỘC KẾT LUẬN present = true, KHÔNG ĐƯỢC COI LÀ VẮNG!).\n" +
+        "   - Dấu chéo: 'x', dấu chấm '.', khoanh tròn, hoặc bất kỳ nét bút mực viết tay nào ngang hàng học sinh đó.\n" +
+        "   => BẤT KỲ DÒNG NÀO CÓ MỘT TRONG CÁC DẤU BÚT MỰC TRÊN -> BẮT BUỘC LÀ CÓ MẶT (present: true).\n\n" +
+        "3. ĐIỀU KIỆN KẾT LUẬN VẮNG MẶT (present = false):\n" +
+        "   - CHỈ KHI hàng học sinh đó HOÀN TOÀN TRỐNG TRƠN (lề bên trái cột STT trắng tinh, không có bất kỳ dấu tích, không có dấu gạch ngang, không có nét bút nào) -> MỚI LÀ VẮNG MẶT (present: false).\n\n" +
+        "Hãy trả về kết quả JSON chuẩn (chỉ JSON thuần, không bọc markdown ```json):\n" +
+        "[\n" +
+        "  {\"stt\": 1, \"name\": \"Lê Bảo Châu\", \"present\": true},\n" +
+        "  {\"stt\": 17, \"name\": \"Hoàng Diệp Anh\", \"present\": false}\n" +
+        "]";
+
       const parts = [
-        {
-          text: "Bạn là chuyên gia phân tích danh sách học sinh từ ảnh chụp bảng điểm danh lớp học đi dã ngoại.\n" +
-                "Nhiệm vụ của bạn: Đọc toàn bộ danh sách học sinh trong tất cả các ảnh và xác định học sinh nào CÓ MẶT, học sinh nào VẮNG MẶT.\n\n" +
-                "QUY TẮC NHẬN DIỆN CỰC KỲ QUAN TRỌNG:\n" +
-                "1. Hướng dẫn viên điểm danh bằng cách đánh dấu cùng hàng với tên học sinh: có thể là dấu tích 'v', đánh 'x', gạch ngang '-', dấu chấm '.', khoanh tròn hoặc dấu bất kỳ ở trước hoặc sau tên.\n" +
-                "2. Bất kỳ học sinh nào có đánh dấu cùng hàng tên -> ĐANG CÓ MẶT (present: true).\n" +
-                "3. Học sinh nào KHÔNG CÓ ĐÁNH DẤU gì cùng hàng tên -> MẶC ĐỊNH LÀ VẮNG MẶT (present: false).\n" +
-                "4. Đọc chuẩn xác họ và tên tiếng Việt (họ tên đầy đủ có dấu nếu đọc được), và số thứ tự (stt).\n" +
-                "5. Nếu có nhiều ảnh, hãy ghép toàn bộ học sinh của các ảnh thành MỘT danh sách duy nhất không trùng lặp theo đúng thứ tự.\n\n" +
-                "Hãy trả về kết quả ĐÚNG ĐỊNH DẠNG JSON sau (chỉ trả về JSON thuần, không bọc markdown ```json hay giải thích nào khác):\n" +
-                "[\n" +
-                "  {\"stt\": 1, \"name\": \"Nguyễn Văn An\", \"present\": true},\n" +
-                "  {\"stt\": 2, \"name\": \"Trần Thị Bình\", \"present\": false}\n" +
-                "]"
-        }
+        { text: promptText }
       ];
 
       imagesBase64.forEach(img => {
@@ -1470,13 +1477,11 @@
       const payloadBody = JSON.stringify({
         contents: [{ parts: parts }],
         generationConfig: {
-          temperature: 0.1,
+          temperature: 0.0,
           responseMimeType: "application/json"
         }
       });
 
-      // Danh sách các model ưu tiên thử theo thứ tự tương thích mới nhất của Google
-      const cachedModel = localStorage.getItem('GEMINI_WORKING_MODEL');
       const candidateModels = [
         'gemini-3.1-flash-lite',
         'gemini-3.5-flash-lite',
@@ -1630,12 +1635,20 @@
 
         let matchedOcr = null;
 
-        // Nếu trùng tên, ưu tiên khớp theo STT gần nhất
-        if (isDuplicate) {
+        // Ưu tiên 1: Khớp chính xác theo STT VÀ tương đồng tên
+        matchedOcr = ocrList.find(o => !o.used && o.stt === stuStt && (o.cleanName === cName || (typeof calcTextSimilarity === 'function' && calcTextSimilarity(cName, o.cleanName) >= 0.6)));
+
+        // Ưu tiên 2: Khớp chính xác theo STT
+        if (!matchedOcr) {
+          matchedOcr = ocrList.find(o => !o.used && o.stt === stuStt);
+        }
+
+        // Ưu tiên 3: Nếu trùng tên, ưu tiên khớp theo STT gần nhất
+        if (!matchedOcr && isDuplicate) {
           matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName && Math.abs(o.stt - stuStt) <= 1);
         }
 
-        // Khớp chính xác tên không dấu
+        // Ưu tiên 4: Khớp chính xác tên không dấu
         if (!matchedOcr) {
           matchedOcr = ocrList.find(o => !o.used && o.cleanName === cName);
         }
@@ -1716,18 +1729,18 @@
         throw new Error(serverRes.message);
       }
 
-      // 3. NẾU BACKEND GẶP LỖI URLFETCHAPP / CHƯA CẤP QUYỀN HOẶC MẠNG NGHẼN:
-      // TỰ ĐỘNG CHUYỂN SANG CHẾ ĐỘ PHÂN TÍCH BẰNG GEMINI AI TRỰC TIẾP TẠI TRÌNH DUYỆT (CLIENT-SIDE FALLBACK)
-      console.warn('Backend chưa cấp quyền UrlFetchApp hoặc báo lỗi, tự động kích hoạt Gemini AI trực tiếp từ trình duyệt...', serverRes ? serverRes.message : '');
-
-      const ocrStudents = await callGeminiOcrDirect(validPhotos, apiKey);
-
-      // Lấy danh sách lớp chính thức nếu có để đối chiếu
+      // Lấy danh sách lớp chính thức nếu có để đối chiếu và cung cấp cho Gemini
       let officialStudents = [];
       try {
         const offRes = await callApi({ action: 'getClassStudentList', programId: progId, vehicleName: vehicleName });
         if (offRes && offRes.success) officialStudents = offRes.students || [];
       } catch (e) {}
+
+      // 3. NẾU BACKEND GẶP LỖI URLFETCHAPP / CHƯA CẤP QUYỀN HOẶC MẠNG NGHẼN:
+      // TỰ ĐỘNG CHUYỂN SANG CHẾ ĐỘ PHÂN TÍCH BẰNG GEMINI AI TRỰC TIẾP TẠI TRÌNH DUYỆT (CLIENT-SIDE FALLBACK)
+      console.warn('Backend chưa cấp quyền UrlFetchApp hoặc báo lỗi, tự động kích hoạt Gemini AI trực tiếp từ trình duyệt...', serverRes ? serverRes.message : '');
+
+      const ocrStudents = await callGeminiOcrDirect(validPhotos, apiKey, officialStudents);
 
       const matched = matchAttendanceClientSide(officialStudents, ocrStudents);
 
@@ -1793,7 +1806,7 @@
       const progObj = activeProgramsCache.find(p => p.id === progId);
       const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput').value);
 
-      if (!progId) return showToast('Vui lòng chọn Chương trình đang diễn ra!', 'error');
+      if (!progId) return showToast('Vui lòng chọn Chương trình', 'error');
       if (!vehicleName) return showToast('Vui lòng nhập Số Xe / Lớp!', 'error');
 
       const validPhotos = trayPhotos.filter(Boolean);
