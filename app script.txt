@@ -572,6 +572,31 @@ function saveVehicleData(ss, params) {
   const lngStr = d.lng ? ("'" + String(d.lng).replace(/^'+/, '')) : '';
   const gpsTimeStr = d.gpsTime || (d.lat ? nowStr : '');
 
+  let targetRowIndex = -1;
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][3]) === targetKey) {
+      targetRowIndex = i + 1;
+      break;
+    }
+  }
+
+  // Giữ nguyên tọa độ GPS trước đó nếu lần lưu này không truyền GPS mới
+  let finalLat = latStr;
+  let finalLng = lngStr;
+  let finalGpsTime = gpsTimeStr;
+
+  if (targetRowIndex !== -1) {
+    if (!finalLat && rows[targetRowIndex - 1][20]) {
+      finalLat = String(rows[targetRowIndex - 1][20]);
+    }
+    if (!finalLng && rows[targetRowIndex - 1][21]) {
+      finalLng = String(rows[targetRowIndex - 1][21]);
+    }
+    if (!finalGpsTime && rows[targetRowIndex - 1][22]) {
+      finalGpsTime = String(rows[targetRowIndex - 1][22]);
+    }
+  }
+
   const rowValues = [
     nowStr,
     progId,
@@ -593,18 +618,10 @@ function saveVehicleData(ss, params) {
     "'" + String(d.driverPhone || '').replace(/^'+/, ''),
     d.licensePlate || '',
     JSON.stringify(d.classes || []),
-    latStr,
-    lngStr,
-    gpsTimeStr
+    finalLat,
+    finalLng,
+    finalGpsTime
   ];
-
-  let targetRowIndex = -1;
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (String(rows[i][1]) === progId && normalizeVehicleKey(rows[i][3]) === targetKey) {
-      targetRowIndex = i + 1;
-      break;
-    }
-  }
 
   if (targetRowIndex !== -1) {
     dataSheet.getRange(targetRowIndex, 1, 1, rowValues.length).setValues([rowValues]);
@@ -630,7 +647,39 @@ function saveVehicleData(ss, params) {
     }
   }
 
-  return { success: true, message: 'Đã lưu & đồng bộ vị trí GPS cho ' + vehicleName, updatedAt: nowStr };
+  SpreadsheetApp.flush();
+
+  return {
+    success: true,
+    message: 'Đã lưu & đồng bộ vị trí GPS cho ' + vehicleName,
+    updatedAt: nowStr,
+    data: {
+      updatedAt: nowStr,
+      programId: progId,
+      programName: d.programName || '',
+      vehicleName: vehicleName,
+      status: d.status || '🚩 Đang xuất phát',
+      totalStudents: Number(d.totalStudents || 0),
+      classSummary: d.classSummary || '',
+      teacherCount: Number(d.teacherCount || 0),
+      parentCount: Number(d.parentCount || 0),
+      childCount: Number(d.childCount || 0),
+      totalPeople: Number(d.totalPeople || 0),
+      hdvName: d.hdvName || '',
+      hdvPhone: String(d.hdvPhone || '').replace(/^'+/, ''),
+      leaderName: d.leaderName || '',
+      leaderPhone: String(d.leaderPhone || '').replace(/^'+/, ''),
+      vipRoles: d.vipRoles || '',
+      driverName: d.driverName || '',
+      driverPhone: String(d.driverPhone || '').replace(/^'+/, ''),
+      licensePlate: d.licensePlate || '',
+      classes: d.classes || [],
+      lat: String(finalLat).replace(/^'+/, ''),
+      lng: String(finalLng).replace(/^'+/, ''),
+      gpsTime: finalGpsTime,
+      attendance: d.attendance || null
+    }
+  };
 }
 
 function updateStatusAndGps(ss, params, isAutoPing) {
@@ -659,13 +708,22 @@ function updateStatusAndGps(ss, params, isAutoPing) {
     }
   }
 
+  let finalLat = latStr;
+  let finalLng = lngStr;
+  let finalGpsTime = gpsTime;
+
   if (targetRowIndex !== -1) {
     dataSheet.getRange(targetRowIndex, 1).setValue(nowStr);
     if (status) dataSheet.getRange(targetRowIndex, 5).setValue(status);
+    if (hdvName) dataSheet.getRange(targetRowIndex, 12).setValue(hdvName);
     if (latStr && lngStr) {
       dataSheet.getRange(targetRowIndex, 21).setValue(latStr);
       dataSheet.getRange(targetRowIndex, 22).setValue(lngStr);
       dataSheet.getRange(targetRowIndex, 23).setValue(gpsTime || nowStr);
+    } else {
+      if (rows[targetRowIndex - 1][20]) finalLat = String(rows[targetRowIndex - 1][20]);
+      if (rows[targetRowIndex - 1][21]) finalLng = String(rows[targetRowIndex - 1][21]);
+      if (rows[targetRowIndex - 1][22]) finalGpsTime = String(rows[targetRowIndex - 1][22]);
     }
   } else {
     const newRow = [
@@ -677,7 +735,17 @@ function updateStatusAndGps(ss, params, isAutoPing) {
     dataSheet.appendRow(newRow);
   }
 
-  return { success: true, message: isAutoPing ? 'Ping GPS 15s OK' : 'Đã cập nhật trạng thái!', updatedAt: nowStr };
+  SpreadsheetApp.flush();
+
+  return {
+    success: true,
+    message: isAutoPing ? 'Ping GPS 15s OK' : 'Đã cập nhật trạng thái!',
+    updatedAt: nowStr,
+    status: status,
+    lat: String(finalLat).replace(/^'+/, ''),
+    lng: String(finalLng).replace(/^'+/, ''),
+    gpsTime: finalGpsTime || nowStr
+  };
 }
 
 // ==============================================================
