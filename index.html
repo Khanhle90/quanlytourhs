@@ -721,6 +721,13 @@
                 📤 Đọc & Nạp Danh Sách Học Sinh
               </button>
             </div>
+            <!-- Tùy chọn thay thế toàn bộ danh sách lớp cũ của tour -->
+            <div class="pt-1 flex items-center">
+              <label class="inline-flex items-center gap-1.5 text-xs text-slate-700 font-semibold cursor-pointer select-none">
+                <input type="checkbox" id="excelReplaceAllCheckbox" checked class="w-3.5 h-3.5 text-blue-600 rounded" />
+                <span>Thay thế toàn bộ danh sách lớp cũ của tour này (khuyên dùng khi nạp lại file mới)</span>
+              </label>
+            </div>
 
             <!-- Khung thông báo số lượng file đang gắn lên -->
             <div id="excelFilesSummaryBox" class="hidden bg-blue-50 border border-blue-200 p-2.5 rounded-lg space-y-1.5">
@@ -733,7 +740,12 @@
 
             <!-- Danh sách lớp hiện đã nạp của tour -->
             <div id="tourLoadedClassesBox" class="hidden space-y-1.5 pt-1">
-              <p class="text-[11px] font-bold text-slate-700">Các lớp đã có danh sách trong tour này:</p>
+              <div class="flex items-center justify-between">
+                <p class="text-[11px] font-bold text-slate-700">Các lớp đã có danh sách trong tour này:</p>
+                <button type="button" onclick="window.confirmClearAllTourClasses()" class="text-[10px] text-rose-600 hover:text-rose-800 font-bold hover:underline flex items-center gap-1">
+                  <span>🗑️</span> Xóa toàn bộ lớp
+                </button>
+              </div>
               <div id="tourClassesTagsList" class="flex flex-wrap gap-1.5"></div>
             </div>
           </div>
@@ -3261,10 +3273,52 @@
       container.innerHTML = '';
       classes.forEach(c => {
         const span = document.createElement('span');
-        span.className = 'text-[11px] bg-blue-100 text-blue-900 font-bold px-2.5 py-1 rounded-lg border border-blue-200';
-        span.textContent = `${c.className} (${c.count} HS)`;
+        span.className = 'text-[11px] bg-blue-100 text-blue-900 font-bold px-2.5 py-1 rounded-lg border border-blue-200 inline-flex items-center gap-1.5 shadow-sm';
+        span.innerHTML = `
+          <span>${escapeHtml(c.className)} (${c.count} HS)</span>
+          <button type="button" onclick="window.confirmDeleteTourClass('${escapeHtml(c.className)}')" class="text-rose-500 hover:text-rose-800 hover:bg-rose-200 rounded px-1 transition text-xs font-bold leading-none" title="Xóa lớp này">&times;</button>
+        `;
         container.appendChild(span);
       });
+    }
+
+    async function confirmDeleteTourClass(className) {
+      if (!confirm(`Bạn có chắc chắn muốn xóa "${className}" khỏi tour này không?`)) return;
+      const progId = document.getElementById('adminTourSelect').value;
+      if (!progId) return;
+
+      try {
+        const res = await callApi({
+          action: 'deleteTourClass',
+          pin: REQUIRED_PIN,
+          programId: progId,
+          className: className
+        });
+        if (!res.success) throw new Error(res.message);
+        showToast(res.message, 'success');
+        onAdminTourChange();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function confirmClearAllTourClasses() {
+      if (!confirm('Bạn có chắc chắn muốn XÓA TOÀN BỘ danh sách tất cả các lớp của tour này để nạp lại từ đầu không?')) return;
+      const progId = document.getElementById('adminTourSelect').value;
+      if (!progId) return;
+
+      try {
+        const res = await callApi({
+          action: 'clearAllTourClasses',
+          pin: REQUIRED_PIN,
+          programId: progId
+        });
+        if (!res.success) throw new Error(res.message);
+        showToast(res.message, 'success');
+        onAdminTourChange();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     async function saveTourAdminInfo() {
@@ -3416,11 +3470,15 @@
 
         btn.innerHTML = '📤 Đang lưu lên Google Sheets & Drive...';
 
+        const replaceAllCheckbox = document.getElementById('excelReplaceAllCheckbox');
+        const isReplaceAll = replaceAllCheckbox ? replaceAllCheckbox.checked : true;
+
         const res = await callApi({
           action: 'saveTourClassLists',
           pin: REQUIRED_PIN,
           programId: progId,
           classes: parsedClasses,
+          replaceAll: isReplaceAll,
           excelFiles: excelFilesBase64
         });
 
@@ -3446,157 +3504,154 @@
       });
     }
 
-    // THUẬT TOÁN ĐỌC FILE EXCEL ĐA NĂNG, TỰ ĐỘNG PHÂN TÁCH LỚP/XE:
-    // 1. Hỗ trợ 1 file gồm nhiều sheet (mỗi sheet là 1 lớp/xe).
-    // 2. Hỗ trợ 1 file gồm 1 sheet nhưng có cột Lớp hoặc Xe (tự động gom nhóm học sinh theo từng lớp).
-    // 3. Hỗ trợ nhiều file (mỗi file là 1 lớp/xe).
-    // 4. Tự động nhận diện cột STT, cột Họ và Tên.
+    // THUẬT TOÁN ĐỌC FILE EXCEL - XÁC ĐỊNH TÊN LỚP/XE THEO 2 BƯỚC:
+    // Bước 1: File có 1-3 sheet và tất cả sheet vẫn mang tên mặc định (Sheet1, Sheet 2...)
+    //         => Tên lớp/xe = TÊN FILE (người dùng gửi nhiều file, mỗi file là 1 lớp/xe).
+    // Bước 2: Ngược lại (file tổng hợp chung) => Tên lớp/xe = TÊN SHEET (mỗi sheet là 1 lớp/xe).
+    // Không tự tách học sinh theo cột "Lớp" bên trong sheet (VD sheet "Xe 4" chứa HS nhiều lớp vẫn là Xe 4).
+    function isDefaultExcelSheetName(name) {
+      return /^(sheet|trang|page)\s*\d*$/i.test(String(name || '').trim());
+    }
+
+    // Làm sạch tên file để lấy tên lớp/xe (VD: "DS Xe 1.xlsx" -> "Xe 1", "Danh sach lop 9A4" -> "9A4")
+    function cleanClassNameFromFileName(fileName) {
+      let base = String(fileName || '').replace(/\.[^/.]+$/, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const mXe = base.match(/(?:^|[^a-zA-Zà-ỹÀ-Ỹ])(xe\s*\d+[a-zA-Z]?)(?:$|[^0-9a-zA-Z])/i);
+      if (mXe) return mXe[1].replace(/^xe\s*/i, 'Xe ');
+      const mLop = base.match(/(?:lớp|lop)\s*([0-9]{1,2}\s*[a-zA-Z][0-9a-zA-Z]*)/i);
+      if (mLop) return mLop[1].replace(/\s+/g, '');
+      base = base.replace(/^(danh\s*s[aá]ch(\s*h[oọ]c\s*sinh)?|dshs|ds)\s*[-:]*\s*/i, '').trim();
+      return base || String(fileName || '');
+    }
+
     async function parseExcelFilesWithRules(files) {
-      const isMultipleFiles = files.length > 1;
       const parsedClasses = [];
 
       for (let fIdx = 0; fIdx < files.length; fIdx++) {
         const file = files[fIdx];
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const sheetNames = workbook.SheetNames || [];
-        const baseFileName = file.name.replace(/\.[^/.]+$/, '').trim();
+        const sheetNames = (workbook.SheetNames || []).filter(n => {
+          // Bỏ qua sheet bị ẩn
+          const meta = workbook.Workbook && workbook.Workbook.Sheets ? workbook.Workbook.Sheets.find(x => x.name === n) : null;
+          return !(meta && meta.Hidden);
+        });
+        const fileClassName = cleanClassNameFromFileName(file.name);
+        const getStudents = (sName) => extractStudentsFromSheetData(
+          XLSX.utils.sheet_to_json(workbook.Sheets[sName], { header: 1, defval: '' })
+        );
 
-        for (let sIdx = 0; sIdx < sheetNames.length; sIdx++) {
-          const sName = sheetNames[sIdx];
-          const sheet = workbook.Sheets[sName];
-          if (!sheet) continue;
+        const useFileName = sheetNames.length >= 1 && sheetNames.length <= 3 && sheetNames.every(isDefaultExcelSheetName);
 
-          // Xác định tên lớp mặc định cho sheet này
-          let defaultClassName = sName.trim();
-          if (/^(sheet\d*|trang\s*\d*|page\d*)$/i.test(defaultClassName)) {
-            defaultClassName = baseFileName;
+        if (useFileName) {
+          // BƯỚC 1: tên lớp/xe = tên file, gộp HS các sheet có dữ liệu
+          let students = [];
+          sheetNames.forEach(sName => { students = students.concat(getStudents(sName)); });
+          if (students.length > 0) {
+            parsedClasses.push({
+              className: formatVehicleOrClassName(fileClassName),
+              fileName: file.name,
+              students: students.map((st, i) => ({ stt: i + 1, name: st.name }))
+            });
           }
-
-          // Phân tích sheet (hỗ trợ phân tách nếu 1 sheet chứa nhiều lớp)
-          const extractedClasses = extractClassesAndStudentsFromSheet(sheet, defaultClassName, file.name);
-          extractedClasses.forEach(c => {
-            if (c.students && c.students.length > 0) {
-              parsedClasses.push(c);
-            }
+        } else {
+          // BƯỚC 2: tên lớp/xe = tên sheet
+          sheetNames.forEach(sName => {
+            const students = getStudents(sName);
+            if (students.length === 0) return;
+            // Sheet mặc định lẫn trong file tổng hợp (VD Sheet1 nháp) -> bỏ qua để tránh tạo lớp rác
+            if (isDefaultExcelSheetName(sName)) return;
+            parsedClasses.push({
+              className: formatVehicleOrClassName(sName.trim()),
+              fileName: file.name,
+              sheetName: sName,
+              students: students
+            });
           });
         }
       }
 
-      return parsedClasses;
+      // Gộp các lớp trùng tên (VD 2 file cùng tên lớp)
+      const merged = {};
+      parsedClasses.forEach(c => {
+        const key = c.className.toLowerCase();
+        if (!merged[key]) merged[key] = { ...c, students: [] };
+        merged[key].students = merged[key].students.concat(c.students);
+      });
+      return Object.values(merged).map(c => ({
+        ...c,
+        students: c.students.map((st, i) => ({ stt: i + 1, name: st.name }))
+      }));
     }
 
-    function extractClassesAndStudentsFromSheet(sheet, defaultClassName, fileName) {
-      if (!sheet) return [];
-      const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    // Trích xuất danh sách học sinh từ dữ liệu 1 sheet (mảng 2 chiều)
+    function extractStudentsFromSheetData(data) {
       if (!data || data.length === 0) return [];
 
       function hasNumber(val) {
         if (val === null || val === undefined || val === '') return false;
-        return /\d/.test(String(val)) || !isNaN(Number(val));
+        return /\d/.test(String(val));
       }
 
-      // 1. Kiểm tra xem sheet có cột riêng cho Lớp hoặc Xe không
-      let classColIdx = -1;
-      let nameColIdx = 1;
-      let headerRowIdx = -1;
+      let sttColIdx = -1, nameColIdx = -1, hoDemColIdx = -1, tenColIdx = -1, headerRowIdx = -1;
 
-      for (let r = 0; r < Math.min(15, data.length); r++) {
+      // 1. Tìm dòng tiêu đề trong 25 dòng đầu
+      for (let r = 0; r < Math.min(25, data.length); r++) {
         const row = data[r] || [];
+        let foundHere = false;
         for (let c = 0; c < row.length; c++) {
-          const cellStr = String(row[c] || '').trim().toLowerCase();
-          if (classColIdx === -1 && /(^lớp$|^lop$|^xe$|tên lớp|số xe|phụ trách)/i.test(cellStr)) {
-            classColIdx = c;
-            headerRowIdx = r;
-          }
-          if (/(họ và tên|họ tên|tên học sinh|họ và chữ lót)/i.test(cellStr)) {
-            nameColIdx = c;
-            headerRowIdx = r;
-          }
+          const cell = String(row[c] || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          if (!cell) continue;
+          if (sttColIdx === -1 && /^(stt|tt|số tt|số thứ tự)$/.test(cell)) { sttColIdx = c; foundHere = true; }
+          if (nameColIdx === -1 && /(họ và tên|họ tên|ho va ten|ho ten|tên học sinh)/.test(cell)) { nameColIdx = c; foundHere = true; }
+          if (hoDemColIdx === -1 && /(họ và chữ lót|họ và đệm|họ đệm|họ lót|họ và tên đệm)/.test(cell)) { hoDemColIdx = c; foundHere = true; }
+          if (tenColIdx === -1 && /^tên$/.test(cell)) { tenColIdx = c; foundHere = true; }
         }
-        if (classColIdx !== -1 && nameColIdx !== -1) break;
+        if (foundHere) headerRowIdx = r;
+        if (nameColIdx !== -1 || (hoDemColIdx !== -1 && tenColIdx !== -1)) break;
       }
+      const useSplitName = nameColIdx === -1 && hoDemColIdx !== -1 && tenColIdx !== -1;
+      if (sttColIdx === -1) sttColIdx = 0;
 
-      // Nếu chưa xác định được cột tên theo tiêu đề, dùng quy tắc dòng 12
-      if (headerRowIdx === -1) {
-        let checkRowIdx = data.length > 11 ? 11 : Math.max(0, data.length - 1);
+      // 2. Không có tiêu đề: dùng quy tắc dòng 12 (B có số -> tên ở C, ngược lại ở B)
+      if (nameColIdx === -1 && !useSplitName) {
+        const checkRowIdx = data.length > 11 ? 11 : Math.max(0, data.length - 1);
         const sampleRow = data[checkRowIdx] || [];
         const valB = sampleRow[1] !== undefined ? String(sampleRow[1]).trim() : '';
-        const valC = sampleRow[2] !== undefined ? String(sampleRow[2]).trim() : '';
-        nameColIdx = (hasNumber(valB) && !hasNumber(valC)) ? 2 : 1;
+        nameColIdx = hasNumber(valB) ? 2 : 1;
       }
 
-      // Tìm hàng bắt đầu có số 1 tại cột A (hoặc cột 0/1)
+      // 3. Dòng bắt đầu: ô STT = 1
       let startRowIdx = -1;
-      for (let r = Math.max(0, headerRowIdx); r < data.length; r++) {
-        const colAVal = data[r] && data[r][0] !== undefined ? String(data[r][0]).trim() : '';
-        if (colAVal === '1' || colAVal === '01' || parseInt(colAVal, 10) === 1) {
-          startRowIdx = r;
-          break;
-        }
+      for (let r = headerRowIdx + 1; r < data.length; r++) {
+        const v = data[r] && data[r][sttColIdx] !== undefined ? String(data[r][sttColIdx]).trim() : '';
+        if (/^0*1$/.test(v)) { startRowIdx = r; break; }
       }
-      if (startRowIdx === -1) {
-        startRowIdx = Math.max(0, headerRowIdx + 1);
-      }
+      if (startRowIdx === -1) startRowIdx = headerRowIdx + 1;
 
-      // Lấy toàn bộ hàng học sinh
-      const rawRows = [];
+      // 4. Đọc học sinh cho tới khi gặp 3 dòng trống liên tiếp
+      const students = [];
       let consecutiveEmpty = 0;
       for (let r = startRowIdx; r < data.length; r++) {
         const row = data[r] || [];
-        const colA = row[0] !== undefined ? String(row[0]).trim() : '';
-        const colName = row[nameColIdx] !== undefined ? String(row[nameColIdx]).trim() : '';
-        const colClass = classColIdx !== -1 && row[classColIdx] !== undefined ? String(row[classColIdx]).trim() : '';
+        const sttRaw = row[sttColIdx] !== undefined ? String(row[sttColIdx]).trim() : '';
+        let nameRaw = useSplitName
+          ? ((String(row[hoDemColIdx] || '').trim() + ' ' + String(row[tenColIdx] || '').trim()).trim())
+          : String(row[nameColIdx] !== undefined ? row[nameColIdx] : '').trim();
+        nameRaw = nameRaw.replace(/\s+/g, ' ');
 
-        const isEmpty = (!colA && !colName && !colClass);
-        if (isEmpty) {
+        if (!sttRaw && !nameRaw) {
           consecutiveEmpty++;
           if (consecutiveEmpty >= 3) break;
-        } else {
-          consecutiveEmpty = 0;
-          if (colName && !/tổng|tong|giao vien|hướng dẫn|stt|họ và tên/i.test(colName)) {
-            const sttVal = colA ? (parseInt(colA, 10) || (rawRows.length + 1)) : (rawRows.length + 1);
-            rawRows.push({
-              stt: sttVal,
-              name: colName,
-              className: colClass
-            });
-          }
+          continue;
         }
+        consecutiveEmpty = 0;
+        if (!nameRaw || !/[a-zA-Zà-ỹÀ-Ỹ]/.test(nameRaw) || hasNumber(nameRaw)) continue;
+        if (/^(tổng|tong|cộng|stt|họ và tên|họ tên|danh sách|người lập|xác nhận|ký tên)/i.test(nameRaw)) continue;
+        if (/^(nam|nữ)$/i.test(nameRaw)) continue;
+        students.push({ stt: students.length + 1, name: nameRaw });
       }
-
-      if (rawRows.length === 0) return [];
-
-      // Kiểm tra nếu có cột Lớp/Xe và có từ 2 giá trị lớp khác nhau trở lên
-      if (classColIdx !== -1) {
-        const distinctClasses = [...new Set(rawRows.map(r => r.className).filter(Boolean))];
-        if (distinctClasses.length > 1) {
-          const grouped = {};
-          rawRows.forEach(r => {
-            const cName = formatVehicleOrClassName(r.className || defaultClassName);
-            if (!grouped[cName]) grouped[cName] = [];
-            grouped[cName].push({
-              stt: grouped[cName].length + 1,
-              name: r.name
-            });
-          });
-          return Object.keys(grouped).map(k => ({
-            className: k,
-            fileName: fileName,
-            students: grouped[k]
-          }));
-        }
-      }
-
-      // Mặc định: toàn bộ sheet thuộc về 1 lớp
-      return [{
-        className: formatVehicleOrClassName(defaultClassName),
-        fileName: fileName,
-        students: rawRows.map((r, idx) => ({
-          stt: r.stt || (idx + 1),
-          name: r.name
-        }))
-      }];
+      return students;
     }
 
     function extractStudentsFromSingleSheet(sheet) {
@@ -4005,7 +4060,7 @@
     window.handleExcelFilesSelected = handleExcelFilesSelected;
     window.removeSelectedExcelFile = removeSelectedExcelFile;
     window.clearSelectedExcelFiles = clearSelectedExcelFiles;
-    window.processAndUploadExcelFiles = processAndUploadExcelFiles;
+    window.processAndUploadExcelFiles = processAndUploadExcelFiles; window.confirmDeleteTourClass = confirmDeleteTourClass; window.confirmClearAllTourClasses = confirmClearAllTourClasses;
     window.saveGeminiApiKeyAction = saveGeminiApiKeyAction;
     window.confirmHdvLoginModal = confirmHdvLoginModal;
     window.requestHdvLogout = requestHdvLogout;

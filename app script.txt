@@ -277,6 +277,10 @@ function handleRequest(e) {
         result = updateTourDetails(ss, params);
       } else if (action === 'saveTourClassLists') {
         result = saveTourClassLists(ss, params);
+      } else if (action === 'deleteTourClass') {
+        result = deleteTourClass(ss, params);
+      } else if (action === 'clearAllTourClasses') {
+        result = clearAllTourClasses(ss, params);
       } else if (action === 'uploadAndAnalyzeAttendanceImage') {
         result = uploadAndAnalyzeAttendanceImage(ss, params);
       } else if (action === 'saveAttendanceRecord') {
@@ -895,13 +899,16 @@ function saveTourClassLists(ss, params) {
   const rows = studentSheet.getDataRange().getValues();
 
   // Xác định các lớp cần ghi đè
+  const replaceAll = Boolean(params.replaceAll || params.replaceExisting);
   const targetClassKeys = new Set(classes.map(c => normalizeVehicleKey(c.className)));
 
-  // Lọc các hàng giữ lại (giữ header và các lớp không bị ghi đè)
+  // Lọc các hàng giữ lại (giữ header và các lớp không bị ghi đè / xóa)
   const keptRows = [rows[0]];
   for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][0]) === progId && targetClassKeys.has(normalizeVehicleKey(rows[i][1]))) {
-      continue;
+    if (String(rows[i][0]) === progId) {
+      if (replaceAll || targetClassKeys.has(normalizeVehicleKey(rows[i][1]))) {
+        continue;
+      }
     }
     keptRows.push(rows[i]);
   }
@@ -943,6 +950,68 @@ function saveTourClassLists(ss, params) {
 }
 
 // Lấy danh sách các lớp / xe của một chương trình tour
+// Xóa một lớp cụ thể khỏi danh sách của tour
+function deleteTourClass(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progId = String(params.programId || '').trim();
+  const className = String(params.className || '').trim();
+  if (!progId || !className) return { success: false, message: 'Thiếu thông tin lớp cần xóa!' };
+
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  if (!studentSheet) return { success: false, message: 'Không tìm thấy bảng DanhSachHocSinhGoc!' };
+  const rows = studentSheet.getDataRange().getValues();
+  const targetKey = normalizeVehicleKey(className);
+
+  const keptRows = [rows[0]];
+  let deletedCount = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === progId && normalizeVehicleKey(rows[i][1]) === targetKey) {
+      deletedCount++;
+      continue;
+    }
+    keptRows.push(rows[i]);
+  }
+
+  studentSheet.clearContents();
+  if (keptRows.length > 0) {
+    studentSheet.getRange(1, 1, keptRows.length, 6).setValues(keptRows);
+    studentSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#fff2cc');
+  }
+  SpreadsheetApp.flush();
+
+  return { success: true, message: 'Đã xóa ' + className + ' (' + deletedCount + ' học sinh)!' };
+}
+
+// Xóa toàn bộ các lớp của một tour
+function clearAllTourClasses(ss, params) {
+  if (String(params.pin || '') !== ADMIN_PIN) return { success: false, message: 'Mã PIN không đúng!' };
+  const progId = String(params.programId || '').trim();
+  if (!progId) return { success: false, message: 'Thiếu mã tour!' };
+
+  const studentSheet = ss.getSheetByName(SHEET_STUDENT_LISTS);
+  if (!studentSheet) return { success: false, message: 'Không tìm thấy bảng DanhSachHocSinhGoc!' };
+  const rows = studentSheet.getDataRange().getValues();
+
+  const keptRows = [rows[0]];
+  let deletedCount = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === progId) {
+      deletedCount++;
+      continue;
+    }
+    keptRows.push(rows[i]);
+  }
+
+  studentSheet.clearContents();
+  if (keptRows.length > 0) {
+    studentSheet.getRange(1, 1, keptRows.length, 6).setValues(keptRows);
+    studentSheet.getRange('A1:F1').setFontWeight('bold').setBackground('#fff2cc');
+  }
+  SpreadsheetApp.flush();
+
+  return { success: true, message: 'Đã xóa toàn bộ danh sách lớp của tour này (' + deletedCount + ' học sinh)!' };
+}
+
 function getProgramClasses(ss, params) {
   const progId = String(params.programId || '').trim();
   if (!progId) return { success: false, classes: [] };
