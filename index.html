@@ -459,7 +459,7 @@
         <div class="border-t border-slate-200 pt-3">
           <p class="text-xs font-semibold text-slate-700 mb-2">Hoặc nhập mã PIN để truy cập</p>
           <div class="flex items-center justify-center gap-2 max-w-xs mx-auto">
-            <input type="password" id="summaryDirectPinInput" maxlength="6" placeholder="Nhập PIN"
+            <input type="password" id="summaryDirectPinInput" maxlength="32" placeholder="Nhập PIN"
               class="w-32 text-center text-sm font-bold tracking-widest px-3 py-2 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
               onkeydown="if(event.key==='Enter') window.confirmSummaryDirectPin()" />
             <button type="button" onclick="window.confirmSummaryDirectPin()"
@@ -919,7 +919,7 @@
         </div>
 
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 text-[11px] text-amber-800 leading-relaxed">
-          🔒 <b>Cố định thiết bị:</b> Thông tin tài khoản HDV sẽ được lưu cố định trên thiết bị này trong suốt hành trình tour. Chỉ Quản trị viên có mã PIN (8888) mới có thể đổi tài khoản.
+          🔒 <b>Cố định thiết bị:</b> Thông tin tài khoản HDV sẽ được lưu cố định trên thiết bị này trong suốt hành trình tour. Chỉ Quản trị viên có mã PIN mới có thể đổi tài khoản.
         </div>
       </div>
 
@@ -942,7 +942,7 @@
         <h3 class="text-base font-bold text-slate-800">Xác Thực Quản Lý</h3>
         <p class="text-[11px] text-slate-500 mt-0.5">Nhập mã PIN để mở Bảng điều hành đoàn</p>
       </div>
-      <input type="password" id="pinInputBox" maxlength="8" placeholder="••••" inputmode="numeric"
+      <input type="password" id="pinInputBox" maxlength="32" placeholder="••••"
         onkeydown="if(event.key==='Enter') window.confirmPinModal()"
         class="w-full text-center text-2xl tracking-widest font-extrabold border-2 border-slate-300 rounded-xl py-2 focus:border-blue-600 outline-none" />
       <div class="grid grid-cols-2 gap-2 pt-1">
@@ -963,7 +963,9 @@
        ============================================================== -->
   <script>
     const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz0OWxGSx5QGYilJwtRxhd_6rklcpdI1vngSqDs3cY9wExtx5m3kToyh8DvUmT4PGC4/exec';
-    const REQUIRED_PIN = '8888';
+    // Mã PIN Admin không còn cố định trong code: được xác thực bởi server (sheet "Pass" ô B1).
+    // Sau khi xác thực thành công, PIN được giữ trong bộ nhớ của phiên làm việc để gửi kèm các API quản trị.
+    let REQUIRED_PIN = '';
     const DRIVE_ROOT_FOLDER_ID = '1GzfsEUmBb2x91aPZIgFdBNeg1XHsHVm7';
 
     const LS_API_URL = 'TOUR_APP_SCRIPT_URL';
@@ -1045,6 +1047,23 @@
         body: JSON.stringify(payload)
       });
       return await res.json();
+    }
+
+    // --- XÁC THỰC MÃ PIN ADMIN QUA SERVER ---
+    async function verifyAdminPinRemote(pin) {
+      const clean = String(pin || '').trim();
+      if (!clean) return false;
+      try {
+        const res = await callApi({ action: 'verifyAdminPin', pin: clean });
+        if (res && res.success) {
+          REQUIRED_PIN = clean;
+          return true;
+        }
+      } catch (err) {
+        console.warn('Lỗi xác thực PIN:', err);
+        showToast('Không kết nối được máy chủ để kiểm tra PIN!', 'error');
+      }
+      return false;
     }
 
     // --- ĐỊNH DẠNG TÊN XE / LỚP ---
@@ -1233,11 +1252,11 @@
       showToast(`Chào mừng HDV ${name}! Đã khóa cố định tài khoản trên thiết bị.`, 'success');
     }
 
-    function requestHdvLogout() {
-      const pin = prompt('Vui lòng nhập Mã PIN Quản trị (8888) để mở khóa / đổi tài khoản HDV:');
+    async function requestHdvLogout() {
+      const pin = prompt('Vui lòng nhập Mã PIN Quản trị để mở khóa / đổi tài khoản HDV:');
       if (!pin) return;
 
-      if (String(pin).trim() === REQUIRED_PIN) {
+      if (await verifyAdminPinRemote(pin)) {
         localStorage.removeItem(LS_HDV_LOCKED);
         showToast('Đã xác thực Quản trị! Bạn có thể đổi tài khoản HDV.', 'success');
         checkAndApplyHdvAuth();
@@ -2355,7 +2374,7 @@
     // TAB NAVIGATION & MÃ PIN QUẢN LÝ
     // ==============================================================
     function switchTab(tabName) {
-      // Tab Quản trị bắt buộc nhập PIN 8888
+      // Tab Quản trị bắt buộc nhập PIN Admin (xác thực qua server)
       if (tabName === 'admin' && !unlockedPinSession) {
         pendingTargetTab = 'admin';
         const modal = document.getElementById('pinModal');
@@ -2381,9 +2400,9 @@
       pendingTargetTab = null;
     }
 
-    function confirmPinModal() {
+    async function confirmPinModal() {
       const input = document.getElementById('pinInputBox');
-      if (input && input.value.trim() === REQUIRED_PIN) {
+      if (input && await verifyAdminPinRemote(input.value)) {
         unlockedPinSession = true;
         const target = pendingTargetTab || 'summary';
         closePinModal();
@@ -2603,7 +2622,7 @@
         return;
       }
 
-      // Kiểm tra phân quyền truy cập: SĐT Điều hành / Hậu cần hoặc PIN 8888
+      // Kiểm tra phân quyền truy cập: SĐT Điều hành / Hậu cần hoặc PIN Admin
       const hasAccess = checkSummaryTourAccess(progId);
       const lockEl = document.getElementById('summaryAccessLockBox');
       const contentEl = document.getElementById('summaryMainContentBox');
@@ -3912,12 +3931,14 @@
       return false;
     }
 
-    function confirmSummaryDirectPin() {
+    async function confirmSummaryDirectPin() {
       const pinInput = document.getElementById('summaryDirectPinInput');
-      if (pinInput && pinInput.value.trim() === REQUIRED_PIN) {
+      if (pinInput && await verifyAdminPinRemote(pinInput.value)) {
         unlockedPinSession = true;
         pinInput.value = '';
         showToast('Xác thực PIN Quản trị thành công!', 'success');
+        // Tải lại danh sách tour với quyền Admin (bao gồm cả tour không ở trạng thái "Đang diễn ra")
+        loadAdminProgramsForSummary();
         loadSummaryDashboard();
       } else {
         showToast('Mã PIN không đúng!', 'error');
