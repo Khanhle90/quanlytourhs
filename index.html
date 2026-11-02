@@ -328,7 +328,7 @@
               <span>📋</span> 3. Danh Sách Điểm Danh Học Sinh
             </h2>
             <p class="text-[10px] text-slate-500">
-              Chạm vào học sinh để chuyển [Có mặt / Vắng]. Hệ thống tự động tính sĩ số.
+              Chạm vào học sinh để chuyển [Có / Vắng]. Hệ thống tự động tính sĩ số.
             </p>
           </div>
           <button type="button" onclick="window.reloadCurrentClassStudents()" class="text-xs text-blue-600 font-semibold hover:underline">
@@ -343,11 +343,11 @@
             <p id="hdvAttTotalStudents" class="text-base font-black text-slate-800">0</p>
           </div>
           <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
-            <p class="text-[10px] font-bold text-emerald-700 uppercase">Có Mặt</p>
+            <p class="text-[10px] font-bold text-emerald-700 uppercase">Có</p>
             <p id="hdvAttPresentCount" class="text-base font-black text-emerald-600">0</p>
           </div>
           <div class="bg-rose-50 border border-rose-200 p-2 rounded-xl">
-            <p class="text-[10px] font-bold text-rose-700 uppercase">Vắng Mặt</p>
+            <p class="text-[10px] font-bold text-rose-700 uppercase">Vắng</p>
             <p id="hdvAttAbsentCount" class="text-base font-black text-rose-600">0</p>
           </div>
         </div>
@@ -755,18 +755,51 @@
       <!-- Tạo Chương Trình Tour Mới -->
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
         <h2 class="font-bold text-slate-800 text-sm border-b pb-1.5">➕ Tạo Chương Trình Tour Mới</h2>
+        
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div class="sm:col-span-2">
-            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Tên chương trình *</label>
-            <input type="text" id="newProgName" placeholder="VD: THPT Thực Nghiệm"
-              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          <div class="sm:col-span-1">
+            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Tên chương trình / Trường *</label>
+            <input type="text" id="newProgName" placeholder="VD: THCS Ninh Bình"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
           <div>
             <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Ngày thực hiện *</label>
-            <input type="date" id="newProgDate"
+            <input type="date" id="newProgDate" onchange="if(document.getElementById('newProgEndDate') && !document.getElementById('newProgEndDate').value) document.getElementById('newProgEndDate').value = this.value;"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Ngày kết thúc</label>
+            <input type="date" id="newProgEndDate"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Điều hành tour (Họ tên)</label>
+            <input type="text" id="newProgCoordinator" placeholder="VD: Lê Duy Khánh"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số điện thoại Điều hành</label>
+            <input type="tel" id="newProgCoordinatorPhone" placeholder="VD: 0389975487"
               class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
           </div>
         </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Phụ trách hậu cần (Họ tên)</label>
+            <input type="text" id="newProgLogistics" placeholder="Họ tên phụ trách hậu cần"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số điện thoại Hậu cần</label>
+            <input type="tel" id="newProgLogisticsPhone" placeholder="SĐT phụ trách hậu cần"
+              class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+        </div>
+
         <div class="flex justify-end pt-1">
           <button type="button" onclick="window.handleCreateProgram()"
             class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs shadow">
@@ -840,11 +873,11 @@
             <p id="attModalTotal" class="text-base font-black text-slate-800">0</p>
           </div>
           <div class="bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
-            <p class="text-[10px] font-bold text-emerald-700 uppercase">Có Mặt</p>
+            <p class="text-[10px] font-bold text-emerald-700 uppercase">Có</p>
             <p id="attModalPresent" class="text-base font-black text-emerald-600">0</p>
           </div>
           <div class="bg-rose-50 border border-rose-200 p-2 rounded-xl">
-            <p class="text-[10px] font-bold text-rose-700 uppercase">Vắng Mặt</p>
+            <p class="text-[10px] font-bold text-rose-700 uppercase">Vắng</p>
             <p id="attModalAbsent" class="text-base font-black text-rose-600">0</p>
           </div>
         </div>
@@ -1437,7 +1470,7 @@
       showToast('Đã cập nhật danh sách xe!', 'success');
     }
 
-    function onVehicleSelectChange() {
+    async function onVehicleSelectChange() {
       const vehicleSelect = document.getElementById('hdvVehicleSelect');
       const progId = document.getElementById('hdvProgramSelect')?.value;
       const customBox = document.getElementById('customVehicleBox');
@@ -1463,8 +1496,9 @@
       if (vehicleInput) vehicleInput.value = formatted;
 
       setLockedVehicleForTour(progId, formatted);
-      fetchExistingVehicleInfo(progId, formatted);
-      fetchClassStudentListForHdv(progId, formatted);
+      // Gọi tuần tự để tránh race condition xóa đè Mục 4
+      await fetchExistingVehicleInfo(progId, formatted);
+      await fetchClassStudentListForHdv(progId, formatted);
     }
 
     function confirmCustomVehicle() {
@@ -1563,22 +1597,8 @@
     }
 
     function autoSyncClassRowFromAttendance(vehicleName, students) {
-      if (!students || students.length === 0) return;
-      const presentCount = students.filter(s => s.present).length;
-      const rows = document.querySelectorAll('#classListContainer .class-item-row');
-      
-      if (rows.length === 0) {
-        addClassRow(vehicleName, presentCount);
-      } else if (rows.length === 1) {
-        const firstRow = rows[0];
-        const nameInput = firstRow.querySelector('.cls-name');
-        const stuInput = firstRow.querySelector('.cls-students');
-        if (!nameInput.value || nameInput.value === 'Lớp 1' || normalizeVehicleKey(nameInput.value) === normalizeVehicleKey(vehicleName)) {
-          nameInput.value = vehicleName;
-          stuInput.value = presentCount;
-          calculateRealtimeTotals();
-        }
-      }
+      // Đã tắt tự điền vào Mục 4 theo yêu cầu
+      return;
     }
 
     function renderHdvStudentAttendanceList() {
@@ -1586,6 +1606,9 @@
       if (!container) return;
 
       updateHdvAttendanceStats();
+      if (typeof reconcileAttendanceWithSection4 === 'function') {
+        reconcileAttendanceWithSection4();
+      }
 
       if (!currentHdvStudents || currentHdvStudents.length === 0) {
         container.innerHTML = '<div class="p-6 text-center text-slate-400">Chưa có danh sách học sinh.</div>';
@@ -1593,7 +1616,7 @@
       }
 
       const listToRender = currentHdvStudents.map((s, idx) => ({ ...s, originalIdx: idx })).filter(s => {
-        if (currentAttendanceFilter === 'absent') return !s.present;
+        if (currentAttendanceFilter === 'absent') return s.present === false;
         return true;
       });
 
@@ -1606,46 +1629,68 @@
         return;
       }
 
+      // Xóa bỏ hoàn toàn thanh tiêu đề cột rườm rà, tạo giao diện thoáng sạch như ảnh 2
       container.innerHTML = '';
+
       listToRender.forEach(s => {
-        const isPresent = Boolean(s.present);
         const div = document.createElement('div');
-        div.className = isPresent
-          ? 'py-2 px-3 flex items-center justify-between bg-white hover:bg-slate-50 transition cursor-pointer select-none border-b border-slate-100 last:border-b-0'
-          : 'py-2 px-3 flex items-center justify-between bg-rose-50 border-l-4 border-rose-500 text-rose-900 transition cursor-pointer select-none border-b border-rose-100 last:border-b-0';
+        const isAbsent = s.present === false;
+
+        // Ép flex-nowrap để 100% hiển thị trên 1 dòng
+        div.className = isAbsent
+          ? 'py-2.5 px-3 flex items-center justify-between flex-nowrap bg-rose-50/70 border-l-4 border-rose-500 text-rose-900 transition cursor-pointer select-none border-b border-rose-100 last:border-b-0'
+          : 'py-2.5 px-3 flex items-center justify-between flex-nowrap bg-white hover:bg-slate-50 transition cursor-pointer select-none border-b border-slate-100 last:border-b-0';
 
         div.onclick = () => window.toggleStudentAttendance(s.originalIdx);
 
-        const badgeHtml = isPresent
-          ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
-              <span>✅</span> Có mặt
-            </span>`
-          : `<span class="bg-rose-200 text-rose-900 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
-              <span>❌</span> VẮNG
-            </span>`;
+        // Nút điểm danh chuẩn xác như ảnh 2: bo tròn mềm mại rounded-xl
+        let badgeHtml = '';
+        if (s.present === null || s.present === undefined) {
+          // Chưa tích: ô vuông trắng viền xám nhẹ
+          badgeHtml = `<span class="w-7 h-7 rounded-xl border border-slate-300 bg-white flex items-center justify-center shrink-0 shadow-xs"></span>`;
+        } else if (s.present === true) {
+          // Có mặt: nhãn xanh ngọc bo góc với dấu tích ✓ chuẩn ảnh 2
+          badgeHtml = `<span class="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">✓</span>`;
+        } else {
+          // Vắng mặt: nhãn đỏ bo góc với dấu ✕
+          badgeHtml = `<span class="w-7 h-7 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">✕</span>`;
+        }
+
+        // Tên lớp hiển thị chữ thuần, tuyệt đối KHÔNG có khung ô, đứng ngay cạnh nút tích
+        const classText = s.className ? escapeHtml(s.className) : '';
 
         div.innerHTML = `
-          <div class="flex items-center gap-2.5">
-            <span class="w-6 text-[11px] font-mono ${isPresent ? 'text-slate-400' : 'text-rose-600 font-bold'}">${s.stt || (s.originalIdx + 1)}.</span>
-            <span class="font-bold text-xs ${isPresent ? 'text-slate-800' : 'text-rose-900'}">${escapeHtml(s.name)}</span>
+          <!-- Tên học sinh chiếm toàn bộ không gian còn lại, hiển thị đủ 100% không bị cắt chữ -->
+          <div class="flex items-center gap-2 min-w-0 flex-1 mr-2">
+            <span class="w-5 text-[11px] font-mono shrink-0 ${isAbsent ? 'text-rose-600 font-bold' : 'text-slate-400'}">${s.stt || (s.originalIdx + 1)}.</span>
+            <span class="font-bold text-xs ${isAbsent ? 'text-rose-900' : 'text-slate-800'} whitespace-nowrap">${escapeHtml(s.name)}</span>
           </div>
-          <div>${badgeHtml}</div>
+
+          <!-- Tên lớp (chữ thuần không viền) và Nút tích điểm danh bo góc như ảnh 2 -->
+          <div class="flex items-center gap-2.5 shrink-0">
+            ${classText ? `<span class="text-xs font-semibold ${isAbsent ? 'text-rose-700' : 'text-slate-500'} shrink-0">${classText}</span>` : ''}
+            ${badgeHtml}
+          </div>
         `;
 
         container.appendChild(div);
       });
     }
 
+    // Logic nhấn: Lần đầu hiện xanh (✓), lần 2 hiện đỏ (✕), các lần sau chỉ đảo giữa xanh và đỏ
     function toggleStudentAttendance(originalIdx) {
       if (!currentHdvStudents || !currentHdvStudents[originalIdx]) return;
       const s = currentHdvStudents[originalIdx];
-      s.present = !s.present;
+
+      if (s.present === null || s.present === undefined) {
+        s.present = true; // Lần đầu bấm: Xanh
+      } else if (s.present === true) {
+        s.present = false; // Lần 2 bấm: Đỏ
+      } else {
+        s.present = true; // Đang đỏ bấm lại chuyển sang Xanh
+      }
 
       renderHdvStudentAttendanceList();
-
-      const vehicleName = document.getElementById('hdvVehicleInput')?.value || '';
-      autoSyncClassRowFromAttendance(vehicleName, currentHdvStudents);
-
       triggerDeviceVibration();
     }
 
@@ -1653,9 +1698,7 @@
       if (!currentHdvStudents || currentHdvStudents.length === 0) return;
       currentHdvStudents.forEach(s => { s.present = true; });
       renderHdvStudentAttendanceList();
-
-      const vehicleName = document.getElementById('hdvVehicleInput')?.value || '';
-      autoSyncClassRowFromAttendance(vehicleName, currentHdvStudents);
+      reconcileAttendanceWithSection4();
 
       showToast('Đã đánh dấu tất cả học sinh CÓ MẶT!', 'success');
       triggerDeviceVibration();
@@ -1687,14 +1730,73 @@
       const filterAbsentEl = document.getElementById('filterAbsentCount');
 
       const total = currentHdvStudents ? currentHdvStudents.length : 0;
-      const present = currentHdvStudents ? currentHdvStudents.filter(s => s.present).length : 0;
-      const absent = currentHdvStudents ? currentHdvStudents.filter(s => !s.present).length : 0;
+      const present = currentHdvStudents ? currentHdvStudents.filter(s => s.present === true).length : 0;
+      const absent = currentHdvStudents ? currentHdvStudents.filter(s => s.present === false).length : 0;
 
       if (totalEl) totalEl.textContent = total;
       if (presentEl) presentEl.textContent = present;
       if (absentEl) absentEl.textContent = absent;
       if (filterAllEl) filterAllEl.textContent = total;
       if (filterAbsentEl) filterAbsentEl.textContent = absent;
+    }
+
+    // Tự động đối chiếu số lượng học sinh Mục 3 (Có mặt) và Mục 4 (Tổng khai báo) ngay lập tức
+    function reconcileAttendanceWithSection4() {
+      const presentCount = currentHdvStudents ? currentHdvStudents.filter(s => s.present === true).length : 0;
+      const totals4 = collectClassesAndTotals();
+      const sec4StudentCount = totals4.totalStudents;
+
+      const presentBox = document.getElementById('hdvAttPresentCount')?.parentElement;
+      const presentNum = document.getElementById('hdvAttPresentCount');
+      const sec4Num = document.getElementById('rtStudents');
+      const sec4Box = sec4Num?.parentElement;
+
+      // Xóa các nhãn cảnh báo cũ
+      const oldWarn3 = document.getElementById('reconcileWarnBadge3');
+      if (oldWarn3) oldWarn3.remove();
+      const oldWarn4 = document.getElementById('reconcileWarnBadge4');
+      if (oldWarn4) oldWarn4.remove();
+
+      if (presentCount !== sec4StudentCount) {
+        // KHÔNG KHỚP: Bôi màu đỏ cảnh báo cả 2 số
+        if (presentBox) {
+          presentBox.className = 'bg-rose-100 border-2 border-rose-500 p-2 rounded-xl transition';
+        }
+        if (presentNum) {
+          presentNum.className = 'text-base font-black text-rose-700';
+          const badge = document.createElement('div');
+          badge.id = 'reconcileWarnBadge3';
+          badge.className = 'text-[9px] font-bold text-rose-800 bg-rose-200 px-1 py-0.5 rounded mt-1 animate-pulse';
+          badge.textContent = `Không khớp Mục 4 (${sec4StudentCount})`;
+          presentBox.appendChild(badge);
+        }
+
+        if (sec4Box) {
+          sec4Box.className = 'bg-rose-500 text-white p-1 rounded-lg transition border border-rose-300';
+        }
+        if (sec4Num) {
+          sec4Num.className = 'font-black text-sm text-yellow-200 animate-pulse';
+          const badge4 = document.createElement('div');
+          badge4.id = 'reconcileWarnBadge4';
+          badge4.className = 'text-[9px] font-bold text-yellow-100 mt-0.5';
+          badge4.textContent = `≠ Điểm danh (${presentCount})`;
+          sec4Box.appendChild(badge4);
+        }
+      } else {
+        // KHỚP: Trả về màu xanh chuẩn
+        if (presentBox) {
+          presentBox.className = 'bg-emerald-50 border border-emerald-200 p-2 rounded-xl transition';
+        }
+        if (presentNum) {
+          presentNum.className = 'text-base font-black text-emerald-600';
+        }
+        if (sec4Box) {
+          sec4Box.className = '';
+        }
+        if (sec4Num) {
+          sec4Num.className = 'font-bold text-sm text-white';
+        }
+      }
     }
 
     function resetHdvAttendanceView() {
@@ -1911,6 +2013,8 @@
       if (elParents) elParents.textContent = t.parentCount;
       if (elChildren) elChildren.textContent = t.childCount;
       if (elTotalAll) elTotalAll.textContent = t.totalPeople + ' người';
+
+      reconcileAttendanceWithSection4(); // Kiểm tra đối chiếu với số có mặt ngay khi gõ ở Mục 4
     }
 
     // ==============================================================
@@ -2547,20 +2651,40 @@
         tbody.innerHTML = `<tr><td colspan="16" class="py-6 text-center text-slate-400">Chưa có xe nào gửi báo cáo.</td></tr>`;
       } else {
         list.forEach(v => {
-          sumPeople += Number(v.totalPeople || 0);
-          sumStudents += Number(v.totalStudents || 0);
-          sumTeachers += Number(v.teacherCount || 0);
-          sumParents += Number(v.parentCount || 0);
-          sumChildren += Number(v.childCount || 0);
+          // Tính toán chuẩn xác số học sinh thực tế trên xe dựa trên các lớp khai báo
+          let realStudents = Number(v.totalStudents || 0);
+          let parsedClasses = [];
+          try {
+            parsedClasses = typeof v.classes === 'string' ? JSON.parse(v.classes || '[]') : (v.classes || []);
+          } catch (e) { parsedClasses = []; }
+
+          if (parsedClasses && parsedClasses.length > 0) {
+            const sumClasses = parsedClasses.reduce((acc, cur) => acc + (Number(cur.students) || 0), 0);
+            if (sumClasses > 0) {
+              realStudents = sumClasses;
+            }
+          }
+
+          const teacherNum = Number(v.teacherCount || 0);
+          const parentNum = Number(v.parentCount || 0);
+          const childNum = Number(v.childCount || 0);
+          // Tổng người = Tổng HS + GV + PH + Trẻ em
+          const realPeople = realStudents + teacherNum + parentNum + childNum;
+
+          sumPeople += realPeople;
+          sumStudents += realStudents;
+          sumTeachers += teacherNum;
+          sumParents += parentNum;
+          sumChildren += childNum;
 
           const vipTag = v.vipRoles ? `<div class="text-[9px] text-rose-600 font-bold">(${escapeHtml(v.vipRoles)})</div>` : '';
 
-          // Nút xem chi tiết ảnh điểm danh lớp
+          // Hiển thị sĩ số các lớp và số lượng điểm danh có mặt
           const classDisplay = v.classSummary || v.vehicleName;
-          const hasAtt = Boolean(v.attendance && ((v.attendance.fileIds && v.attendance.fileIds.length > 0) || (v.attendance.imageUrls && v.attendance.imageUrls.length > 0) || (v.attendance.presentCount > 0)));
+          const hasAtt = Boolean(v.attendance && (v.attendance.presentCount !== undefined || (v.attendance.fileIds && v.attendance.fileIds.length > 0)));
           const attPill = hasAtt
-            ? `<span class="inline-flex items-center gap-1 text-[10px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded cursor-pointer hover:bg-indigo-200" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">📸 ${v.attendance.presentCount || 0} có mặt</span>`
-            : `<span class="text-[10px] text-slate-400 cursor-pointer hover:underline" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">Chưa chụp ảnh</span>`;
+            ? `<span class="inline-flex items-center gap-1 text-[10px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.5 rounded cursor-pointer hover:bg-indigo-200" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">📋 ${v.attendance.presentCount || 0} có mặt</span>`
+            : `<span class="text-[10px] text-slate-400 cursor-pointer hover:underline" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">Chưa điểm danh</span>`;
 
           const tr = document.createElement('tr');
           tr.className = 'hover:bg-blue-50/40 transition';
@@ -2570,17 +2694,17 @@
               <button type="button" onclick="window.promptRenameVehicle('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" title="Quản trị: Sửa tên xe" class="text-slate-400 hover:text-blue-600 font-bold text-xs p-1">✏️</button>
             </td>
             <td class="py-2 px-3">${getStatusBadgeHtml(v.status)}</td>
-            <td class="py-2 px-3 text-center font-extrabold text-emerald-700 text-xs">${v.totalStudents}</td>
+            <td class="py-2 px-3 text-center font-extrabold text-emerald-700 text-xs">${realStudents}</td>
             <td class="py-2 px-3">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-semibold text-slate-700 cursor-pointer hover:text-blue-600" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">${escapeHtml(classDisplay)}</span>
                 ${attPill}
               </div>
             </td>
-            <td class="py-2 px-3 text-center font-bold text-indigo-700">${v.teacherCount}${vipTag}</td>
-            <td class="py-2 px-3 text-center font-bold text-orange-600">${v.parentCount}</td>
-            <td class="py-2 px-3 text-center font-bold text-pink-600">${v.childCount}</td>
-            <td class="py-2 px-3 text-center font-extrabold text-blue-900 bg-slate-100">${v.totalPeople}</td>
+            <td class="py-2 px-3 text-center font-bold text-indigo-700">${teacherNum}${vipTag}</td>
+            <td class="py-2 px-3 text-center font-bold text-orange-600">${parentNum}</td>
+            <td class="py-2 px-3 text-center font-bold text-pink-600">${childNum}</td>
+            <td class="py-2 px-3 text-center font-extrabold text-blue-900 bg-slate-100">${realPeople}</td>
             <td class="py-2 px-3 font-semibold whitespace-nowrap text-slate-800">${escapeHtml(v.hdvName || '-')}</td>
             <td class="py-2 px-3 whitespace-nowrap">${v.hdvPhone ? `<a href="tel:${escapeHtml(v.hdvPhone)}" class="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 text-xs transition"><span>📞</span>${escapeHtml(v.hdvPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
             <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800">${escapeHtml(v.leaderName || '-')}</td>
@@ -3112,7 +3236,7 @@
                 <span class="font-bold text-slate-800 text-xs">${escapeHtml(s.name)}</span>
               </div>
               <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span>✅</span> Có mặt
+                <span>✅</span>
               </span>
             `;
           } else {
@@ -3124,7 +3248,7 @@
                 <span class="font-bold text-rose-900 text-xs">${escapeHtml(s.name)}</span>
               </div>
               <span class="bg-rose-200 text-rose-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center gap-1">
-                <span>❌</span> VẮNG
+                <span>❌</span>
               </span>
             `;
           }
@@ -3532,7 +3656,49 @@
       return /^(sheet|trang|page)\s*\d*$/i.test(String(name || '').trim());
     }
 
-    // Làm sạch tên file để lấy tên lớp/xe (VD: "DS Xe 1.xlsx" -> "Xe 1", "Danh sach lop 9A4" -> "9A4")
+    // Đúng quy tắc: Tên file <= 10 ký tự có chữ xe, hoặc file không có chữ xe thì tìm sheet có chữ xe
+    function isVehicleContext(fileName, sheetName) {
+      const fName = String(fileName || '').replace(/\.[^/.]+$/, '').trim().toLowerCase();
+      const sName = String(sheetName || '').trim().toLowerCase();
+      if (fName.includes('xe')) {
+        return fName.length <= 10;
+      }
+      return sName.includes('xe');
+    }
+
+    // Nhận diện giá trị trong ô có phải là tên lớp
+    function isClassNameCandidate(val) {
+      if (val === null || val === undefined) return false;
+      const s = String(val).trim().replace(/\s+/g, ' ');
+      if (!s || s.length > 15) return false;
+
+      // Loại bỏ ngày tháng
+      if (/\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}/.test(s)) return false;
+      // Loại bỏ số thuần túy (STT, SĐT, năm sinh)
+      if (/^\d+$/.test(s)) return false;
+      // Loại bỏ giới tính
+      if (/^(nam|nữ|nu|m|f)$/i.test(s)) return false;
+      // Loại bỏ đối tượng / vai trò
+      if (/^(hs|phhs|ph|gv|gvcn|học sinh|phụ huynh|giáo viên|lái xe|hdv|nhóm trưởng|tổ trưởng)$/i.test(s)) return false;
+      // Loại bỏ chữ ký / điểm danh
+      if (/^(v|x|-|có|vắng|kí|ký)$/i.test(s)) return false;
+
+      // Mẫu tên lớp: "10A1", "8T2", "8A1", "10 D1", "6D", "8i", "12D3", "Lớp 8A", "9A4"...
+      if (/^(?:lớp|lop)\s*[0-9a-zA-ZÀ-Ỹà-ỹ_.\/-]+/i.test(s)) return true;
+      if (/^(?:[1-9]|1[0-2])\s*[-_./\s]?[a-zA-ZÀ-Ỹà-ỹ0-9\s]+$/i.test(s)) return true;
+      if (/^[a-zA-Z0-9]{2,8}$/.test(s) && /\d/.test(s) && /[a-zA-Z]/.test(s)) return true;
+
+      return false;
+    }
+
+    function formatCleanClassName(val) {
+      const s = String(val || '').trim().replace(/\s+/g, ' ');
+      if (/^(?:lớp|lop)\s+/i.test(s)) {
+        return 'Lớp ' + s.replace(/^(?:lớp|lop)\s*/i, '').toUpperCase();
+      }
+      return s.toUpperCase();
+    }
+
     function cleanClassNameFromFileName(fileName) {
       let base = String(fileName || '').replace(/\.[^/.]+$/, '').replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
       const mXe = base.match(/(?:^|[^a-zA-Zà-ỹÀ-Ỹ])(xe\s*\d+[a-zA-Z]?)(?:$|[^0-9a-zA-Z])/i);
@@ -3551,46 +3717,45 @@
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         const sheetNames = (workbook.SheetNames || []).filter(n => {
-          // Bỏ qua sheet bị ẩn
           const meta = workbook.Workbook && workbook.Workbook.Sheets ? workbook.Workbook.Sheets.find(x => x.name === n) : null;
           return !(meta && meta.Hidden);
         });
         const fileClassName = cleanClassNameFromFileName(file.name);
-        const getStudents = (sName) => extractStudentsFromSheetData(
-          XLSX.utils.sheet_to_json(workbook.Sheets[sName], { header: 1, defval: '' })
-        );
+        const getStudents = (sName) => {
+          const isVeh = isVehicleContext(file.name, sName);
+          return extractStudentsFromSheetData(
+            XLSX.utils.sheet_to_json(workbook.Sheets[sName], { header: 1, defval: '' }),
+            isVeh
+          );
+        };
 
         const useFileName = sheetNames.length >= 1 && sheetNames.length <= 3 && sheetNames.every(isDefaultExcelSheetName);
 
         if (useFileName) {
-          // BƯỚC 1: tên lớp/xe = tên file, gộp HS các sheet có dữ liệu
           let students = [];
           sheetNames.forEach(sName => { students = students.concat(getStudents(sName)); });
           if (students.length > 0) {
             parsedClasses.push({
               className: formatVehicleOrClassName(fileClassName),
               fileName: file.name,
-              students: students.map((st, i) => ({ stt: i + 1, name: st.name }))
+              students: students.map((st, i) => ({ stt: i + 1, name: st.name, className: st.className || '' }))
             });
           }
         } else {
-          // BƯỚC 2: tên lớp/xe = tên sheet
           sheetNames.forEach(sName => {
             const students = getStudents(sName);
             if (students.length === 0) return;
-            // Sheet mặc định lẫn trong file tổng hợp (VD Sheet1 nháp) -> bỏ qua để tránh tạo lớp rác
             if (isDefaultExcelSheetName(sName)) return;
             parsedClasses.push({
               className: formatVehicleOrClassName(sName.trim()),
               fileName: file.name,
               sheetName: sName,
-              students: students
+              students: students.map((st, i) => ({ stt: i + 1, name: st.name, className: st.className || '' }))
             });
           });
         }
       }
 
-      // Gộp các lớp trùng tên (VD 2 file cùng tên lớp)
       const merged = {};
       parsedClasses.forEach(c => {
         const key = c.className.toLowerCase();
@@ -3599,12 +3764,12 @@
       });
       return Object.values(merged).map(c => ({
         ...c,
-        students: c.students.map((st, i) => ({ stt: i + 1, name: st.name }))
+        students: c.students.map((st, i) => ({ stt: i + 1, name: st.name, className: st.className || '' }))
       }));
     }
 
-    // Trích xuất danh sách học sinh từ dữ liệu 1 sheet (mảng 2 chiều)
-    function extractStudentsFromSheetData(data) {
+    // Trích xuất học sinh và tự động tìm cột Tên Lớp ở cùng hàng (Cột C, D, E...)
+    function extractStudentsFromSheetData(data, isVehicleSheet = false) {
       if (!data || data.length === 0) return [];
 
       function hasNumber(val) {
@@ -3613,6 +3778,173 @@
       }
 
       let sttColIdx = -1, nameColIdx = -1, hoDemColIdx = -1, tenColIdx = -1, headerRowIdx = -1;
+      let classColIdx = -1;
+
+      // 1. Quét tìm dòng tiêu đề trong 25 dòng đầu
+      for (let r = 0; r < Math.min(25, data.length); r++) {
+        const row = data[r] || [];
+        let foundHere = false;
+        for (let c = 0; c < row.length; c++) {
+          const cell = String(row[c] || '').trim().toLowerCase().replace(/\s+/g, ' ');
+          if (!cell) continue;
+          if (sttColIdx === -1 && /^(stt|tt|số tt|số thứ tự)$/.test(cell)) { sttColIdx = c; foundHere = true; }
+          if (nameColIdx === -1 && /(họ và tên|họ tên|ho va ten|ho ten|tên học sinh)/.test(cell)) { nameColIdx = c; foundHere = true; }
+          if (hoDemColIdx === -1 && /(họ và chữ lót|họ và đệm|họ đệm|họ lót|họ và tên đệm)/.test(cell)) { hoDemColIdx = c; foundHere = true; }
+          if (tenColIdx === -1 && /^tên$/.test(cell)) { tenColIdx = c; foundHere = true; }
+          if (classColIdx === -1 && /^(lớp|lop|tên lớp|ten lop|khối lớp|khoi lop|chi đội|class)/.test(cell)) { classColIdx = c; foundHere = true; }
+        }
+        if (foundHere) headerRowIdx = r;
+      }
+      const useSplitName = nameColIdx === -1 && hoDemColIdx !== -1 && tenColIdx !== -1;
+      if (sttColIdx === -1) sttColIdx = 0;
+
+      // 2. Quy tắc dự phòng dòng 12 nếu không có tiêu đề
+      if (nameColIdx === -1 && !useSplitName) {
+        const checkRowIdx = data.length > 11 ? 11 : Math.max(0, data.length - 1);
+        const sampleRow = data[checkRowIdx] || [];
+        const valB = sampleRow[1] !== undefined ? String(sampleRow[1]).trim() : '';
+        nameColIdx = hasNumber(valB) ? 2 : 1;
+      }
+
+      // 3. Tìm dòng STT = 1
+      let startRowIdx = -1;
+      for (let r = headerRowIdx + 1; r < data.length; r++) {
+        const v = data[r] && data[r][sttColIdx] !== undefined ? String(data[r][sttColIdx]).trim() : '';
+        if (/^0*1$/.test(v)) { startRowIdx = r; break; }
+      }
+      if (startRowIdx === -1) startRowIdx = headerRowIdx + 1;
+
+      // 4. Đọc từng học sinh và quét Tên Lớp ở cùng hàng
+      const students = [];
+      let consecutiveEmpty = 0;
+      for (let r = startRowIdx; r < data.length; r++) {
+        const row = data[r] || [];
+        const sttRaw = row[sttColIdx] !== undefined ? String(row[sttColIdx]).trim() : '';
+        let nameRaw = useSplitName
+          ? ((String(row[hoDemColIdx] || '').trim() + ' ' + String(row[tenColIdx] || '').trim()).trim())
+          : String(row[nameColIdx] !== undefined ? row[nameColIdx] : '').trim();
+        nameRaw = nameRaw.replace(/\s+/g, ' ');
+
+        if (!sttRaw && !nameRaw) {
+          consecutiveEmpty++;
+          if (consecutiveEmpty >= 3) break;
+          continue;
+        }
+        consecutiveEmpty = 0;
+        if (!nameRaw || !/[a-zA-Zà-ỹÀ-Ỹ]/.test(nameRaw) || hasNumber(nameRaw)) continue;
+        if (/^(tổng|tong|cộng|stt|họ và tên|họ tên|danh sách|người lập|xác nhận|ký tên)/i.test(nameRaw)) continue;
+        if (/^(nam|nữ)$/i.test(nameRaw)) continue;
+
+        // 5. Quét tìm Tên Lớp: ưu tiên cột tiêu đề, nếu không có thì quét Cột C (2), D (3), E (4), F (5)...
+        let studentClass = '';
+        if (isVehicleSheet) {
+          if (classColIdx !== -1 && row[classColIdx] !== undefined && isClassNameCandidate(row[classColIdx])) {
+            studentClass = formatCleanClassName(row[classColIdx]);
+          }
+          if (!studentClass) {
+            const scanCols = [2, 3, 4, 5, 1, 6].filter(c => c !== sttColIdx && c !== nameColIdx && c !== hoDemColIdx && c !== tenColIdx);
+            for (const cIdx of scanCols) {
+              if (row[cIdx] !== undefined && row[cIdx] !== null && isClassNameCandidate(row[cIdx])) {
+                studentClass = formatCleanClassName(row[cIdx]);
+                break;
+              }
+            }
+          }
+        }
+
+        students.push({
+          stt: students.length + 1,
+          name: nameRaw,
+          className: studentClass
+        });
+      }
+      return students;
+    }
+
+    // Kiểm tra ngữ cảnh File hoặc Sheet theo Xe để tìm Tên Lớp
+    function isVehicleContext(fileName, sheetName) {
+      const nameWithoutExt = String(fileName || '').replace(/\.[^/.]+$/, '').trim();
+      // 1. Tên file <= 10 ký tự và có chữ xe (VD: "Xe 1.xlsx", "Xe 05.xlsx")
+      if (nameWithoutExt.length <= 10 && /xe/i.test(nameWithoutExt)) {
+        return true;
+      }
+      // 2. Sheet có chữ xe (VD: "XE GHÉP 1", "Xe 1", "Xe 02")
+      if (/xe/i.test(String(sheetName || '').trim())) {
+        return true;
+      }
+      return false;
+    }
+
+    // Nhận diện giá trị trong ô có phải là Tên Lớp học sinh (quét cột C, D, E...)
+    function isClassNameCandidate(val) {
+      if (val === null || val === undefined) return false;
+      let s = String(val).trim().replace(/\s+/g, ' ');
+      if (!s || s.length > 25) return false;
+
+      // Loại trừ ngày tháng
+      if (/^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$/.test(s)) return false;
+      // Loại trừ số thứ tự hoặc số điện thoại
+      if (/^\d+$/.test(s)) return false;
+      // Loại trừ giới tính
+      if (/^(nam|nữ|nu|m|f)$/i.test(s)) return false;
+      // Loại trừ vai trò / đối tượng
+      if (/^(hs|phhs|ph|gv|gvcn|học sinh|phụ huynh|giáo viên|lái xe|hdv|nhóm trưởng)$/i.test(s)) return false;
+      // Loại trừ tiêu đề hoặc ghi chú thông thường
+      if (/^(stt|tt|họ|tên|ngày sinh|nơi sinh|địa chỉ|ghi chú|dân tộc|kí tên|ký tên|vắng|có mặt)$/i.test(s)) return false;
+
+      // Khớp mẫu tên lớp:
+      // a) Có chữ Lớp / Lop: VD "Lớp 10A1", "Lớp 8T2", "Lớp 6D"
+      if (/^(?:lớp|lop)\s*[0-9a-zA-ZÀ-Ỹà-ỹ_.\/-]+/i.test(s)) return true;
+      // b) Khối lớp 1-12: VD "10A1", "10A2", "10 D1", "11 D 2", "11A1", "8T2", "8A1", "6D", "8i", "12D3", "9/1", "7.2"
+      if (/^(?:[1-9]|1[0-2])\s*[-_./\s]?[a-zA-ZÀ-Ỹà-ỹ0-9\s]+$/i.test(s)) return true;
+      // c) Mã lớp ngắn gồm cả chữ và số (2-8 ký tự): VD "6A", "7B", "11C", "9A1"
+      if (/^[a-zA-Z0-9]{2,8}$/.test(s) && /\d/.test(s) && /[a-zA-Z]/.test(s)) return true;
+
+      return false;
+    }
+
+    function formatCleanClassName(val) {
+      let s = String(val || '').trim().replace(/\s+/g, ' ');
+      if (/^(?:lớp|lop)\s+/i.test(s)) {
+        return 'Lớp ' + s.replace(/^(?:lớp|lop)\s*/i, '').toUpperCase();
+      }
+      return s.toUpperCase();
+    }
+
+    // Quét tìm Tên Lớp trên cùng hàng học sinh
+    function detectClassInRow(row, classColIdx, excludeCols = []) {
+      // Ưu tiên 1: Cột tiêu đề Lớp đã xác định từ trước
+      if (classColIdx !== -1 && row[classColIdx] !== undefined) {
+        const cellVal = String(row[classColIdx] || '').trim();
+        if (cellVal && isClassNameCandidate(cellVal)) {
+          return formatCleanClassName(cellVal);
+        }
+      }
+
+      // Ưu tiên 2: Quét lần lượt các cột C (2), D (3), E (4), rồi đến các cột khác trên cùng hàng
+      const scanCols = [2, 3, 4, 5, 1, 6, 7].filter(c => !excludeCols.includes(c));
+      for (const colIdx of scanCols) {
+        if (row[colIdx] !== undefined && row[colIdx] !== null) {
+          const cellVal = String(row[colIdx] || '').trim();
+          if (cellVal && isClassNameCandidate(cellVal)) {
+            return formatCleanClassName(cellVal);
+          }
+        }
+      }
+      return '';
+    }
+
+    // Trích xuất danh sách học sinh từ dữ liệu 1 sheet (mảng 2 chiều), kèm nhận diện Tên Lớp ở cùng hàng
+    function extractStudentsFromSheetData(data, isVehicleSheet = false) {
+      if (!data || data.length === 0) return [];
+
+      function hasNumber(val) {
+        if (val === null || val === undefined || val === '') return false;
+        return /\d/.test(String(val));
+      }
+
+      let sttColIdx = -1, nameColIdx = -1, hoDemColIdx = -1, tenColIdx = -1, headerRowIdx = -1;
+      let classColIdx = -1;
 
       // 1. Tìm dòng tiêu đề trong 25 dòng đầu
       for (let r = 0; r < Math.min(25, data.length); r++) {
@@ -3625,6 +3957,7 @@
           if (nameColIdx === -1 && /(họ và tên|họ tên|ho va ten|ho ten|tên học sinh)/.test(cell)) { nameColIdx = c; foundHere = true; }
           if (hoDemColIdx === -1 && /(họ và chữ lót|họ và đệm|họ đệm|họ lót|họ và tên đệm)/.test(cell)) { hoDemColIdx = c; foundHere = true; }
           if (tenColIdx === -1 && /^tên$/.test(cell)) { tenColIdx = c; foundHere = true; }
+          if (classColIdx === -1 && /^(lớp|lop|tên lớp|ten lop|khối lớp|khoi lop|chi đội|class)$/.test(cell)) { classColIdx = c; foundHere = true; }
         }
         if (foundHere) headerRowIdx = r;
         if (nameColIdx !== -1 || (hoDemColIdx !== -1 && tenColIdx !== -1)) break;
@@ -3668,7 +4001,18 @@
         if (!nameRaw || !/[a-zA-Zà-ỹÀ-Ỹ]/.test(nameRaw) || hasNumber(nameRaw)) continue;
         if (/^(tổng|tong|cộng|stt|họ và tên|họ tên|danh sách|người lập|xác nhận|ký tên)/i.test(nameRaw)) continue;
         if (/^(nam|nữ)$/i.test(nameRaw)) continue;
-        students.push({ stt: students.length + 1, name: nameRaw });
+
+        // 5. Tìm Tên Lớp trên cùng hàng (đối với danh sách theo Xe)
+        let studentClass = '';
+        if (isVehicleSheet) {
+          studentClass = detectClassInRow(row, classColIdx, [sttColIdx, nameColIdx, hoDemColIdx, tenColIdx]);
+        }
+
+        students.push({
+          stt: students.length + 1,
+          name: nameRaw,
+          className: studentClass
+        });
       }
       return students;
     }
@@ -3868,12 +4212,38 @@
     async function handleCreateProgram() {
       const name = document.getElementById('newProgName').value.trim();
       const date = document.getElementById('newProgDate').value;
+      const endDate = (document.getElementById('newProgEndDate')?.value || date);
+      const coordinator = document.getElementById('newProgCoordinator')?.value.trim() || '';
+      const coordinatorPhone = document.getElementById('newProgCoordinatorPhone')?.value.trim() || '';
+      const logistics = document.getElementById('newProgLogistics')?.value.trim() || '';
+      const logisticsPhone = document.getElementById('newProgLogisticsPhone')?.value.trim() || '';
+
       if (!name) return showToast('Vui lòng nhập Tên chương trình!', 'error');
+      if (!date) return showToast('Vui lòng chọn Ngày thực hiện!', 'error');
 
       try {
-        const res = await callApi({ action: 'createProgram', pin: REQUIRED_PIN, name, date, status: 'Đang diễn ra' });
+        const res = await callApi({
+          action: 'createProgram',
+          pin: REQUIRED_PIN,
+          name: name,
+          date: date,
+          endDate: endDate,
+          coordinator: coordinator,
+          coordinatorPhone: coordinatorPhone,
+          logistics: logistics,
+          logisticsPhone: logisticsPhone,
+          status: 'Đang diễn ra'
+        });
         if (!res.success) throw new Error(res.message);
+        
+        // Làm sạch form sau khi tạo
         document.getElementById('newProgName').value = '';
+        if (document.getElementById('newProgEndDate')) document.getElementById('newProgEndDate').value = '';
+        if (document.getElementById('newProgCoordinator')) document.getElementById('newProgCoordinator').value = '';
+        if (document.getElementById('newProgCoordinatorPhone')) document.getElementById('newProgCoordinatorPhone').value = '';
+        if (document.getElementById('newProgLogistics')) document.getElementById('newProgLogistics').value = '';
+        if (document.getElementById('newProgLogisticsPhone')) document.getElementById('newProgLogisticsPhone').value = '';
+
         showToast(res.message, 'success');
         loadAdminPrograms();
       } catch (err) {
