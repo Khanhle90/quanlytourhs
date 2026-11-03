@@ -565,18 +565,16 @@
         </button>
       </div>
 
-      <!-- Khung thông tin Điều hành Tour & Phụ trách Hậu cần (kèm nút gọi trực tiếp) -->
+      <!-- Khung thông tin Điều hành Tour & Phụ trách Hậu cần (Nút gọi gắn riêng sau tên từng người) -->
       <div id="summaryTourContactBanner" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-2.5 shadow-sm">
-        <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div class="flex items-center gap-2">
-            <span class="text-blue-900 font-bold">👔 Điều hành Tour:</span>
-            <span id="sumCoordinatorName" class="font-bold text-slate-800">-</span>
-            <a id="sumCoordinatorCallBtn" href="#" title="Gọi điện" class="hidden inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition">📞</a>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-blue-900 font-bold shrink-0">👔 Điều hành Tour:</span>
+            <div id="sumCoordinatorName" class="inline-flex items-center gap-1 flex-wrap">-</div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-indigo-900 font-bold">📦 Phụ trách Hậu cần:</span>
-            <span id="sumLogisticsName" class="font-bold text-slate-800">-</span>
-            <a id="sumLogisticsCallBtn" href="#" title="Gọi điện" class="hidden inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow transition">📞</a>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-indigo-900 font-bold shrink-0">📦 Phụ trách Hậu cần:</span>
+            <div id="sumLogisticsName" class="inline-flex items-center gap-1 flex-wrap">-</div>
           </div>
         </div>
       </div>
@@ -3328,34 +3326,38 @@
         summaryVehiclesCache = mergedList;
         renderSummaryDashboardTable(summaryVehiclesCache);
 
-        // Cập nhật banner thông tin Điều hành & Hậu cần tour
+        // Cập nhật banner thông tin Điều hành & Hậu cần tour (tự động gắn nút gọi riêng cho từng người)
         const banner = document.getElementById('summaryTourContactBanner');
         const coordNameEl = document.getElementById('sumCoordinatorName');
-        const coordCallEl = document.getElementById('sumCoordinatorCallBtn');
         const logNameEl = document.getElementById('sumLogisticsName');
-        const logCallEl = document.getElementById('sumLogisticsCallBtn');
 
         const curTour = res.tourInfo || (adminProgramsCache || []).find(p => p.id === progId);
         if (banner) {
           if (curTour && (curTour.coordinator || curTour.logistics)) {
             banner.classList.remove('hidden');
-            if (coordNameEl) coordNameEl.textContent = curTour.coordinator || 'Chưa cập nhật';
-            if (coordCallEl) {
-              if (curTour.coordinatorPhone) {
-                coordCallEl.href = 'tel:' + curTour.coordinatorPhone;
-                coordCallEl.classList.remove('hidden');
-              } else {
-                coordCallEl.classList.add('hidden');
-              }
+
+            // Hàm tạo danh sách tên kèm nút gọi riêng cho từng người
+            const renderPeopleWithCallBtns = (namesStr, phonesStr, bgClass) => {
+              const names = String(namesStr || '').split(',').map(s => s.trim()).filter(Boolean);
+              const phones = String(phonesStr || '').split(',').map(s => s.trim().replace(/^'+/, ''));
+
+              if (names.length === 0) return '<span class="text-slate-400 font-normal">Chưa cập nhật</span>';
+
+              return names.map((name, idx) => {
+                const phone = phones[idx] || '';
+                const cleanPhone = phone.replace(/\D/g, '').replace(/^84/, '0');
+                const callBtn = cleanPhone
+                  ? `<a href="tel:${cleanPhone}" title="Gọi cho ${escapeHtml(name)} (${cleanPhone})" class="inline-flex items-center justify-center w-5 h-5 rounded-full ${bgClass} text-white font-bold text-[10px] shadow-xs transition active:scale-90 ml-1">📞</a>`
+                  : '';
+                return `<span class="inline-flex items-center font-bold text-slate-800 whitespace-nowrap">${escapeHtml(name)}${callBtn}</span>`;
+              }).join('<span class="text-slate-400 font-bold mx-1">,</span>');
+            };
+
+            if (coordNameEl) {
+              coordNameEl.innerHTML = renderPeopleWithCallBtns(curTour.coordinator, curTour.coordinatorPhone, 'bg-emerald-600 hover:bg-emerald-700');
             }
-            if (logNameEl) logNameEl.textContent = curTour.logistics || 'Chưa cập nhật';
-            if (logCallEl) {
-              if (curTour.logisticsPhone) {
-                logCallEl.href = 'tel:' + curTour.logisticsPhone;
-                logCallEl.classList.remove('hidden');
-              } else {
-                logCallEl.classList.add('hidden');
-              }
+            if (logNameEl) {
+              logNameEl.innerHTML = renderPeopleWithCallBtns(curTour.logistics, curTour.logisticsPhone, 'bg-blue-600 hover:bg-blue-700');
             }
           } else {
             banner.classList.add('hidden');
