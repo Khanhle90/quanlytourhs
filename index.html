@@ -69,6 +69,10 @@
       border: none !important;
       cursor: pointer;
     }
+    /* Chế độ xem dành riêng cho BGH & Thành viên đoàn */
+    body.viewer-mode .viewer-hide {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -189,7 +193,7 @@
               </button>
             </div>
           </div>
-          <p class="text-[10px] text-slate-500 mt-0.5" id="vehicleSelectHint">Danh sách xe/lớp được nạp tự động từ file Excel do điều hành tour tải lên</p>
+          <p class="text-[10px] text-slate-500 mt-0.5" id="vehicleSelectHint">Danh sách xe/lớp được nạp tự động do điều hành tải lên</p>
         </div>
 
         <div class="space-y-1.5">
@@ -323,7 +327,7 @@
 
         <!-- BGH / Trưởng đoàn có cảnh báo xác nhận khi tick -->
         <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-          <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1.5">BGH / Trưởng đoàn trên xe (Tùy chọn):</label>
+          <label class="block text-[10px] font-bold text-slate-700 uppercase mb-1.5">Có BGH / Trưởng đoàn trên xe</label>
           <div class="grid grid-cols-3 gap-1 text-xs font-medium text-slate-800">
             <label class="inline-flex items-center gap-1.5 cursor-pointer">
               <input type="checkbox" id="chkHieuTruong" value="Hiệu trưởng" onchange="window.handleVipCheck(this, 'Hiệu Trưởng')" class="w-3.5 h-3.5 text-blue-600 rounded" />
@@ -349,7 +353,7 @@
               <span>📋</span> 3. Danh Sách Điểm Danh Học Sinh
             </h2>
             <p class="text-[10px] text-slate-500">
-              Chạm vào học sinh để chuyển [Có / Vắng]. Hệ thống tự động tính sĩ số.
+              Chạm vào học sinh để tích [Có / Vắng].
             </p>
           </div>
           <button type="button" onclick="window.reloadCurrentClassStudents()" class="text-xs text-blue-600 font-semibold hover:underline">
@@ -403,7 +407,7 @@
         <div class="pt-2 border-t border-slate-200">
           <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-2.5 space-y-2">
             <span class="text-[11px] font-bold text-blue-900 uppercase flex items-center gap-1">
-              <span>➕</span> Thêm học sinh bổ sung
+              <span>➕</span> Thêm học sinh bổ sung (không thể sửa)
             </span>
             <div class="grid grid-cols-12 gap-1.5 items-center">
               <input type="text" id="addStudentNameInput" placeholder="Họ và tên học sinh *"
@@ -469,7 +473,7 @@
         <div class="flex items-center gap-2">
           <button type="button" onclick="document.getElementById('feedbackFileInput').click()"
             class="flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5 transition active:scale-95">
-            <span>📁</span> Chụp & Thêm ảnh Feedback (Nhiều tờ)
+            <span>📁</span> Chụp Feedback và gửi ảnh(gửi đủ số mặt)
           </button>
           <button type="button" id="btnClearFeedback" onclick="window.clearFeedbackPhoto()" class="hidden px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs border border-rose-200 transition">
             Xóa tất cả
@@ -498,17 +502,31 @@
          ========================================== -->
     <section id="sectionSummary" class="hidden space-y-3">
       <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
-        <div class="flex-1">
-          <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Chọn Chương trình xem báo cáo</label>
+        <!-- Khối chọn chương trình dành cho Điều hành / Quản trị -->
+        <div id="normalProgramSelectBox" class="flex-1">
+          <label class="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Chọn Chương trình</label>
           <select id="summaryProgramSelect" onchange="window.loadSummaryDashboard()" class="w-full sm:max-w-md rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-800">
             <option value="">-- Chọn chương trình --</option>
           </select>
         </div>
+
+        <!-- Khối hiển thị CỐ ĐỊNH tên chương trình cho BGH & Thành viên đoàn (Không có ô chọn tour khác) -->
+        <div id="viewerTourBannerBox" class="hidden flex-1">
+          <p class="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Chương trình dã ngoại đang theo dõi:</p>
+          <h2 class="text-sm sm:text-base font-black text-slate-900 mt-0.5 flex items-center gap-1.5">
+            <span>🚌</span> <span id="viewerTourNameText">Đang tải dữ liệu chương trình...</span>
+          </h2>
+        </div>
         
         <div class="flex items-center gap-2">
           <button type="button" onclick="window.loadSummaryDashboard()"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow flex items-center gap-1">
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow flex items-center gap-1 cursor-pointer">
             <span>🔄</span> Làm mới dữ liệu
+          </button>
+          <button type="button" id="btnShareViewerLink" onclick="window.copyViewerShareLink()"
+            class="hidden viewer-hide bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow flex items-center gap-1 cursor-pointer transition active:scale-95"
+            title="Sao chép đường link giao diện xem dành riêng cho BGH & Thành viên đoàn">
+            <span>🔗</span> Chia sẻ hành trình
           </button>
         </div>
       </div>
@@ -545,7 +563,7 @@
       <div id="summaryMainContentBox" class="space-y-3.5">
       
       <!-- THẺ KẾT THÚC CHƯƠNG TRÌNH (HIỆN KHI 100% CÁC XE ĐÃ KẾT THÚC TOUR) -->
-      <div id="programFinishedBanner" class="hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-700 text-white p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 border-2 border-emerald-300">
+      <div id="programFinishedBanner" class="viewer-hide hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-700 text-white p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 border-2 border-emerald-300">
         <div class="flex items-center gap-3">
           <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-3xl shadow-inner shrink-0">
             🏆
@@ -628,14 +646,14 @@
         <div id="tourVehiclesMap" class="w-full h-80 sm:h-96 z-10"></div>
         <!-- Ghi chú màu sắc trạng thái xe dưới bản đồ: thật gọn, chữ nhỏ, cả điện thoại và máy tính đều hiển thị trong 1 hàng -->
         <!-- PHÁT THÔNG BÁO KHẨN (TAB TỔNG HỢP - GỌN GÀNG TIẾT GIẢM DIỆN TÍCH) -->
-      <div class="bg-amber-50 p-2 rounded-xl border border-amber-300 shadow-sm flex items-center gap-2">
+      <div class="viewer-hide bg-amber-50 p-2 rounded-xl border border-amber-300 shadow-sm flex items-center gap-2">
         <span class="text-base shrink-0">📢</span>
-        <input type="text" id="summaryNoticeInput" placeholder="Nhập thông báo khẩn gửi đến toàn bộ HDV..."
+        <input type="text" id="summaryNoticeInput" placeholder="Nhập thông báo gửi toàn bộ HDV"
           class="flex-1 bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-amber-500 outline-none"
           onkeydown="if(event.key==='Enter') window.sendNoticeFromSummary()" />
         <button type="button" onclick="window.sendNoticeFromSummary()"
           class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow shrink-0 transition">
-          Phát thông báo
+          GỬI
         </button>
       </div>
 
@@ -643,7 +661,7 @@
       <div class="bg-white rounded-xl shadow border border-slate-200 overflow-hidden">
         <div class="p-2.5 bg-slate-50 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div class="flex items-center gap-2">
-            <h3 class="font-bold text-xs text-slate-700">Bảng điều hành chi tiết từng xe trong đoàn</h3>
+            <h3 class="font-bold text-xs text-slate-700">Thông tin chi tiết</h3>
             <span id="summaryCountText" class="text-[11px] text-slate-500 font-semibold"></span>
           </div>
           <!-- Ô tìm kiếm xe/lớp theo tên -->
@@ -666,13 +684,13 @@
                 <th class="py-2.5 px-3 text-center text-pink-400">Trẻ em</th>
                 <th class="py-2.5 px-3 text-center bg-slate-700">Tổng người</th>
                 <th class="py-2.5 px-3">HDV</th>
-                <th class="py-2.5 px-3">SĐT HDV</th>
+                <th class="py-2.5 px-3 viewer-hide">SĐT HDV</th>
                 <th class="py-2.5 px-3">GV/Trưởng xe</th>
-                <th class="py-2.5 px-3">SĐT GV</th>
-                <th class="py-2.5 px-3">Lái xe</th>
-                <th class="py-2.5 px-3">SĐT Lái xe</th>
-                <th class="py-2.5 px-3">Biển số</th>
-                <th class="py-2.5 px-3 text-center">Cập nhật lúc</th>
+                <th class="py-2.5 px-3 viewer-hide">SĐT GV</th>
+                <th class="py-2.5 px-3 viewer-hide">Lái xe</th>
+                <th class="py-2.5 px-3 viewer-hide">SĐT Lái xe</th>
+                <th class="py-2.5 px-3 viewer-hide">Biển số</th>
+                <th class="py-2.5 px-3 text-center viewer-hide">Cập nhật lúc</th>
               </tr>
             </thead>
             <tbody id="summaryTableBody" class="divide-y divide-slate-200">
@@ -694,7 +712,7 @@
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-3">
         <div class="flex items-center justify-between border-b pb-1.5">
           <h2 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
-            <span>🏨</span> Quản Trị Chi Tiết Tour & Nạp Danh Sách Học Sinh (Excel)
+            <span>🏨</span> Quản Trị Chi Tiết Tour
           </h2>
         </div>
 
@@ -867,7 +885,7 @@
           <div class="flex flex-wrap items-center gap-1.5 text-xs font-bold">
             <button type="button" id="btnAdminFilterAll" onclick="window.setAdminProgramStatusFilter('all')" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-xs">Tất cả</button>
             <button type="button" id="btnAdminFilterUpcoming" onclick="window.setAdminProgramStatusFilter('Sắp diễn ra')" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-amber-100">Sắp đến</button>
-            <button type="button" id="btnAdminFilterRunning" onclick="window.setAdminProgramStatusFilter('Đang diễn ra')" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-emerald-100">Đang diễn ra</button>
+            <button type="button" id="btnAdminFilterRunning" onclick="window.setAdminProgramStatusFilter('Đang diễn ra')" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-emerald-100">Đang chạy</button>
             <button type="button" id="btnAdminFilterEnded" onclick="window.setAdminProgramStatusFilter('Đã kết thúc')" class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-rose-100">Kết thúc</button>
           </div>
         </div>
@@ -2959,10 +2977,14 @@
         if (sections[k]) {
           if (k === tabName) {
             sections[k].classList.remove('hidden');
-            buttons[k].className = 'py-1.5 px-2 rounded bg-white text-blue-800 shadow transition text-center';
+            if (buttons[k]) {
+              buttons[k].className = 'py-1.5 px-2 rounded bg-white text-blue-800 shadow transition text-center';
+            }
           } else {
             sections[k].classList.add('hidden');
-            buttons[k].className = 'py-1.5 px-2 rounded text-blue-100 hover:bg-blue-700 transition text-center';
+            if (buttons[k]) {
+              buttons[k].className = 'py-1.5 px-2 rounded text-blue-100 hover:bg-blue-700 transition text-center';
+            }
           }
         }
       });
@@ -2994,6 +3016,9 @@
     // BẢNG TỔNG HỢP & BẢN ĐỒ VỊ TRÍ CÁC XE (LEAFLET 15S)
     // ==============================================================
     async function loadAdminProgramsForSummary() {
+      // Nếu đang mở link chia sẻ BGH & Đoàn: Dừng ngay, không tải danh sách tour khác
+      if (window.isViewerMode) return;
+
       try {
         const res = await callApi({ action: 'getInitData', pin: REQUIRED_PIN });
         if (!res.success) throw new Error(res.message);
@@ -3003,6 +3028,22 @@
         if (!sel) return;
         const currentVal = sel.value;
         sel.innerHTML = '';
+
+        // NẾU LÀ NGƯỜI NHẬN LINK BGH & ĐOÀN: Khóa cố định chỉ hiển thị duy nhất tour được chia sẻ
+        if (window.isViewerMode && window.viewerTourId) {
+          const onlyTour = adminProgramsCache.find(p => p.id === window.viewerTourId);
+          if (onlyTour) {
+            const opt = document.createElement('option');
+            opt.value = onlyTour.id;
+            opt.textContent = `[${onlyTour.status}] ${onlyTour.name} (${onlyTour.date || ''})`;
+            sel.appendChild(opt);
+            sel.value = onlyTour.id;
+          }
+          sel.disabled = true; // Khóa không cho bấm chọn tour khác
+          sel.classList.add('bg-slate-100', 'cursor-not-allowed');
+          loadSummaryDashboard();
+          return;
+        }
 
         if (adminProgramsCache.length === 0) {
           sel.innerHTML = '<option value="">-- Chưa có chương trình nào --</option>';
@@ -3196,7 +3237,7 @@
           tr.innerHTML = `
             <td class="py-2 px-3 font-extrabold text-blue-900 sticky-col flex items-center justify-between gap-1">
               <span class="cursor-pointer hover:underline" onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')">${escapeHtml(v.vehicleName)}</span>
-              <button type="button" onclick="window.promptRenameVehicle('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" title="Quản trị: Sửa tên xe" class="text-slate-400 hover:text-blue-600 font-bold text-xs p-1">✏️</button>
+              <button type="button" onclick="window.promptRenameVehicle('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" title="Quản trị: Sửa tên xe" class="viewer-hide text-slate-400 hover:text-blue-600 font-bold text-xs p-1">✏️</button>
             </td>
             <td class="py-2 px-3 cursor-pointer" onclick="window.focusVehicleOnMap('${escapeHtml(v.vehicleName)}')" title="Bấm để xem định vị của xe này trên bản đồ">
               ${statusHtml}
@@ -3215,13 +3256,13 @@
             <td class="py-2 px-3 text-center font-bold text-pink-600">${isReported ? childNum : '<span class="text-slate-300">-</span>'}</td>
             <td class="py-2 px-3 text-center font-extrabold ${isReported ? 'text-blue-900 bg-slate-100' : 'text-slate-400'}">${isReported ? realPeople : '-'}</td>
             <td class="py-2 px-3 font-semibold whitespace-nowrap text-slate-800">${escapeHtml(v.hdvName || '-')}</td>
-            <td class="py-2 px-3 whitespace-nowrap">${v.hdvPhone ? `<a href="tel:${escapeHtml(v.hdvPhone)}" class="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 text-xs transition"><span>📞</span>${escapeHtml(v.hdvPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
+            <td class="py-2 px-3 whitespace-nowrap viewer-hide">${v.hdvPhone ? `<a href="tel:${escapeHtml(v.hdvPhone)}" class="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-800 text-xs transition"><span>📞</span>${escapeHtml(v.hdvPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
             <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800">${escapeHtml(v.leaderName || '-')}</td>
-            <td class="py-2 px-3 whitespace-nowrap">${v.leaderPhone ? `<a href="tel:${escapeHtml(v.leaderPhone)}" class="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 text-xs transition"><span>📞</span>${escapeHtml(v.leaderPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
-            <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800">${escapeHtml(v.driverName || '-')}</td>
-            <td class="py-2 px-3 whitespace-nowrap">${v.driverPhone ? `<a href="tel:${escapeHtml(v.driverPhone)}" class="inline-flex items-center gap-1 font-bold text-emerald-600 hover:text-emerald-800 text-xs transition"><span>📞</span>${escapeHtml(v.driverPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
-            <td class="py-2 px-3 font-bold uppercase text-slate-700">${escapeHtml(v.licensePlate || '-')}</td>
-            <td class="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">
+            <td class="py-2 px-3 whitespace-nowrap viewer-hide">${v.leaderPhone ? `<a href="tel:${escapeHtml(v.leaderPhone)}" class="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-800 text-xs transition"><span>📞</span>${escapeHtml(v.leaderPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
+            <td class="py-2 px-3 font-medium whitespace-nowrap text-slate-800 viewer-hide">${escapeHtml(v.driverName || '-')}</td>
+            <td class="py-2 px-3 whitespace-nowrap viewer-hide">${v.driverPhone ? `<a href="tel:${escapeHtml(v.driverPhone)}" class="inline-flex items-center gap-1 font-bold text-emerald-600 hover:text-emerald-800 text-xs transition"><span>📞</span>${escapeHtml(v.driverPhone)}</a>` : '<span class="text-slate-400">-</span>'}</td>
+            <td class="py-2 px-3 font-bold uppercase text-slate-700 viewer-hide">${escapeHtml(v.licensePlate || '-')}</td>
+            <td class="py-2 px-3 text-center text-slate-500 font-mono text-[11px] viewer-hide">
               ${isReported ? `<div>${formatTimeDisplay(v.updatedAt || v.gpsTime)}</div>` : '<span class="text-amber-700 font-sans font-bold text-[10px]">Chưa báo cáo</span>'}
             </td>
           `;
@@ -3237,7 +3278,7 @@
       setCard('sumCardParents', sumParents);
       setCard('sumCardChildren', sumChildren);
       setCard('sumCardVehicles', list.length);
-      setCard('summaryCountText', `Đã có ${reportedVehiclesCount} / ${list.length} xe báo cáo`);
+      setCard('summaryCountText', `${reportedVehiclesCount} / ${list.length} xe báo cáo`);
 
       // Kiểm tra xem TOÀN BỘ các xe đã ấn kết thúc tour chưa
       const bannerFinish = document.getElementById('programFinishedBanner');
@@ -3246,7 +3287,8 @@
           const s = String(v.status || '').toLowerCase();
           return s.includes('kết thúc') || s.includes('về tới trường') || s.includes('về đến trường') || s.includes('final');
         });
-        if (isAllEnded) {
+        // Không cho phép hiện thẻ kết thúc và nút xuất file trên link chia sẻ
+        if (isAllEnded && !window.isViewerMode) {
           bannerFinish.classList.remove('hidden');
         } else {
           bannerFinish.classList.add('hidden');
@@ -3255,9 +3297,14 @@
     }
 
     async function loadSummaryDashboard(isSilent = false) {
-      const progSel = document.getElementById('summaryProgramSelect');
-      if (!progSel) return;
-      const progId = progSel.value;
+  // Nếu là chế độ xem qua link: Cố định lấy đúng mã tour từ link gửi đi
+  let progId = '';
+  if (window.isViewerMode && window.viewerTourId) {
+    progId = window.viewerTourId;
+  } else {
+    const progSel = document.getElementById('summaryProgramSelect');
+    progId = progSel ? progSel.value : '';
+  }
       if (!progId) {
         const lockEl = document.getElementById('summaryAccessLockBox');
         const contentEl = document.getElementById('summaryMainContentBox');
@@ -3266,12 +3313,26 @@
         return;
       }
 
-      // Kiểm tra phân quyền truy cập: SĐT Điều hành / Hậu cần hoặc PIN Admin
+      const shareBtn = document.getElementById('btnShareViewerLink');
+
+      // 1. Nếu chưa chọn chương trình -> ẩn nút chia sẻ
+      if (!progId) {
+        if (shareBtn) shareBtn.classList.add('hidden');
+        const lockEl = document.getElementById('summaryAccessLockBox');
+        const contentEl = document.getElementById('summaryMainContentBox');
+        if (lockEl) lockEl.classList.add('hidden');
+        if (contentEl) contentEl.classList.remove('hidden');
+        return;
+      }
+
+      // 2. Kiểm tra phân quyền truy cập
       const hasAccess = checkSummaryTourAccess(progId);
       const lockEl = document.getElementById('summaryAccessLockBox');
       const contentEl = document.getElementById('summaryMainContentBox');
 
+      // 3. Nếu tour đang bị KHÓA -> ẨN NGAY nút chia sẻ để tránh chia sẻ nhầm
       if (!hasAccess) {
+        if (shareBtn) shareBtn.classList.add('hidden');
         if (lockEl) {
           lockEl.classList.remove('hidden');
           const myPhone = localStorage.getItem(LS_HDV_PHONE) || 'Chưa đăng nhập SĐT';
@@ -3283,9 +3344,12 @@
         return;
       }
 
-      // Đã có quyền truy cập
+      // 4. Khi ĐÃ MỞ KHÓA VÀ XEM ĐƯỢC TOUR THÀNH CÔNG -> Mới cho phép hiện nút chia sẻ
       if (lockEl) lockEl.classList.add('hidden');
       if (contentEl) contentEl.classList.remove('hidden');
+      if (shareBtn && !window.isViewerMode) {
+        shareBtn.classList.remove('hidden');
+      }
 
       try {
         const res = await callApi({
@@ -3323,15 +3387,26 @@
           }
         });
 
+        // Gán dữ liệu xe và hiển thị lên 6 thẻ chỉ số + bảng điều hành
         summaryVehiclesCache = mergedList;
         renderSummaryDashboardTable(summaryVehiclesCache);
 
-        // Cập nhật banner thông tin Điều hành & Hậu cần tour (tự động gắn nút gọi riêng cho từng người)
+        // Khai báo curTour để lấy thông tin chương trình
+        const curTour = res.tourInfo || (adminProgramsCache || []).find(p => p.id === progId);
+
+        // 2. Hiển thị cố định tên chương trình cho BGH & Thành viên đoàn (không cho chọn đổi tour)
+        if (window.isViewerMode) {
+          const nameText = document.getElementById('viewerTourNameText');
+          if (nameText && curTour && curTour.name) {
+            const dateStr = curTour.date ? ` (Ngày: ${curTour.date})` : '';
+            nameText.textContent = `${curTour.name}${dateStr}`;
+          }
+        }
+
+        // 3. Cập nhật banner thông tin Điều hành & Hậu cần tour
         const banner = document.getElementById('summaryTourContactBanner');
         const coordNameEl = document.getElementById('sumCoordinatorName');
         const logNameEl = document.getElementById('sumLogisticsName');
-
-        const curTour = res.tourInfo || (adminProgramsCache || []).find(p => p.id === progId);
         if (banner) {
           if (curTour && (curTour.coordinator || curTour.logistics)) {
             banner.classList.remove('hidden');
@@ -3559,12 +3634,15 @@
         const timeAgoStr = getRelativeTimeAgo(rawGpsTime);
         const timeAgoBadge = timeAgoStr ? `<span style="display:inline-block; margin-left:4px; padding:1px 6px; border-radius:4px; background:#e0f2fe; color:#0369a1; font-weight:700; font-size:10px;">(${escapeHtml(timeAgoStr)})</span>` : '';
 
-        const popupContent = `
-          <div style="font-size:12px; line-height:1.5; min-width:185px;">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:3px;">
-              <b style="font-size:13px; color:#1e3a8a;">🚌 ${escapeHtml(v.vehicleName)}</b>
-              <button onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" style="background:#e0e7ff; color:#3730a3; border:none; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">📋 Điểm danh</button>
-            </div>
+        let popupDetails = '';
+        if (window.isViewerMode) {
+          popupDetails = `
+            <div style="margin:2px 0;">Trạng thái: <b>${escapeHtml(v.status)}</b></div>
+            <div style="margin:3px 0;">HDV: <b>${escapeHtml(v.hdvName || '-')}</b></div>
+            <div style="margin:3px 0;">GV/Trưởng xe: <b>${escapeHtml(v.leaderName || '-')}</b></div>
+          `;
+        } else {
+          popupDetails = `
             <div style="margin:2px 0;">Trạng thái: <b>${escapeHtml(v.status)}</b></div>
             <div style="margin:3px 0;">HDV: <b>${escapeHtml(v.hdvName || '-')}</b>${hdvCallBtn}</div>
             <div style="margin:3px 0;">Lái xe: <b>${escapeHtml(v.driverName || '-')}</b>${driverCallBtn}</div>
@@ -3572,6 +3650,16 @@
             <div style="font-size:10px; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:3px;">
               Cập nhật: <b style="color:#0284c7;">${timeAgoStr || 'Vừa xong'}</b>
             </div>
+          `;
+        }
+
+        const popupContent = `
+          <div style="font-size:12px; line-height:1.5; min-width:185px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; border-bottom:1px solid #e2e8f0; padding-bottom:3px;">
+              <b style="font-size:13px; color:#1e3a8a;">🚌 ${escapeHtml(v.vehicleName)}</b>
+              <button onclick="window.fetchAndOpenAttendanceModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" style="background:#e0e7ff; color:#3730a3; border:none; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; cursor:pointer;">📋 Điểm danh</button>
+            </div>
+            ${popupDetails}
           </div>
         `;
 
@@ -4881,6 +4969,7 @@
     }
 
     function checkSummaryTourAccess(progId) {
+      if (window.isViewerMode) return true; // Cho phép BGH và thành viên đoàn xem trực tiếp
       if (unlockedPinSession) return true;
       const prog = (adminProgramsCache || []).find(p => p.id === progId);
       if (!prog) return false;
@@ -6060,15 +6149,93 @@
     window.closeEndTourSuccessModal = closeEndTourSuccessModal;
 
 
+    // Biến toàn cục xác định chế độ xem cho BGH & Đoàn
+    const urlParams = new URLSearchParams(window.location.search);
+    window.isViewerMode = (urlParams.get('mode') === 'viewer' || urlParams.get('view') === 'bgh' || urlParams.get('view') === 'public');
+    window.viewerTourId = urlParams.get('tour') || '';
+
+    // Hàm tạo và sao chép Link xem cho BGH & Đoàn
+    async function copyViewerShareLink() {
+      const progSel = document.getElementById('summaryProgramSelect');
+      const currentTourId = progSel ? progSel.value : '';
+      
+      if (!currentTourId) {
+        return showToast('Vui lòng chọn một chương trình cụ thể trước khi chia sẻ!', 'error');
+      }
+
+      // Bắt buộc tour phải đang mở khóa hợp lệ mới được chia sẻ
+      if (!checkSummaryTourAccess(currentTourId)) {
+        return showToast('Chương trình này đang bị khóa, bạn không thể chia sẻ!', 'error');
+      }
+
+      // Lấy tên tour thực tế đang mở để thông báo rõ ràng
+      const tourObj = (adminProgramsCache || []).find(p => p.id === currentTourId);
+      const tourName = tourObj ? tourObj.name : 'Tour';
+
+      // Tạo link cố định gắn chặt mã tour này
+      const baseCleanUrl = window.location.origin + window.location.pathname;
+      const shareUrl = `${baseCleanUrl}?mode=viewer&tour=${encodeURIComponent(currentTourId)}`;
+
+      try {
+        if (typeof copyLinkTextSafe === 'function') {
+          await copyLinkTextSafe(shareUrl);
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(shareUrl);
+        } else {
+          prompt(`Sao chép đường link xem Tour [${tourName}]:`, shareUrl);
+          return;
+        }
+        showToast(`🔗 Đã sao chép Link xem BGH & Đoàn cho tour: "${tourName}"!`, 'success');
+        if (typeof triggerDeviceVibration === 'function') triggerDeviceVibration();
+      } catch (e) {
+        prompt(`Sao chép đường link xem Tour [${tourName}]:`, shareUrl);
+      }
+    }
+    window.copyViewerShareLink = copyViewerShareLink;
+
     // --- KHỞI CHẠY LẦN ĐẦU ---
     window.addEventListener('DOMContentLoaded', () => {
       const apiEl = document.getElementById('apiEndpointInput');
       if (apiEl) apiEl.value = getApiUrl();
 
+      // NẾU LÀ CHẾ ĐỘ XEM BGH & ĐOÀN
+      if (window.isViewerMode) {
+        document.body.classList.add('viewer-mode');
+
+        // 1. Ẩn hoàn toàn dropdown chọn tour, mở thanh hiển thị cố định tên tour
+        const selectBox = document.getElementById('normalProgramSelectBox');
+        const viewerBox = document.getElementById('viewerTourBannerBox');
+        if (selectBox) selectBox.classList.add('hidden');
+        if (viewerBox) viewerBox.classList.remove('hidden');
+
+        // 2. Chuyển đổi thanh Header sang nhãn Chế độ xem
+        const navHeader = document.querySelector('header nav');
+        if (navHeader) {
+          navHeader.innerHTML = `
+            <div class="px-3 py-1 bg-blue-900 text-blue-100 rounded-lg text-xs font-bold flex items-center gap-1 shadow">
+              <span>👀</span> Chế độ xem: BGH & Đoàn
+            </div>
+          `;
+        }
+
+        // 3. Mở hiển thị Tab Tổng Hợp
+        activateTabView('summary');
+
+        // 4. Nạp dữ liệu và khởi động định vị tự động 15s cho duy nhất tour trong link
+        if (window.viewerTourId) {
+          loadSummaryDashboard();
+          initOrStartSummaryMapAutoRefresh();
+        } else {
+          showToast('Đường link không chứa mã chương trình!', 'error');
+        }
+        return;
+      }
+
+      // Khởi chạy bình thường cho HDV & Quản trị
       checkAndApplyHdvAuth();
       renderClassRows([]);
       loadActivePrograms();
-      initGpsWatcherOnce(); // Khởi tạo GPS watcher ngay để xin quyền 1 lần duy nhất
+      initGpsWatcherOnce();
     });
 
     // Tự động căn chỉnh bản đồ khi xoay màn hình hoặc đổi kích thước
