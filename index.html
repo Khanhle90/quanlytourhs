@@ -453,55 +453,35 @@
         </button>
       </div>
 
-      <!-- KHỐI GỬI ẢNH FEEDBACK & NÚT KẾT THÚC TOUR (CHUẨN INLINE NHƯ APP ĐIỂM DANH) -->
+      <!-- KHỐI GỬI ẢNH FEEDBACK & NÚT KẾT THÚC TOUR -->
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
         <div class="flex items-center justify-between border-b pb-1.5">
           <span class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
-            <span>📸</span> Ảnh Chụp Feedback & Kết Thúc Tour
+            <span>5. Kết thúc tour
           </span>
-          <span class="text-[10px] text-rose-500 font-semibold">* Bắt buộc chụp/chọn ảnh feedback</span>
+          <span id="feedbackPhotoStatus" class="text-[10px] text-slate-500 font-semibold italic">
         </div>
 
-        <!-- 3 Nút thao tác: Bật camera, Chụp ảnh, Chọn từ thư viện -->
-        <div class="grid grid-cols-3 gap-1.5">
-          <button type="button" onclick="window.startFeedbackCamera()" id="btnStartFeedbackCam"
-            class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-xl text-xs shadow flex items-center justify-center gap-1 transition active:scale-95">
-            <span>📷</span> Bật Camera
+        <input type="file" id="feedbackFileInput" accept="image/*" onchange="window.handleFeedbackFileChange(this)" class="hidden" />
+
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="document.getElementById('feedbackFileInput').click()"
+            class="flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5 transition active:scale-95">
+            <span>📁</span> Chụp và Tải ảnh Feedback
           </button>
-          <button type="button" onclick="window.captureFeedbackPhoto()" id="btnCaptureFeedback" disabled
-            class="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-2 rounded-xl text-xs shadow flex items-center justify-center gap-1 transition active:scale-95">
-            <span>📸</span> Chụp ảnh
-          </button>
-          <button type="button" onclick="document.getElementById('feedbackGalleryInput').click()"
-            class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1 transition active:scale-95">
-            <span>📁</span> Thư viện
+          <button type="button" id="btnClearFeedback" onclick="window.clearFeedbackPhoto()" class="hidden px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs border border-rose-200 transition">
+            Xóa ảnh
           </button>
         </div>
 
-        <input type="file" id="feedbackGalleryInput" accept="image/*" onchange="window.handleFeedbackGallery(this)" class="hidden" />
-
-        <!-- Màn hình phát video camera và xem trước ảnh (gắn trực tiếp trong thẻ) -->
-        <div class="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border border-slate-300">
-          <video id="feedbackVideo" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
-          <img id="feedbackPreviewImg" class="w-full h-full object-cover hidden" alt="Ảnh Feedback" />
-          
-          <div id="feedbackPlaceholder" class="text-slate-400 text-center p-4">
-            <span class="text-3xl block mb-1">📷</span>
-            <p class="text-xs">Bấm "Bật Camera" ở trên để chụp ảnh</p>
-          </div>
-          <canvas id="feedbackCanvas" class="hidden"></canvas>
-        </div>
-
-        <div class="flex items-center justify-between text-xs px-1">
-          <span id="feedbackPhotoStatus" class="font-semibold text-slate-500 italic">Chưa có ảnh feedback</span>
-          <button type="button" onclick="window.clearFeedbackPhoto()" id="btnClearFeedback" class="text-rose-600 font-bold hover:underline hidden">
-            Xóa & chụp lại
-          </button>
+        <!-- Khung xem trước ảnh tải lên -->
+        <div id="feedbackPreviewBox" class="hidden relative rounded-xl overflow-hidden border border-slate-200 max-h-52 bg-slate-100 flex items-center justify-center p-1">
+          <img id="feedbackPreviewImg" src="" alt="Ảnh Feedback" class="max-h-48 w-auto object-contain rounded-lg" />
         </div>
 
         <!-- Nút Kết thúc tour (Thẻ màu đỏ) -->
-        <button type="button" id="btnEndTour" onclick="window.handleEndTourAction()" disabled
-          class="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl text-sm shadow transition">
+        <button type="button" id="btnEndTour" onclick="window.handleEndTourAction()"
+          class="w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 rounded-xl text-sm shadow transition">
           ⏹️ KẾT THÚC TOUR
         </button>
       </div>
@@ -4944,96 +4924,11 @@
     }
 
     // ==============================================================
-    // 7. FEEDBACK & KẾT THÚC TOUR TRÊN MÁY HDV (CHUẨN TỐI GIẢN CHẠY TRỰC TIẾP)
+    // 7. FEEDBACK & KẾT THÚC TOUR TRÊN MÁY HDV
     // ==============================================================
-    let feedbackStream = null;
     let currentFeedbackBase64 = null;
 
-    // Bật Camera Web trực tiếp (tương thích 100% webcam Laptop và điện thoại)
-    async function startFeedbackCamera() {
-      const video = document.getElementById("feedbackVideo");
-      const placeholder = document.getElementById("feedbackPlaceholder");
-      const preview = document.getElementById("feedbackPreviewImg");
-      const btnCapture = document.getElementById("btnCaptureFeedback");
-      const clearBtn = document.getElementById("btnClearFeedback");
-
-      if (preview) preview.classList.add("hidden");
-      if (video) video.classList.add("hidden");
-      if (placeholder) placeholder.classList.remove("hidden");
-      if (clearBtn) clearBtn.classList.add("hidden");
-
-      if (feedbackStream) {
-        feedbackStream.getTracks().forEach(t => t.stop());
-        feedbackStream = null;
-      }
-
-      try {
-        feedbackStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false
-        });
-
-        video.srcObject = feedbackStream;
-        video.classList.remove("hidden");
-        placeholder.classList.add("hidden");
-        await video.play();
-
-        if (btnCapture) btnCapture.disabled = false;
-        showToast("Đã bật Camera thành công!", "info");
-      } catch (err) {
-        console.error("Lỗi bật camera:", err);
-        alert("Không thể bật Camera: " + err.message + "\n\n(Vui lòng đảm bảo bạn đã Cho phép quyền Camera trên trình duyệt)");
-      }
-    }
-
-    // Chụp ảnh từ Camera
-    function captureFeedbackPhoto() {
-      const video = document.getElementById("feedbackVideo");
-      const canvas = document.getElementById("feedbackCanvas");
-      const preview = document.getElementById("feedbackPreviewImg");
-      const btnCapture = document.getElementById("btnCaptureFeedback");
-      const clearBtn = document.getElementById("btnClearFeedback");
-      const status = document.getElementById("feedbackPhotoStatus");
-      const btnEnd = document.getElementById("btnEndTour");
-
-      if (!video || !canvas) return;
-
-      const w = video.videoWidth || 640;
-      const h = video.videoHeight || 480;
-      canvas.width = w;
-      canvas.height = h;
-
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, w, h);
-
-      currentFeedbackBase64 = canvas.toDataURL("image/jpeg", 0.85);
-
-      if (preview) {
-        preview.src = currentFeedbackBase64;
-        preview.classList.remove("hidden");
-      }
-      video.classList.add("hidden");
-
-      if (feedbackStream) {
-        feedbackStream.getTracks().forEach(t => t.stop());
-        feedbackStream = null;
-      }
-
-      if (btnCapture) btnCapture.disabled = true;
-      if (clearBtn) clearBtn.classList.remove("hidden");
-      if (status) status.innerText = "✓ Đã chụp ảnh feedback thành công!";
-
-      if (btnEnd) {
-        btnEnd.disabled = false;
-        btnEnd.classList.remove("bg-slate-300", "cursor-not-allowed");
-      }
-
-      showToast("Đã chụp ảnh feedback!", "success");
-      triggerDeviceVibration();
-    }
-
-    // Chọn ảnh từ thư viện
-    function handleFeedbackGallery(input) {
+    function handleFeedbackFileChange(input) {
       if (!input.files || input.files.length === 0) return;
       const file = input.files[0];
       const reader = new FileReader();
@@ -5041,71 +4936,41 @@
       reader.onload = (e) => {
         currentFeedbackBase64 = e.target.result;
         const preview = document.getElementById("feedbackPreviewImg");
-        const video = document.getElementById("feedbackVideo");
-        const placeholder = document.getElementById("feedbackPlaceholder");
+        const box = document.getElementById("feedbackPreviewBox");
         const status = document.getElementById("feedbackPhotoStatus");
         const clearBtn = document.getElementById("btnClearFeedback");
-        const btnEnd = document.getElementById("btnEndTour");
 
-        if (feedbackStream) {
-          feedbackStream.getTracks().forEach(t => t.stop());
-          feedbackStream = null;
-        }
-
-        if (preview) {
-          preview.src = currentFeedbackBase64;
-          preview.classList.remove("hidden");
-        }
-        if (video) video.classList.add("hidden");
-        if (placeholder) placeholder.classList.add("hidden");
+        if (preview) preview.src = currentFeedbackBase64;
+        if (box) box.classList.remove("hidden");
         if (clearBtn) clearBtn.classList.remove("hidden");
-        if (status) status.innerText = `✓ Đã chọn ảnh: ${file.name}`;
-
-        if (btnEnd) {
-          btnEnd.disabled = false;
-          btnEnd.classList.remove("bg-slate-300", "cursor-not-allowed");
+        if (status) {
+          status.innerText = `Đã chọn: ${file.name}`;
+          status.className = "text-[10px] text-emerald-600 font-bold";
         }
+        showToast("Đã đính kèm ảnh feedback!", "success");
       };
       reader.readAsDataURL(file);
     }
 
-    // Xóa ảnh để chụp lại
     function clearFeedbackPhoto() {
       currentFeedbackBase64 = null;
-      const gInput = document.getElementById("feedbackGalleryInput");
-      if (gInput) gInput.value = "";
-
-      if (feedbackStream) {
-        feedbackStream.getTracks().forEach(t => t.stop());
-        feedbackStream = null;
-      }
-
+      const input = document.getElementById("feedbackFileInput");
+      if (input) input.value = "";
+      const box = document.getElementById("feedbackPreviewBox");
       const preview = document.getElementById("feedbackPreviewImg");
-      const video = document.getElementById("feedbackVideo");
-      const placeholder = document.getElementById("feedbackPlaceholder");
-      const btnCapture = document.getElementById("btnCaptureFeedback");
-      const clearBtn = document.getElementById("btnClearFeedback");
       const status = document.getElementById("feedbackPhotoStatus");
-      const btnEnd = document.getElementById("btnEndTour");
+      const clearBtn = document.getElementById("btnClearFeedback");
 
-      if (preview) { preview.src = ""; preview.classList.add("hidden"); }
-      if (video) video.classList.add("hidden");
-      if (placeholder) placeholder.classList.remove("hidden");
-      if (btnCapture) btnCapture.disabled = true;
+      if (box) box.classList.add("hidden");
+      if (preview) preview.src = "";
       if (clearBtn) clearBtn.classList.add("hidden");
-      if (status) status.innerText = "Chưa có ảnh feedback";
-      if (btnEnd) {
-        btnEnd.disabled = true;
-        btnEnd.classList.add("bg-slate-300", "cursor-not-allowed");
+      if (status) {
+        status.innerText = "Chưa chọn ảnh";
+        status.className = "text-[10px] text-slate-500 font-semibold italic";
       }
     }
 
-    // Xử lý xác nhận kết thúc tour
     async function handleEndTourAction() {
-      if (!currentFeedbackBase64) {
-        return showToast("Vui lòng chụp hoặc tải ảnh Feedback trước khi kết thúc tour!", "error");
-      }
-
       const confirmed = confirm("Bạn có chắc chắn muốn KẾT THÚC TOUR hôm nay không?\n\n(Bấm OK để Xác nhận / Hủy để Từ chối)");
       if (!confirmed) return;
 
@@ -5117,7 +4982,7 @@
       const btnEnd = document.getElementById("btnEndTour");
       const origText = btnEnd.innerHTML;
       btnEnd.disabled = true;
-      btnEnd.innerHTML = "⏳ Đang tải ảnh feedback & kết thúc...";
+      btnEnd.innerHTML = "⏳ Đang kết thúc tour...";
 
       try {
         const res = await callApi({
@@ -5127,7 +4992,7 @@
           tourDate: progObj ? progObj.date : "",
           vehicleName: vehicleName,
           hdvName: hdvName,
-          image: currentFeedbackBase64
+          image: currentFeedbackBase64 || ""
         });
 
         if (!res.success) throw new Error(res.message);
@@ -5282,12 +5147,8 @@
     window.selectAndScrollToTour = selectAndScrollToTour;
     window.toggleAdminPersonnelField = toggleAdminPersonnelField;
     window.handleCreateProgram = handleCreateProgram;
-    window.startFeedbackCamera = startFeedbackCamera;
-    window.captureFeedbackPhoto = captureFeedbackPhoto;
-    window.handleFeedbackGallery = handleFeedbackGallery;
-    window.clearFeedbackPhoto = clearFeedbackPhoto;
-    window.handleEndTourAction = handleEndTourAction;
-    window.showHdvLiveMapAfterSave = showHdvLiveMapAfterSave;
+    window.handleFeedbackFileChange = handleFeedbackFileChange;
+
 
     // --- KHỞI CHẠY LẦN ĐẦU ---
     window.addEventListener('DOMContentLoaded', () => {
