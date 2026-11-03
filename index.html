@@ -1718,21 +1718,22 @@
       });
     }
 
-    // Logic nhấn: Lần đầu hiện xanh (✓), lần 2 hiện đỏ (✕), các lần sau chỉ đảo giữa xanh và đỏ
+    javascript
+    // Logic nhấn: Chỉ rung khi đánh dấu Vắng (Đỏ) để nhắc nhở tránh bấm nhầm
     function toggleStudentAttendance(originalIdx) {
       if (!currentHdvStudents || !currentHdvStudents[originalIdx]) return;
       const s = currentHdvStudents[originalIdx];
 
       if (s.present === null || s.present === undefined) {
-        s.present = true; // Lần đầu bấm: Xanh
+        s.present = true; // Lần 1: Có mặt (Xanh) -> Không rung
       } else if (s.present === true) {
-        s.present = false; // Lần 2 bấm: Đỏ
+        s.present = false; // Lần 2: Vắng (Đỏ) -> Rung cảnh báo
+        triggerDeviceVibration();
       } else {
-        s.present = true; // Đang đỏ bấm lại chuyển sang Xanh
+        s.present = true; // Đang Đỏ bấm lại sang Có mặt -> Không rung
       }
 
       renderHdvStudentAttendanceList();
-      triggerDeviceVibration();
     }
 
     function markAllStudentsPresent() {
@@ -1742,7 +1743,6 @@
       reconcileAttendanceWithSection4();
 
       showToast('Đã đánh dấu tất cả học sinh CÓ MẶT!', 'success');
-      triggerDeviceVibration();
     }
 
     function setAttendanceFilter(filter) {
