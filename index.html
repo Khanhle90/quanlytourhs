@@ -14,6 +14,8 @@
   <!-- Leaflet CSS & JS (Bản đồ định vị GPS các xe mượt mà, không phụ thuộc API key) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- html2pdf CDN hỗ trợ xuất và tải PDF đẹp mắt -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <style>
     * { 
@@ -227,14 +229,13 @@
 
         <div class="flex flex-col sm:flex-row gap-2">
           <select id="hdvStatusSelect" onchange="window.onStatusSelectChanged()" class="flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
-            <option value="🚩 Đang xuất phát">🚩 Đang xuất phát</option>
-            <option value="🚌 Đang di chuyển">🚌 Đang di chuyển</option>
-            <option value="🏛️ Đã đến bảo tàng/di tích">🏛️ Đã đến bảo tàng/di tích</option>
-            <option value="🏨 Đã nhận phòng">🏨 Đã nhận phòng</option>
-            <option value="🔑 Đã trả phòng">🔑 Đã trả phòng</option>
-            <option value="🚌 Đang về trường">🚌 Đang về trường</option>
-            <option value="🏫 Đã về tới trường">🏫 Đã về tới trường</option>
-          </select>
+  <option value="🚩 Đang xuất phát">🚩 Đang xuất phát</option>
+  <option value="🚌 Đang di chuyển">🚌 Đang di chuyển</option>
+  <option value="🏛️ Đã đến bảo tàng/di tích">🏛️ Đã đến bảo tàng/di tích</option>
+  <option value="🏨 Đã nhận phòng">🏨 Đã nhận phòng</option>
+  <option value="🔑 Đã trả phòng">🔑 Đã trả phòng</option>
+  <option value="🚌 Đang về trường">🚌 Đang về trường</option>
+</select>
 
           <button type="button" id="btnQuickStatus" onclick="window.saveQuickStatus()"
             class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-lg text-xs shadow shrink-0 transition">
@@ -457,26 +458,31 @@
       <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
         <div class="flex items-center justify-between border-b pb-1.5">
           <span class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
-            <span>5. Kết thúc tour
+            <span>5. Kết thúc tour</span>
           </span>
-          <span id="feedbackPhotoStatus" class="text-[10px] text-slate-500 font-semibold italic">
+          <span id="feedbackPhotoStatus" class="text-[10px] text-slate-500 font-semibold italic">Chưa chọn ảnh</span>
         </div>
 
-        <input type="file" id="feedbackFileInput" accept="image/*" onchange="window.handleFeedbackFileChange(this)" class="hidden" />
+        <!-- Thêm thuộc tính multiple cho phép chọn/chụp nhiều tờ feedback -->
+        <input type="file" id="feedbackFileInput" multiple accept="image/*" onchange="window.handleFeedbackFileChange(this)" class="hidden" />
 
         <div class="flex items-center gap-2">
           <button type="button" onclick="document.getElementById('feedbackFileInput').click()"
             class="flex-1 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold py-2.5 rounded-xl text-xs shadow-sm flex items-center justify-center gap-1.5 transition active:scale-95">
-            <span>📁</span> Chụp và Tải ảnh Feedback
+            <span>📁</span> Chụp & Thêm ảnh Feedback (Nhiều tờ)
           </button>
           <button type="button" id="btnClearFeedback" onclick="window.clearFeedbackPhoto()" class="hidden px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs border border-rose-200 transition">
-            Xóa ảnh
+            Xóa tất cả
           </button>
         </div>
 
-        <!-- Khung xem trước ảnh tải lên -->
-        <div id="feedbackPreviewBox" class="hidden relative rounded-xl overflow-hidden border border-slate-200 max-h-52 bg-slate-100 flex items-center justify-center p-1">
-          <img id="feedbackPreviewImg" src="" alt="Ảnh Feedback" class="max-h-48 w-auto object-contain rounded-lg" />
+        <!-- Khung xem trước dạng lưới chứa nhiều ảnh feedback -->
+        <div id="feedbackPreviewBox" class="hidden space-y-1.5">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-700">
+            <span>Danh sách các tờ đã chụp (<span id="feedbackCountText">0</span> ảnh):</span>
+            <span class="text-[10px] text-slate-500 font-normal">Chạm ảnh để phóng to</span>
+          </div>
+          <div id="feedbackPreviewGrid" class="flex flex-wrap gap-2 p-2 rounded-xl border border-slate-200 bg-slate-50 max-h-56 overflow-y-auto"></div>
         </div>
 
         <!-- Nút Kết thúc tour (Thẻ màu đỏ) -->
@@ -537,6 +543,28 @@
       </div>
 
       <div id="summaryMainContentBox" class="space-y-3.5">
+      
+      <!-- THẺ KẾT THÚC CHƯƠNG TRÌNH (HIỆN KHI 100% CÁC XE ĐÃ KẾT THÚC TOUR) -->
+      <div id="programFinishedBanner" class="hidden bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-700 text-white p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 border-2 border-emerald-300">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-3xl shadow-inner shrink-0">
+            🏆
+          </div>
+          <div>
+            <h3 class="text-base font-black tracking-wide uppercase flex items-center gap-1.5">
+              <span>🎉</span> KẾT THÚC CHƯƠNG TRÌNH
+            </h3>
+            <p class="text-xs text-emerald-100 font-medium mt-0.5">
+              Toàn bộ các xe trong đoàn đã hoàn thành hành trình và gửi đầy đủ báo cáo.
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="window.openFullTourReportModal()"
+          class="bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-900 font-black px-4 py-2.5 rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition shrink-0 cursor-pointer">
+          <span>📑</span> XUẤT BÁO CÁO TỔNG KẾT & IN PDF
+        </button>
+      </div>
+
       <!-- Khung thông tin Điều hành Tour & Phụ trách Hậu cần (kèm nút gọi trực tiếp) -->
       <div id="summaryTourContactBanner" class="hidden bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-2.5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -702,46 +730,24 @@
             </div>
           </div>
 
-          <!-- Nút chọn thêm điều hành hoặc hậu cần -->
+          <!-- Nút bấm tạo thêm dòng và Danh sách nhân sự động -->
           <div class="pt-1 flex flex-wrap items-center gap-2">
             <span class="text-xs font-bold text-slate-700">Phân công nhân sự:</span>
-            <button type="button" onclick="window.toggleAdminPersonnelField('coordinator')"
-              class="px-2.5 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold text-xs transition flex items-center gap-1">
+            <button type="button" onclick="window.addPersonnelRow('coordinator')"
+              class="px-2.5 py-1 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-900 font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer">
               <span>+</span> Điều hành tour
             </button>
-            <button type="button" onclick="window.toggleAdminPersonnelField('logistics')"
-              class="px-2.5 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold text-xs transition flex items-center gap-1">
+            <button type="button" onclick="window.addPersonnelRow('logistics')"
+              class="px-2.5 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold text-xs transition flex items-center gap-1 shadow-xs cursor-pointer">
               <span>+</span> Phụ trách hậu cần
             </button>
           </div>
 
-          <!-- Ô Điều hành Tour (Có thể ẩn/hiện) -->
-          <div id="adminCoordinatorRow" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Điều hành tour (Họ và tên)</label>
-              <input type="text" id="tourCoordinatorEdit" placeholder="Họ tên người điều hành"
-                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số điện thoại Điều hành tour</label>
-              <input type="tel" id="tourCoordinatorPhoneEdit" placeholder="VD: 0389975487"
-                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-            </div>
-          </div>
+          <!-- Danh sách các dòng Điều hành tour (tự động tạo thêm khi bấm nút) -->
+          <div id="adminCoordinatorContainer" class="space-y-2 pt-1"></div>
 
-          <!-- Ô Phụ trách Hậu cần (Có thể ẩn/hiện) -->
-          <div id="adminLogisticsRow" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Phụ trách hậu cần tour</label>
-              <input type="text" id="tourLogisticsEdit" placeholder="Họ tên phụ trách hậu cần"
-                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số điện thoại Hậu cần</label>
-              <input type="tel" id="tourLogisticsPhoneEdit" placeholder="VD: 0912345678"
-                class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none bg-white" />
-            </div>
-          </div>
+          <!-- Danh sách các dòng Phụ trách hậu cần (tự động tạo thêm khi bấm nút) -->
+          <div id="adminLogisticsContainer" class="space-y-2 pt-1"></div>
 
           <div class="flex justify-end pt-1">
             <button type="button" onclick="window.saveTourAdminInfo()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow">
@@ -872,6 +878,242 @@
       </div>
     </section>
   </main>
+  <!-- ==============================================================
+       MODAL THÔNG BÁO KẾT THÚC TOUR THÀNH CÔNG (GIAO DIỆN HIỆN ĐẠI)
+       ============================================================== -->
+  <div id="endTourSuccessModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4 transition-all">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border border-emerald-100 transform transition-all scale-100 space-y-4">
+      
+      <!-- Icon ăn mừng tỏa sáng -->
+      <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full bg-emerald-100 animate-ping opacity-25"></div>
+        <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center text-3xl shadow-lg shadow-emerald-200">
+          🎉
+        </div>
+      </div>
+
+      <!-- Nội dung chúc mừng -->
+      <div class="space-y-1.5">
+        <h3 class="text-base font-black text-slate-800 uppercase tracking-wide">
+          Kết Thúc Tour Thành Công!
+        </h3>
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Cảm ơn bạn đã tận tâm đồng hành và hoàn thành xuất sắc chương trình tour hôm nay.
+        </p>
+      </div>
+
+      <!-- Huy hiệu xác nhận dữ liệu đã lưu -->
+      <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-[11px] text-emerald-800 font-semibold space-y-0.5">
+        <div class="flex items-center justify-center gap-1.5">
+          <span>✓</span> Đã tải ảnh Feedback lên Drive của tour
+        </div>
+        <div class="text-[10px] text-emerald-600 font-medium">
+          Dữ liệu xe đã được đồng bộ về Bảng điều hành tổng
+        </div>
+      </div>
+
+      <!-- Nút đóng/xác nhận -->
+      <button type="button" onclick="window.closeEndTourSuccessModal()"
+        class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3 rounded-xl text-xs shadow-lg shadow-emerald-600/30 active:scale-95 transition cursor-pointer">
+        🚀 Tuyệt vời, hoàn tất!
+      </button>
+    </div>
+  </div>
+  <!-- ==============================================================
+       MODAL XÁC NHẬN KẾT THÚC TOUR (GIAO DIỆN SANG TRỌNG CHO HDV)
+       ============================================================== -->
+  <div id="endTourConfirmModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🏁</span>
+          <h3 class="text-sm font-extrabold uppercase tracking-wide">Xác Nhận Kết Thúc Tour</h3>
+        </div>
+        <button type="button" onclick="window.closeEndTourConfirmModal()" class="text-white hover:text-slate-300 text-2xl font-bold leading-none">&times;</button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-5 space-y-3.5 text-xs">
+        <div class="bg-rose-50 border-l-4 border-rose-500 p-3 rounded-r-xl space-y-1">
+          <p class="font-bold text-rose-900 text-xs">⚠️ Bạn xác nhận kết thúc tour?</p>
+          <p class="text-rose-700 leading-relaxed text-[11px]">
+            Bạn sẽ <b>không thể thực hiện lại chức năng này</b> và hệ thống sẽ <b>khóa lưu báo cáo</b> của xe. Hãy đọc kỹ thông tin tổng hợp dưới đây:
+          </p>
+        </div>
+
+        <!-- Bảng thông tin tổng hợp quân số chi tiết -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+          <div class="flex items-start justify-between border-b border-slate-200 pb-2">
+            <span class="font-bold text-slate-600">Số lượng học sinh:</span>
+            <div id="endTourStudentDetails" class="text-right font-extrabold text-blue-900">
+              <!-- Render chi tiết từng lớp hoặc 1 lớp -->
+            </div>
+          </div>
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <span class="font-bold text-slate-600">Số lượng giáo viên:</span>
+            <span id="endTourTeacherCount" class="font-extrabold text-indigo-700">0 người</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <span class="font-bold text-slate-600">Số lượng phụ huynh:</span>
+            <span id="endTourParentCount" class="font-extrabold text-orange-600">0 người</span>
+          </div>
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <span class="font-bold text-slate-600">Số lượng trẻ em đi kèm:</span>
+            <span id="endTourChildCount" class="font-extrabold text-pink-600">0 người</span>
+          </div>
+          <div class="flex items-center justify-between pt-1 text-sm bg-blue-100/70 p-2 rounded-lg font-black text-blue-950">
+            <span>TỔNG QUÂN SỐ TOÀN XE:</span>
+            <span id="endTourTotalPeople">0 người</span>
+          </div>
+        </div>
+
+        <!-- Hiển thị toàn bộ các tờ Feedback đã đính kèm -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-[11px] font-bold text-slate-700 uppercase">
+            <span>📷 Ảnh Feedback đính kèm:</span>
+            <span id="endTourFeedbackCountBadge" class="text-blue-700 font-extrabold text-[10px] bg-blue-100 px-2 py-0.5 rounded-full">0 tờ</span>
+          </div>
+          <div id="endTourFeedbackThumbsContainer" class="flex flex-wrap gap-2 p-2 bg-slate-100 rounded-xl border border-slate-200 max-h-36 overflow-y-auto">
+            <!-- Render danh sách thu nhỏ các tờ -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer với 2 nút xanh - đỏ đúng yêu cầu -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+        <button type="button" onclick="window.closeEndTourConfirmModal()"
+          class="bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold py-2.5 px-4 rounded-xl text-xs shadow transition">
+          ✕ Từ chối
+        </button>
+        <button type="button" id="btnConfirmEndTourSubmit" onclick="window.executeConfirmEndTour()"
+          class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-2.5 px-6 rounded-xl text-xs shadow-md transition flex items-center gap-1.5">
+          <span>✓</span> Xác nhận kết thúc tour
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL BÁO CÁO TỔNG KẾT TOÀN ĐOÀN & XUẤT FILE PDF
+       ============================================================== -->
+  <div id="tourFullReportModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-2 sm:p-4">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[95vh] flex flex-col shadow-2xl overflow-hidden border border-slate-300">
+      <!-- Toolbar Header -->
+      <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📑</span>
+          <h3 class="text-sm font-bold uppercase tracking-wide">Báo Cáo Tổng Kết Chương Trình</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="window.printTourReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1 cursor-pointer">
+            <span>🖨️</span> In Báo Cáo
+          </button>
+          <button type="button" onclick="window.downloadTourReportPdf()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1 cursor-pointer">
+            <span>📥</span> Tải PDF
+          </button>
+          <button type="button" onclick="window.shareTourReport()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1 cursor-pointer" title="Copy đường link file Excel lưu trữ của tour">
+            <span>📋</span> Copy Link File Excel
+          </button>
+          <button type="button" onclick="window.closeTourFullReportModal()" class="text-white hover:text-slate-300 text-2xl font-bold leading-none ml-2">&times;</button>
+        </div>
+      </div>
+
+      <!-- Nội dung tài liệu chuẩn văn bản A4 -->
+      <div id="printableReportArea" class="p-6 sm:p-10 modal-scroll-vertical flex-1 bg-white text-slate-900 space-y-6">
+        <!-- Tiêu ngữ & Header -->
+        <div class="text-center space-y-1 border-b-2 border-slate-900 pb-4">
+          <p class="font-bold text-xs uppercase tracking-wider text-slate-600">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+          <p class="font-bold text-xs underline text-slate-800">Độc lập - Tự do - Hạnh phúc</p>
+          <h2 id="reportTourTitle" class="text-lg sm:text-xl font-black uppercase text-blue-950 pt-2 tracking-wide">BÁO CÁO TỔNG KẾT CHƯƠNG TRÌNH DÃ NGOẠI HỌC SINH</h2>
+          <p id="reportTourMeta" class="text-xs text-slate-600 font-semibold italic">Ngày thực hiện: - | Điều hành: - | Hậu cần: -</p>
+        </div>
+
+        <!-- 1. Bảng Tổng Quân Số -->
+        <div class="space-y-2">
+          <h4 class="font-black text-xs uppercase text-slate-800 tracking-wider">I. TỔNG QUAN QUÂN SỐ TOÀN ĐOÀN</h4>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
+            <div class="border border-slate-300 p-2 rounded-lg bg-blue-50 font-bold">
+              <span class="text-[10px] text-slate-500 uppercase block">Tổng người</span>
+              <span id="repTotalPeople" class="text-base font-black text-blue-900">0</span>
+            </div>
+            <div class="border border-slate-300 p-2 rounded-lg font-bold">
+              <span class="text-[10px] text-slate-500 uppercase block">Học sinh</span>
+              <span id="repTotalStudents" class="text-base font-black text-emerald-700">0</span>
+            </div>
+            <div class="border border-slate-300 p-2 rounded-lg font-bold">
+              <span class="text-[10px] text-slate-500 uppercase block">Giáo viên</span>
+              <span id="repTotalTeachers" class="text-base font-black text-indigo-700">0</span>
+            </div>
+            <div class="border border-slate-300 p-2 rounded-lg font-bold">
+              <span class="text-[10px] text-slate-500 uppercase block">Phụ huynh</span>
+              <span id="repTotalParents" class="text-base font-black text-orange-600">0</span>
+            </div>
+            <div class="border border-slate-300 p-2 rounded-lg font-bold">
+              <span class="text-[10px] text-slate-500 uppercase block">Trẻ em</span>
+              <span id="repTotalChildren" class="text-base font-black text-pink-600">0</span>
+            </div>
+            <div class="border border-slate-300 p-2 rounded-lg font-bold">
+              <span class="text-[10px] text-slate-500 uppercase block">Tổng số xe</span>
+              <span id="repTotalVehicles" class="text-base font-black text-slate-800">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Bảng Chi Tiết Từng Xe -->
+        <div class="space-y-2">
+          <h4 class="font-black text-xs uppercase text-slate-800 tracking-wider">II. BẢNG CHI TIẾT TỪNG XE</h4>
+          <div class="overflow-x-auto border border-slate-300 rounded-lg">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold">
+                  <th class="p-2 text-center border-r border-slate-300 w-10">STT</th>
+                  <th class="p-2 border-r border-slate-300">Tên xe</th>
+                  <th class="p-2 border-r border-slate-300">GVCN / Trưởng xe</th>
+                  <th class="p-2 text-center border-r border-slate-300">Tổng HS</th>
+                  <th class="p-2 border-r border-slate-300">Thông tin số lượng HS</th>
+                  <th class="p-2 text-center border-r border-slate-300">Số PH</th>
+                  <th class="p-2 text-center font-bold text-pink-600">Trẻ em</th>
+                </tr>
+              </thead>
+              <tbody id="reportVehiclesTableBody" class="divide-y divide-slate-200 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. Danh Sách Học Sinh Toàn Đoàn -->
+        <div class="space-y-2">
+          <h4 class="font-black text-xs uppercase text-slate-800 tracking-wider">III. DANH SÁCH HỌC SINH TOÀN ĐOÀN</h4>
+          <div class="overflow-x-auto border border-slate-300 rounded-lg">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-300 text-slate-800 font-bold">
+                  <th class="p-2 text-center border-r border-slate-300 w-10">STT</th>
+                  <th class="p-2 border-r border-slate-300">Họ và tên</th>
+                  <th class="p-2 border-r border-slate-300 text-center w-20">Lớp</th>
+                  <th class="p-2 border-r border-slate-300 w-24">Tên xe</th>
+                  <th class="p-2 text-center w-28">Điểm danh</th>
+                </tr>
+              </thead>
+              <tbody id="reportStudentsTableBody" class="divide-y divide-slate-200"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Chữ ký xác nhận -->
+        <div class="grid grid-cols-2 pt-8 text-center text-xs font-bold gap-8">
+          <div>
+            <p class="uppercase text-slate-600">ĐẠI DIỆN NHÀ TRƯỜNG</p>
+            <p class="text-[10px] font-normal italic text-slate-400">(Ký và ghi rõ họ tên)</p>
+          </div>
+          <div>
+            <p class="uppercase text-slate-600">ĐIỀU HÀNH CHƯƠNG TRÌNH</p>
+            <p class="text-[10px] font-normal italic text-slate-400">(Ký và ghi rõ họ tên)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ==============================================================
        MODAL 1: CỬA SỔ HIỂN THỊ DANH SÁCH & ẢNH ĐIỂM DANH LỚP
@@ -932,6 +1174,19 @@
           </div>
           <div id="attStudentListContainer" class="divide-y divide-slate-100 border rounded-xl overflow-hidden text-xs">
             <!-- Render học sinh -->
+          </div>
+        </div>
+
+        <!-- KHỐI HIỂN THỊ ẢNH FEEDBACK KẾT THÚC TOUR (HỖ TRỢ NHIỀU TỜ) -->
+        <div id="attModalFeedbackSection" class="hidden space-y-2 pt-3 border-t border-slate-200">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1.5">
+              <span>📷</span> Ảnh Feedback kết thúc tour (<span id="attModalFeedbackCount" class="text-blue-700">0</span> tờ)
+            </h4>
+            <span class="text-[10px] text-blue-600 font-semibold">Chạm vào ảnh để phóng to</span>
+          </div>
+          <!-- Container hiển thị tất cả các tờ feedback -->
+          <div id="attModalFeedbackImagesContainer" class="flex flex-wrap gap-2.5 p-2.5 bg-slate-100 rounded-xl border border-slate-200 max-h-80 overflow-y-auto">
           </div>
         </div>
 
@@ -1404,6 +1659,30 @@
       );
     }
 
+    // HÀM NGẮT HOÀN TOÀN TẤT CẢ KẾT NỐI VÀ THEO DÕI GPS
+    function stopAllGpsTracking() {
+      isTrackingMoving = false;
+      if (hdvGpsIntervalTimer) {
+        clearInterval(hdvGpsIntervalTimer);
+        hdvGpsIntervalTimer = null;
+      }
+      if (globalGpsWatchId !== null && "geolocation" in navigator) {
+        try {
+          navigator.geolocation.clearWatch(globalGpsWatchId);
+        } catch (e) {}
+        globalGpsWatchId = null;
+      }
+      latestGpsCoords = null;
+
+      const dot = document.getElementById('gpsDot');
+      const text = document.getElementById('gpsStatusText');
+      const timeEl = document.getElementById('gpsLastTime');
+
+      if (dot) dot.className = 'inline-block w-2 h-2 rounded-full bg-slate-400';
+      if (text) text.textContent = 'Đã ngắt kết nối GPS (Xe đã kết thúc tour)';
+      if (timeEl) timeEl.textContent = 'Đã tắt';
+    }
+
     function onStatusSelectChanged() {
       const status = document.getElementById('hdvStatusSelect').value;
       checkAndToggleHdvGpsTracking(status);
@@ -1411,11 +1690,20 @@
 
     function isMovingStatus(statusStr) {
       const s = String(statusStr || '').toLowerCase();
+      // Nếu đã kết thúc tour thì không phát GPS
+      if (s.includes('kết thúc') || s.includes('về tới trường') || s.includes('về đến trường')) return false;
       return s.includes('xuất phát') || s.includes('di chuyển') || s.includes('về trường');
     }
 
     function checkAndToggleHdvGpsTracking(status) {
-      initGpsWatcherOnce(); // Luôn đảm bảo watcher đã bật (chỉ hỏi quyền 1 lần duy nhất)
+      const sLower = String(status || '').toLowerCase();
+      // Nếu trạng thái là kết thúc: ngắt hoàn toàn GPS, không mở watcher
+      if (sLower.includes('kết thúc') || sLower.includes('về tới trường') || sLower.includes('về đến trường')) {
+        stopAllGpsTracking();
+        return;
+      }
+
+      initGpsWatcherOnce();
 
       const shouldTrack = isMovingStatus(status);
       isTrackingMoving = shouldTrack;
@@ -1424,7 +1712,7 @@
 
       if (shouldTrack) {
         if (!hdvGpsIntervalTimer) {
-          sendHdvGpsPing(); // Gửi ngay 1 lần nếu có tọa độ
+          sendHdvGpsPing();
           hdvGpsIntervalTimer = setInterval(sendHdvGpsPing, 15000);
         }
         if (dot) dot.className = 'pulse-dot';
@@ -1448,6 +1736,13 @@
       const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value);
       const status = document.getElementById('hdvStatusSelect')?.value;
       const hdvName = document.getElementById('hdvNameInput')?.value.trim();
+
+      // Tuyệt đối không ping nếu trạng thái xe đã kết thúc
+      const sLower = String(status || '').toLowerCase();
+      if (sLower.includes('kết thúc') || sLower.includes('về tới trường') || sLower.includes('về đến trường')) {
+        stopAllGpsTracking();
+        return;
+      }
 
       if (!progId || !vehicleName || !latestGpsCoords) return;
 
@@ -1724,7 +2019,6 @@
       });
     }
 
-    javascript
     // Logic nhấn: Chỉ rung khi đánh dấu Vắng (Đỏ) để nhắc nhở tránh bấm nhầm
     function toggleStudentAttendance(originalIdx) {
       if (!currentHdvStudents || !currentHdvStudents[originalIdx]) return;
@@ -2241,8 +2535,14 @@
       const lockedVehicle = map[progId] || '';
 
       if (lockedVehicle) {
-        fetchExistingVehicleInfo(progId, lockedVehicle);
-        fetchClassStudentListForHdv(progId, lockedVehicle);
+        // Kiểm tra ngay cờ đã kết thúc trong bộ nhớ máy
+        const endedKey = 'TOUR_ENDED_' + progId + '__' + normalizeVehicleKey(lockedVehicle);
+        if (localStorage.getItem(endedKey) === '1') {
+          lockVehicleFormAfterEndTour();
+          stopAllGpsTracking();
+        }
+        await fetchExistingVehicleInfo(progId, lockedVehicle);
+        await fetchClassStudentListForHdv(progId, lockedVehicle);
       } else {
         resetVehicleFormFields();
         resetHdvAttendanceView();
@@ -2347,6 +2647,19 @@
           renderSavedPhotosInHdvView(existingVehicleAttendanceRecord);
 
           checkAndToggleHdvGpsTracking(d.status);
+
+          // Nếu xe đã kết thúc tour thì khóa form và ngắt GPS hoàn toàn
+          const sLower = String(d.status || '').toLowerCase();
+          const endedKey = 'TOUR_ENDED_' + progId + '__' + normalizeVehicleKey(vehicleName);
+          if (sLower.includes('kết thúc') || sLower.includes('về tới trường') || sLower.includes('về đến trường')) {
+            localStorage.setItem(endedKey, '1');
+            lockVehicleFormAfterEndTour();
+            stopAllGpsTracking();
+          } else {
+            localStorage.removeItem(endedKey);
+            unlockVehicleFormIfRunning();
+          }
+
           showToast('Đã tải lại dữ liệu xe ' + d.vehicleName, 'info');
         } else {
           // Chưa có dữ liệu xe, kiểm tra ảnh riêng
@@ -2751,7 +3064,6 @@
       }
     }
 
-    javascript
     function renderSummaryDashboardTable(list) {
       if (!list) return;
 
@@ -2928,6 +3240,20 @@
       setCard('sumCardChildren', sumChildren);
       setCard('sumCardVehicles', list.length);
       setCard('summaryCountText', `Đã có ${reportedVehiclesCount} / ${list.length} xe báo cáo`);
+
+      // Kiểm tra xem TOÀN BỘ các xe đã ấn kết thúc tour chưa
+      const bannerFinish = document.getElementById('programFinishedBanner');
+      if (bannerFinish) {
+        const isAllEnded = list.length > 0 && list.every(v => {
+          const s = String(v.status || '').toLowerCase();
+          return s.includes('kết thúc') || s.includes('về tới trường') || s.includes('về đến trường') || s.includes('final');
+        });
+        if (isAllEnded) {
+          bannerFinish.classList.remove('hidden');
+        } else {
+          bannerFinish.classList.add('hidden');
+        }
+      }
     }
 
     async function loadSummaryDashboard(isSilent = false) {
@@ -3314,6 +3640,9 @@
           formatVehicleOrClassName(v.vehicleName) === formatVehicleOrClassName(vehicleName)
         ) || {};
 
+        // Lấy link ảnh Feedback từ kết quả server hoặc từ cache của xe
+        const fbUrl = (res.record && res.record.feedbackUrl) || res.feedbackUrl || vehObj.feedbackUrl || '';
+
         if (res.success && res.found && res.record) {
           const rec = res.record;
           openAttendanceDetailModal({
@@ -3326,6 +3655,7 @@
             students: rec.students || [],
             imageUrls: rec.imageUrls || [],
             fileIds: rec.fileIds || [],
+            feedbackUrl: fbUrl,
             hdvName: vehObj.hdvName || '',
             hdvPhone: vehObj.hdvPhone || '',
             driverName: vehObj.driverName || '',
@@ -3335,7 +3665,7 @@
             licensePlate: vehObj.licensePlate || ''
           });
         } else {
-          // Chưa có ảnh chụp, thử lấy danh sách học sinh từ Excel
+          // Chưa có điểm danh, lấy danh sách học sinh từ Excel
           const stuRes = await callApi({
             action: 'getClassStudentList',
             programId: programId,
@@ -3353,6 +3683,7 @@
             students: list.map(s => ({ stt: s.stt, name: s.name, present: false })),
             imageUrls: [],
             fileIds: [],
+            feedbackUrl: fbUrl,
             hdvName: vehObj.hdvName || '',
             hdvPhone: vehObj.hdvPhone || '',
             driverName: vehObj.driverName || '',
@@ -3371,61 +3702,95 @@
     let currentModalFilter = 'all';
 
     function openAttendanceDetailModal(data) {
-      const modal = document.getElementById('classAttendanceModal');
-      if (!modal) return;
+    const modal = document.getElementById('classAttendanceModal');
+    if (!modal) return;
 
-      document.getElementById('attModalTitle').textContent = `📋 Bảng Điểm Danh: ${data.vehicleName}`;
-      document.getElementById('attModalSub').textContent = `Tour: ${data.programName} | Cập nhật: ${formatTimeDisplay(data.updatedAt)}`;
+    document.getElementById('attModalTitle').textContent = `📋 Bảng Điểm Danh: ${data.vehicleName}`;
+    document.getElementById('attModalSub').textContent = `Tour: ${data.programName} | Cập nhật: ${formatTimeDisplay(data.updatedAt)}`;
 
-      const contactBox = document.getElementById('attModalContactBox');
-      if (contactBox) {
-        const hdvCall = data.hdvPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.hdvPhone)})</span> <a href="tel:${escapeHtml(data.hdvPhone)}" title="Gọi HDV" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
-        const driverCall = data.driverPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.driverPhone)})</span> <a href="tel:${escapeHtml(data.driverPhone)}" title="Gọi Lái xe" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
-        const leaderCall = data.leaderPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.leaderPhone)})</span> <a href="tel:${escapeHtml(data.leaderPhone)}" title="Gọi GV" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
+    const contactBox = document.getElementById('attModalContactBox');
+    if (contactBox) {
+      const hdvCall = data.hdvPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.hdvPhone)})</span> <a href="tel:${escapeHtml(data.hdvPhone)}" title="Gọi HDV" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
+      const driverCall = data.driverPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.driverPhone)})</span> <a href="tel:${escapeHtml(data.driverPhone)}" title="Gọi Lái xe" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
+      const leaderCall = data.leaderPhone ? `<span class="text-slate-600 font-medium text-[11px]">(${escapeHtml(data.leaderPhone)})</span> <a href="tel:${escapeHtml(data.leaderPhone)}" title="Gọi GV" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm transition">📞</a>` : '';
 
-        contactBox.innerHTML = `
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2 border-b border-blue-100">
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-500 font-semibold text-xs">HDV:</span>
-              <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.hdvName || 'Chưa cập nhật')}</span>
-              ${hdvCall}
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-500 font-semibold text-xs">Lái xe:</span>
-              <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.driverName || 'Chưa cập nhật')}</span>
-              ${driverCall}
-            </div>
+      contactBox.innerHTML = `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2 border-b border-blue-100">
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-500 font-semibold text-xs">HDV:</span>
+            <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.hdvName || 'Chưa cập nhật')}</span>
+            ${hdvCall}
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-500 font-semibold text-xs">GV/Trưởng xe:</span>
-              <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.leaderName || 'Không có GV đi kèm')}</span>
-              ${leaderCall}
-            </div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-slate-500 font-semibold text-xs">Biển số:</span>
-              <span class="font-bold font-mono text-slate-900 uppercase text-xs">${escapeHtml(data.licensePlate || 'Chưa cập nhật')}</span>
-            </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-500 font-semibold text-xs">Lái xe:</span>
+            <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.driverName || 'Chưa cập nhật')}</span>
+            ${driverCall}
           </div>
-        `;
-      }
-
-      currentModalStudentsCache = data.students || [];
-      currentModalFilter = 'all';
-
-      const totalCount = currentModalStudentsCache.length;
-      const presentCount = currentModalStudentsCache.filter(s => s.present === true).length;
-      const absentCount = currentModalStudentsCache.filter(s => s.present === false).length;
-
-      document.getElementById('attModalTotal').textContent = totalCount;
-      document.getElementById('attModalPresent').textContent = presentCount;
-      document.getElementById('attModalAbsent').textContent = absentCount;
-
-      renderModalStudentList();
-
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 text-xs">
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-500 font-semibold text-xs">GV/Trưởng xe:</span>
+            <span class="font-bold text-slate-900 text-xs">${escapeHtml(data.leaderName || 'Không có GV đi kèm')}</span>
+            ${leaderCall}
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-slate-500 font-semibold text-xs">Biển số:</span>
+            <span class="font-bold font-mono text-slate-900 uppercase text-xs">${escapeHtml(data.licensePlate || 'Chưa cập nhật')}</span>
+          </div>
+        </div>
+      `;
     }
+
+    currentModalStudentsCache = data.students || [];
+    currentModalFilter = 'all';
+
+    const totalCount = currentModalStudentsCache.length;
+    const presentCount = currentModalStudentsCache.filter(s => s.present === true).length;
+    const absentCount = currentModalStudentsCache.filter(s => s.present === false).length;
+
+    document.getElementById('attModalTotal').textContent = totalCount;
+    document.getElementById('attModalPresent').textContent = presentCount;
+    document.getElementById('attModalAbsent').textContent = absentCount;
+
+    renderModalStudentList();
+
+    // HIỂN THỊ TOÀN BỘ CÁC TỜ ẢNH FEEDBACK CỦA XE (NẾU CÓ)
+    const fbSection = document.getElementById('attModalFeedbackSection');
+    const fbContainer = document.getElementById('attModalFeedbackImagesContainer');
+    const fbCountEl = document.getElementById('attModalFeedbackCount');
+
+    if (fbSection && fbContainer) {
+      const rawUrls = String(data.feedbackUrl || '').split(',').map(s => s.trim()).filter(Boolean);
+      if (rawUrls.length > 0) {
+        fbContainer.innerHTML = '';
+        if (fbCountEl) fbCountEl.textContent = rawUrls.length;
+
+        rawUrls.forEach((u, i) => {
+          let directUrl = u;
+          const m = u.match(/\/d\/([a-zA-Z0-9_-]+)/) || u.match(/id=([a-zA-Z0-9_-]+)/);
+          if (m && m[1]) {
+            directUrl = 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w1600';
+          }
+
+          const item = document.createElement('div');
+          item.className = 'flex flex-col items-center gap-1 bg-white p-1 rounded-lg border border-slate-300 shadow-xs flex-shrink-0';
+          item.innerHTML = `
+            <img src="${directUrl}" alt="Feedback tờ ${i + 1}" class="h-32 sm:h-40 w-auto object-cover rounded cursor-pointer hover:opacity-90 transition" onclick="window.openFullscreenImage('${directUrl}')" />
+            <span class="text-[10px] font-bold text-slate-700">Tờ ${i + 1}</span>
+          `;
+          fbContainer.appendChild(item);
+        });
+
+        fbSection.classList.remove('hidden');
+      } else {
+        fbContainer.innerHTML = '';
+        fbSection.classList.add('hidden');
+      }
+    }
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
 
     function setModalAttendanceFilter(filter) {
       currentModalFilter = filter;
@@ -3596,10 +3961,9 @@
           endEl.value = tour.endDate || tour.date || '';
           endEl.dataset.customized = (tour.endDate && tour.endDate !== tour.date) ? 'true' : 'false';
         }
-        document.getElementById('tourCoordinatorEdit').value = tour.coordinator || '';
-        document.getElementById('tourCoordinatorPhoneEdit').value = tour.coordinatorPhone || '';
-        document.getElementById('tourLogisticsEdit').value = tour.logistics || '';
-        document.getElementById('tourLogisticsPhoneEdit').value = tour.logisticsPhone || '';
+        // Nạp danh sách các dòng Điều hành và Hậu cần đã lưu
+        renderPersonnelList('coordinator', tour.coordinator, tour.coordinatorPhone);
+        renderPersonnelList('logistics', tour.logistics, tour.logisticsPhone);
 
         // Folder Drive link
         const driveNameEl = document.getElementById('tourDriveFolderName');
@@ -3694,10 +4058,14 @@
       const name = document.getElementById('tourNameEdit').value.trim();
       const date = document.getElementById('tourDateEdit').value;
       const endDate = (document.getElementById('tourEndDateEdit') ? document.getElementById('tourEndDateEdit').value : '') || date;
-      const coordinator = document.getElementById('tourCoordinatorEdit').value.trim();
-      const coordinatorPhone = document.getElementById('tourCoordinatorPhoneEdit').value.trim();
-      const logistics = document.getElementById('tourLogisticsEdit').value.trim();
-      const logisticsPhone = document.getElementById('tourLogisticsPhoneEdit').value.trim();
+      
+      // Thu thập toàn bộ danh sách các dòng Điều hành và Hậu cần
+      const coordData = collectPersonnelData('coordinator');
+      const logiData = collectPersonnelData('logistics');
+      const coordinator = coordData.names;
+      const coordinatorPhone = coordData.phones;
+      const logistics = logiData.names;
+      const logisticsPhone = logiData.phones;
 
       if (!name) return showToast('Tên tour không được để trống!', 'error');
 
@@ -4516,9 +4884,12 @@
       if (!prog) return false;
       const myPhone = (localStorage.getItem(LS_HDV_PHONE) || '').replace(/\D/g, '').replace(/^84/, '0');
       if (!myPhone) return false;
-      const coordPhone = (prog.coordinatorPhone || '').replace(/\D/g, '').replace(/^84/, '0');
-      const logiPhone = (prog.logisticsPhone || '').replace(/\D/g, '').replace(/^84/, '0');
-      if ((coordPhone && myPhone === coordPhone) || (logiPhone && myPhone === logiPhone)) {
+
+      // Hỗ trợ danh sách nhiều số điện thoại ngăn cách bởi dấu phẩy
+      const coordPhones = (prog.coordinatorPhone || '').split(/[,;]+/).map(p => p.replace(/\D/g, '').replace(/^84/, '0')).filter(Boolean);
+      const logiPhones = (prog.logisticsPhone || '').split(/[,;]+/).map(p => p.replace(/\D/g, '').replace(/^84/, '0')).filter(Boolean);
+
+      if (coordPhones.includes(myPhone) || logiPhones.includes(myPhone)) {
         return true;
       }
       return false;
@@ -4571,10 +4942,10 @@
         shortText = '🚌 Về';
         fullText = '🚌 Đang về trường';
         colorClass = 'bg-orange-100 text-orange-800 border-orange-300';
-      } else if (s.includes('về đến trường') || s.includes('về tới trường') || s.includes('tới trường') || s.toLowerCase().includes('final')) {
-        shortText = '🏫 Final';
-        fullText = '🏫 Đã về đến trường';
-        colorClass = 'bg-red-100 text-red-800 border-red-300';
+      } else if (s.toLowerCase().includes('kết thúc') || s.includes('về đến trường') || s.includes('về tới trường') || s.includes('tới trường') || s.toLowerCase().includes('final')) {
+        shortText = '🏁 K.Thúc';
+        fullText = '🏁 Kết thúc tour';
+        colorClass = 'bg-red-100 text-red-700 border-red-300';
       }
 
       return `<span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${colorClass} whitespace-nowrap shadow-xs">
@@ -4875,14 +5246,96 @@
       }
     }
 
-    function toggleAdminPersonnelField(type) {
-      if (type === 'coordinator') {
-        const el = document.getElementById('adminCoordinatorRow');
-        if (el) el.classList.toggle('hidden');
-      } else {
-        const el = document.getElementById('adminLogisticsRow');
-        if (el) el.classList.toggle('hidden');
+    // HÀM TẠO DÒNG NHÂN SỰ ĐIỀU HÀNH HOẶC HẬU CẦN ĐỘNG
+    function addPersonnelRow(type, name = '', phone = '') {
+      const isCoord = (type === 'coordinator');
+      const containerId = isCoord ? 'adminCoordinatorContainer' : 'adminLogisticsContainer';
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const rowDiv = document.createElement('div');
+      const rowClass = isCoord ? 'coord-item-row bg-blue-50/70 border-blue-200' : 'logi-item-row bg-indigo-50/70 border-indigo-200';
+      const badgeText = isCoord ? '👔 Điều hành tour' : '📦 Phụ trách hậu cần';
+      const badgeColor = isCoord ? 'text-blue-900' : 'text-indigo-900';
+      const focusRing = isCoord ? 'focus:ring-blue-500' : 'focus:ring-indigo-500';
+
+      rowDiv.className = `${rowClass} p-2.5 rounded-xl border space-y-1.5 transition`;
+      rowDiv.innerHTML = `
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold ${badgeColor} uppercase tracking-wide personnel-row-label">${badgeText}</span>
+          <button type="button" onclick="this.closest('.${isCoord ? 'coord-item-row' : 'logi-item-row'}').remove(); window.refreshPersonnelLabels('${type}');"
+            class="text-[11px] text-rose-600 hover:text-rose-800 font-bold hover:underline cursor-pointer">
+            &times; Xóa
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div>
+            <input type="text" placeholder="Họ và tên..." value="${escapeHtml(name)}"
+              class="${isCoord ? 'coord-name-input' : 'logi-name-input'} w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 ${focusRing} outline-none bg-white" />
+          </div>
+          <div>
+            <input type="tel" placeholder="Số điện thoại (VD: 0389975487)..." value="${escapeHtml(phone)}"
+              class="${isCoord ? 'coord-phone-input' : 'logi-phone-input'} w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold focus:ring-2 ${focusRing} outline-none bg-white" />
+          </div>
+        </div>
+      `;
+      container.appendChild(rowDiv);
+      refreshPersonnelLabels(type);
+    }
+
+    function refreshPersonnelLabels(type) {
+      const isCoord = (type === 'coordinator');
+      const containerId = isCoord ? 'adminCoordinatorContainer' : 'adminLogisticsContainer';
+      const rowSelector = isCoord ? '.coord-item-row' : '.logi-item-row';
+      const titlePrefix = isCoord ? '👔 Điều hành tour' : '📦 Phụ trách hậu cần';
+      const rows = document.querySelectorAll(`#${containerId} ${rowSelector}`);
+      rows.forEach((r, idx) => {
+        const label = r.querySelector('.personnel-row-label');
+        if (label) {
+          label.textContent = rows.length > 1 ? `${titlePrefix} ${idx + 1}` : titlePrefix;
+        }
+      });
+    }
+
+    function renderPersonnelList(type, namesStr, phonesStr) {
+      const containerId = (type === 'coordinator') ? 'adminCoordinatorContainer' : 'adminLogisticsContainer';
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = '';
+
+      const names = String(namesStr || '').split(',').map(s => s.trim()).filter(Boolean);
+      const phones = String(phonesStr || '').split(',').map(s => s.trim());
+
+      if (names.length > 0) {
+        names.forEach((name, i) => {
+          addPersonnelRow(type, name, phones[i] || '');
+        });
       }
+    }
+
+    function collectPersonnelData(type) {
+      const isCoord = (type === 'coordinator');
+      const containerId = isCoord ? 'adminCoordinatorContainer' : 'adminLogisticsContainer';
+      const nameClass = isCoord ? '.coord-name-input' : '.logi-name-input';
+      const phoneClass = isCoord ? '.coord-phone-input' : '.logi-phone-input';
+      const rows = document.querySelectorAll(`#${containerId} ${isCoord ? '.coord-item-row' : '.logi-item-row'}`);
+
+      const names = [];
+      const phones = [];
+
+      rows.forEach(r => {
+        const n = (r.querySelector(nameClass)?.value || '').trim();
+        const p = (r.querySelector(phoneClass)?.value || '').trim();
+        if (n || p) {
+          names.push(n);
+          phones.push(p);
+        }
+      });
+
+      return {
+        names: names.join(', '),
+        phones: phones.join(', ')
+      };
     }
 
     // ==============================================================
@@ -4924,65 +5377,221 @@
     }
 
     // ==============================================================
-    // 7. FEEDBACK & KẾT THÚC TOUR TRÊN MÁY HDV
+    // 7. QUẢN LÝ NHIỀU ẢNH FEEDBACK (NHIỀU TỜ) & KẾT THÚC TOUR
     // ==============================================================
-    let currentFeedbackBase64 = null;
+    var currentFeedbackImages = []; // Mảng chứa toàn bộ các ảnh feedback dạng base64
 
-    function handleFeedbackFileChange(input) {
-      if (!input.files || input.files.length === 0) return;
-      const file = input.files[0];
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        currentFeedbackBase64 = e.target.result;
-        const preview = document.getElementById("feedbackPreviewImg");
-        const box = document.getElementById("feedbackPreviewBox");
-        const status = document.getElementById("feedbackPhotoStatus");
-        const clearBtn = document.getElementById("btnClearFeedback");
-
-        if (preview) preview.src = currentFeedbackBase64;
-        if (box) box.classList.remove("hidden");
-        if (clearBtn) clearBtn.classList.remove("hidden");
-        if (status) {
-          status.innerText = `Đã chọn: ${file.name}`;
-          status.className = "text-[10px] text-emerald-600 font-bold";
-        }
-        showToast("Đã đính kèm ảnh feedback!", "success");
-      };
-      reader.readAsDataURL(file);
+    // Hàm nén ảnh giảm dung lượng
+    function compressImageFile(file, maxWidth, quality) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
-    function clearFeedbackPhoto() {
-      currentFeedbackBase64 = null;
-      const input = document.getElementById("feedbackFileInput");
-      if (input) input.value = "";
+    // Xử lý khi chọn thêm 1 hoặc nhiều ảnh feedback
+    async function handleFeedbackFileChange(input) {
+      if (!input.files || input.files.length === 0) return;
+      const files = Array.from(input.files);
+      const status = document.getElementById("feedbackPhotoStatus");
+      if (status) {
+        status.innerText = `⏳ Đang nén ${files.length} ảnh...`;
+        status.className = "text-[10px] text-amber-600 font-bold";
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        try {
+          const compressed = await compressImageFile(files[i], 1600, 0.75);
+          currentFeedbackImages.push(compressed);
+        } catch (e) {
+          console.warn('Lỗi nén ảnh feedback:', e);
+        }
+      }
+
+      input.value = ""; // Reset input để có thể bấm chọn tiếp các tờ sau
+      renderFeedbackPreviewGrid();
+      showToast(`Đã thêm ảnh feedback (Tổng: ${currentFeedbackImages.length} tờ)!`, "success");
+    }
+
+    // Hiển thị danh sách các tờ ảnh feedback xem trước
+    function renderFeedbackPreviewGrid() {
       const box = document.getElementById("feedbackPreviewBox");
-      const preview = document.getElementById("feedbackPreviewImg");
+      const grid = document.getElementById("feedbackPreviewGrid");
       const status = document.getElementById("feedbackPhotoStatus");
       const clearBtn = document.getElementById("btnClearFeedback");
+      const countEl = document.getElementById("feedbackCountText");
 
-      if (box) box.classList.add("hidden");
-      if (preview) preview.src = "";
-      if (clearBtn) clearBtn.classList.add("hidden");
+      if (!currentFeedbackImages || currentFeedbackImages.length === 0) {
+        if (box) box.classList.add("hidden");
+        if (clearBtn) clearBtn.classList.add("hidden");
+        if (status) {
+          status.innerText = "Chưa chọn ảnh";
+          status.className = "text-[10px] text-slate-500 font-semibold italic";
+        }
+        return;
+      }
+
+      if (box) box.classList.remove("hidden");
+      if (clearBtn) clearBtn.classList.remove("hidden");
+      if (countEl) countEl.innerText = currentFeedbackImages.length;
       if (status) {
-        status.innerText = "Chưa chọn ảnh";
-        status.className = "text-[10px] text-slate-500 font-semibold italic";
+        status.innerText = `Đã chọn: ${currentFeedbackImages.length} tờ`;
+        status.className = "text-[10px] text-emerald-600 font-bold";
+      }
+
+      if (grid) {
+        grid.innerHTML = "";
+        currentFeedbackImages.forEach((base64, idx) => {
+          const item = document.createElement("div");
+          item.className = "relative group w-20 h-24 bg-white border border-slate-300 rounded-lg overflow-hidden shadow-xs flex-shrink-0 flex items-center justify-center p-0.5";
+          item.innerHTML = `
+            <img src="${base64}" alt="Tờ ${idx + 1}" class="w-full h-full object-cover rounded cursor-pointer" onclick="window.openFullscreenImage('${base64}')" />
+            <span class="absolute bottom-1 left-1 bg-slate-900/70 text-white text-[9px] font-bold px-1 rounded">Tờ ${idx + 1}</span>
+            <button type="button" onclick="event.stopPropagation(); window.removeFeedbackImage(${idx})" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center font-bold text-xs shadow hover:bg-rose-700 leading-none" title="Xóa tờ này">&times;</button>
+          `;
+          grid.appendChild(item);
+        });
       }
     }
 
-    async function handleEndTourAction() {
-      const confirmed = confirm("Bạn có chắc chắn muốn KẾT THÚC TOUR hôm nay không?\n\n(Bấm OK để Xác nhận / Hủy để Từ chối)");
-      if (!confirmed) return;
+    function removeFeedbackImage(idx) {
+      if (currentFeedbackImages && currentFeedbackImages[idx]) {
+        currentFeedbackImages.splice(idx, 1);
+        renderFeedbackPreviewGrid();
+      }
+    }
 
+    function clearFeedbackPhoto() {
+      currentFeedbackImages = [];
+      const input = document.getElementById("feedbackFileInput");
+      if (input) input.value = "";
+      renderFeedbackPreviewGrid();
+    }
+
+    // Khi ấn nút KẾT THÚC TOUR
+    function handleEndTourAction() {
+      const progId = document.getElementById("hdvProgramSelect")?.value;
+      const vehicleName = formatVehicleOrClassName(document.getElementById("hdvVehicleInput")?.value);
+
+      if (!progId || !vehicleName) {
+        return showToast("Vui lòng chọn Tour và Xe trước khi kết thúc!", "error");
+      }
+
+      // 1. BẮT BUỘC PHẢI CÓ ÍT NHẤT 1 ẢNH FEEDBACK
+      if (!currentFeedbackImages || currentFeedbackImages.length === 0) {
+        showToast("⚠️ Bắt buộc phải chụp và tải ảnh Feedback để kết thúc tour!", "error");
+        alert("⚠️ HDV BẮT BUỘC PHẢI GỬI ẢNH FEEDBACK!\n\nVui lòng chụp hoặc tải ảnh Feedback (có thể chụp nhiều tờ) trước khi bấm Kết thúc tour.");
+        const fileInput = document.getElementById("feedbackFileInput");
+        if (fileInput) fileInput.click();
+        return;
+      }
+
+      // 2. Thu thập quân số chi tiết
+      const totals = collectClassesAndTotals();
+      const rows = document.querySelectorAll('#classListContainer .class-item-row');
+      let classDetailHtml = '';
+
+      if (rows.length >= 2) {
+        const parts = [];
+        rows.forEach((r, idx) => {
+          const cName = r.querySelector('.cls-name').value.trim() || `Lớp ${idx + 1}`;
+          const st = Math.max(0, parseInt(r.querySelector('.cls-students').value, 10) || 0);
+          parts.push(`${escapeHtml(cName)}: ${st} HS`);
+        });
+        classDetailHtml = `<div>${parts.join('<br>')}</div><div class="text-[11px] text-slate-500 font-normal mt-0.5">(Tổng: ${totals.totalStudents} HS)</div>`;
+      } else if (rows.length === 1) {
+        const cName = rows[0].querySelector('.cls-name').value.trim() || 'Lớp';
+        classDetailHtml = `<span>${escapeHtml(cName)}: ${totals.totalStudents} HS</span>`;
+      } else {
+        classDetailHtml = `<span>${totals.totalStudents} HS</span>`;
+      }
+
+      document.getElementById('endTourStudentDetails').innerHTML = classDetailHtml;
+      document.getElementById('endTourTeacherCount').textContent = totals.teacherCount + ' người';
+      document.getElementById('endTourParentCount').textContent = totals.parentCount + ' người';
+      document.getElementById('endTourChildCount').textContent = totals.childCount + ' người';
+      document.getElementById('endTourTotalPeople').textContent = totals.totalPeople + ' người';
+
+      // 3. Hiển thị danh sách thu nhỏ tất cả các tờ feedback trong hộp thoại xác nhận
+      const thumbBox = document.getElementById('endTourFeedbackThumbsContainer');
+      const badgeCount = document.getElementById('endTourFeedbackCountBadge');
+      if (badgeCount) badgeCount.textContent = `${currentFeedbackImages.length} tờ`;
+
+      if (thumbBox) {
+        thumbBox.innerHTML = '';
+        currentFeedbackImages.forEach((imgBase64, i) => {
+          const div = document.createElement('div');
+          div.className = 'w-16 h-20 bg-white border border-slate-300 rounded overflow-hidden flex-shrink-0 relative';
+          div.innerHTML = `
+            <img src="${imgBase64}" alt="Tờ ${i + 1}" class="w-full h-full object-cover" />
+            <span class="absolute bottom-0 inset-x-0 bg-slate-900/70 text-white text-[8px] text-center font-bold">Tờ ${i + 1}</span>
+          `;
+          thumbBox.appendChild(div);
+        });
+      }
+
+      // 4. Mở modal xác nhận
+      const modal = document.getElementById('endTourConfirmModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeEndTourConfirmModal() {
+      const modal = document.getElementById('endTourConfirmModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+    function showEndTourSuccessModal() {
+      const modal = document.getElementById('endTourSuccessModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeEndTourSuccessModal() {
+      const modal = document.getElementById('endTourSuccessModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    // Xác nhận gửi toàn bộ ảnh feedback lên hệ thống
+    async function executeConfirmEndTour() {
       const progId = document.getElementById("hdvProgramSelect")?.value;
       const progObj = (activeProgramsCache || []).find(p => p.id === progId);
       const vehicleName = formatVehicleOrClassName(document.getElementById("hdvVehicleInput")?.value);
       const hdvName = document.getElementById("hdvNameInput")?.value.trim();
 
-      const btnEnd = document.getElementById("btnEndTour");
-      const origText = btnEnd.innerHTML;
-      btnEnd.disabled = true;
-      btnEnd.innerHTML = "⏳ Đang kết thúc tour...";
+      const btnSubmit = document.getElementById("btnConfirmEndTourSubmit");
+      const origText = btnSubmit ? btnSubmit.innerHTML : "";
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = `⏳ Đang tải ${currentFeedbackImages.length} ảnh lên Drive...`;
+      }
 
       try {
         const res = await callApi({
@@ -4992,21 +5601,304 @@
           tourDate: progObj ? progObj.date : "",
           vehicleName: vehicleName,
           hdvName: hdvName,
-          image: currentFeedbackBase64 || ""
+          images: currentFeedbackImages
         });
 
         if (!res.success) throw new Error(res.message);
 
-        alert("🎉 Kết thúc tour thành công, cảm ơn bạn đã hợp tác cùng chúng tôi thực hiện chương trình hôm nay.");
+        // 1. Lưu cờ kết thúc tour vào localStorage cho xe này
+        const endedKey = 'TOUR_ENDED_' + progId + '__' + normalizeVehicleKey(vehicleName);
+        localStorage.setItem(endedKey, '1');
+
+        // 2. Cập nhật cache cục bộ tránh bị dữ liệu cũ đè
+        const vKey = progId + '__' + normalizeVehicleKey(vehicleName);
+        locallySavedVehicles[vKey] = {
+          data: {
+            programId: progId,
+            vehicleName: vehicleName,
+            status: '🏁 Kết thúc tour',
+            updatedAt: new Date().toISOString()
+          },
+          savedAt: Date.now()
+        };
+
+        // 3. Ngắt kết nối GPS ngay lập tức
+        stopAllGpsTracking();
+
+        closeEndTourConfirmModal();
+        
+        // Mở popup thông báo thành công
+        if (typeof showEndTourSuccessModal === 'function') {
+          showEndTourSuccessModal();
+        } else {
+          alert("🎉 Kết thúc tour thành công, cảm ơn bạn đã hợp tác cùng chúng tôi thực hiện chương trình hôm nay.");
+        }
         triggerDeviceVibration();
 
-        document.getElementById("hdvStatusSelect").value = "🏫 Đã về tới trường";
-        clearFeedbackPhoto();
+        // 4. Khóa form lưu báo cáo xe
+        lockVehicleFormAfterEndTour();
       } catch (err) {
         showToast("Lỗi: " + err.message, "error");
       } finally {
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = origText;
+        }
+      }
+    }
+
+    // ==============================================================
+    // HÀM KHÓA TOÀN BỘ CHỨC NĂNG LƯU BÁO CÁO SAU KHI KẾT THÚC TOUR
+    // ==============================================================
+    function lockVehicleFormAfterEndTour() {
+      // 1. Khóa nút "LƯU TOÀN BỘ BÁO CÁO XE"
+      const btnSave = document.getElementById('btnSaveAll');
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.className = 'w-full bg-slate-400 text-white font-black py-3 rounded-xl text-sm shadow cursor-not-allowed pointer-events-none opacity-80';
+        btnSave.innerHTML = '🔒 ĐÃ KẾT THÚC TOUR (ĐÃ KHÓA LƯU BÁO CÁO)';
+      }
+
+      // 2. Khóa nút "KẾT THÚC TOUR"
+      const btnEnd = document.getElementById('btnEndTour');
+      if (btnEnd) {
+        btnEnd.disabled = true;
+        btnEnd.className = 'w-full bg-slate-300 text-slate-500 font-extrabold py-3 rounded-xl text-sm cursor-not-allowed pointer-events-none';
+        btnEnd.innerHTML = '✅ XE ĐÃ KẾT THÚC TOUR';
+      }
+
+      // 3. Khóa nút "Cập nhật trạng thái"
+      const btnQuickStatus = document.getElementById('btnQuickStatus');
+      if (btnQuickStatus) {
+        btnQuickStatus.disabled = true;
+        btnQuickStatus.classList.add('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+      }
+
+      // 4. Khóa chọn trạng thái và gán về "🏁 Kết thúc tour"
+      const statusSelect = document.getElementById('hdvStatusSelect');
+      if (statusSelect) {
+        let opt = Array.from(statusSelect.options).find(o => o.value.includes('Kết thúc') || o.value.includes('về tới trường'));
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = '🏁 Kết thúc tour';
+          opt.textContent = '🏁 Kết thúc tour';
+          statusSelect.appendChild(opt);
+        }
+        statusSelect.value = opt ? opt.value : '🏁 Kết thúc tour';
+        statusSelect.disabled = true;
+      }
+
+      // 5. Ngắt định vị GPS
+      stopAllGpsTracking();
+    }
+
+    // HÀM MỞ KHÓA FORM KHI XE ĐANG HOẠT ĐỘNG
+    function unlockVehicleFormIfRunning() {
+      const btnSave = document.getElementById('btnSaveAll');
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.className = 'w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm shadow transition';
+        btnSave.innerHTML = '💾 LƯU TOÀN BỘ BÁO CÁO XE';
+      }
+
+      const btnEnd = document.getElementById('btnEndTour');
+      if (btnEnd) {
         btnEnd.disabled = false;
-        btnEnd.innerHTML = origText;
+        btnEnd.className = 'w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 rounded-xl text-sm shadow transition';
+        btnEnd.innerHTML = '⏹️ KẾT THÚC TOUR';
+      }
+
+      const btnQuickStatus = document.getElementById('btnQuickStatus');
+      if (btnQuickStatus) {
+        btnQuickStatus.disabled = false;
+        btnQuickStatus.classList.remove('opacity-50', 'cursor-not-allowed', 'pointer-events-none');
+      }
+
+      const statusSelect = document.getElementById('hdvStatusSelect');
+      if (statusSelect) {
+        statusSelect.disabled = false;
+      }
+    }
+
+    async function openFullTourReportModal() {
+      const progSel = document.getElementById('summaryProgramSelect');
+      const progId = progSel ? progSel.value : '';
+      if (!progId) return showToast('Vui lòng chọn tour!', 'error');
+
+      showToast('Đang tổng hợp báo cáo và danh sách học sinh...', 'info');
+
+      try {
+        const res = await callApi({ action: 'getFullTourReportData', programId: progId });
+        if (!res.success) throw new Error(res.message);
+
+        currentFullReportData = res;
+        renderFullTourReport(res);
+
+        const modal = document.getElementById('tourFullReportModal');
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        }
+      } catch (err) {
+        showToast('Lỗi lấy báo cáo: ' + err.message, 'error');
+      }
+    }
+
+    function closeTourFullReportModal() {
+      const modal = document.getElementById('tourFullReportModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function renderFullTourReport(data) {
+      const tInfo = data.tourInfo || {};
+      const vehicles = data.vehicles || [];
+      const students = data.students || [];
+
+      // 1. Tiêu đề & Chỉ lấy người số 1 của Điều hành và Hậu cần
+      document.getElementById('reportTourTitle').textContent = `BÁO CÁO TỔNG KẾT: ${tInfo.name || 'CHƯƠNG TRÌNH DÃ NGOẠI'}`;
+
+      // Tách lấy người số 1 của Điều hành tour
+      const firstCoordName = String(tInfo.coordinator || '').split(',')[0].trim() || 'Chưa có';
+      const firstCoordPhone = String(tInfo.coordinatorPhone || '').split(',')[0].trim();
+      const coordDisplay = firstCoordPhone ? `${firstCoordName} (${firstCoordPhone})` : firstCoordName;
+
+      // Tách lấy người số 1 của Phụ trách hậu cần
+      const firstLogiName = String(tInfo.logistics || '').split(',')[0].trim() || 'Chưa có';
+      const firstLogiPhone = String(tInfo.logisticsPhone || '').split(',')[0].trim();
+      const logiDisplay = firstLogiPhone ? `${firstLogiName} (${firstLogiPhone})` : firstLogiName;
+
+      document.getElementById('reportTourMeta').textContent = `Ngày: ${tInfo.date || 'Chưa rõ'} | Điều hành: ${coordDisplay} | Hậu cần: ${logiDisplay}`;
+
+      // 2. Thống kê quân số
+      let sumP = 0, sumS = 0, sumT = 0, sumPa = 0, sumCh = 0;
+      vehicles.forEach(v => {
+        sumS += Number(v.totalStudents || 0);
+        sumT += Number(v.teacherCount || 0);
+        sumPa += Number(v.parentCount || 0);
+        sumCh += Number(v.childCount || 0);
+        sumP += Number(v.totalPeople || (Number(v.totalStudents || 0) + Number(v.teacherCount || 0) + Number(v.parentCount || 0) + Number(v.childCount || 0)));
+      });
+
+      document.getElementById('repTotalPeople').textContent = sumP;
+      document.getElementById('repTotalStudents').textContent = sumS;
+      document.getElementById('repTotalTeachers').textContent = sumT;
+      document.getElementById('repTotalParents').textContent = sumPa;
+      document.getElementById('repTotalChildren').textContent = sumCh;
+      document.getElementById('repTotalVehicles').textContent = vehicles.length;
+
+      // 3. Bảng chi tiết từng xe
+      const vBody = document.getElementById('reportVehiclesTableBody');
+      vBody.innerHTML = '';
+      vehicles.forEach((v, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="p-2 text-center border-r border-slate-200 font-bold">${idx + 1}</td>
+          <td class="p-2 border-r border-slate-200 font-bold text-blue-900">${escapeHtml(v.vehicleName)}</td>
+          <td class="p-2 border-r border-slate-200">${escapeHtml(v.leaderName || '-')} ${v.leaderPhone ? `(${escapeHtml(v.leaderPhone)})` : ''}</td>
+          <td class="p-2 text-center border-r border-slate-200 font-bold text-emerald-700">${v.totalStudents || 0}</td>
+          <td class="p-2 border-r border-slate-200 font-semibold">${escapeHtml(v.classSummary || v.vehicleName)}</td>
+          <td class="p-2 text-center border-r border-slate-200 font-bold text-orange-600">${v.parentCount || 0}</td>
+          <td class="p-2 text-center font-bold text-pink-600">${v.childCount || 0}</td>
+        `;
+        vBody.appendChild(tr);
+      });
+
+      // 4. Bảng danh sách học sinh toàn đoàn
+      const sBody = document.getElementById('reportStudentsTableBody');
+      sBody.innerHTML = '';
+      if (students.length === 0) {
+        sBody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Chưa có danh sách học sinh từ file tour.</td></tr>';
+      } else {
+        students.forEach((s, idx) => {
+          const isAbsent = s.attendance === 'Vắng';
+          const tr = document.createElement('tr');
+          tr.className = isAbsent ? 'bg-rose-50 text-rose-900' : '';
+          tr.innerHTML = `
+            <td class="p-2 text-center border-r border-slate-200">${idx + 1}</td>
+            <td class="p-2 border-r border-slate-200 font-bold ${isAbsent ? 'text-rose-900' : 'text-slate-900'}">${escapeHtml(s.name)}</td>
+            <td class="p-2 text-center border-r border-slate-200 font-semibold">${escapeHtml(s.className || '')}</td>
+            <td class="p-2 border-r border-slate-200 font-semibold text-blue-900">${escapeHtml(s.vehicleName || '')}</td>
+            <td class="p-2 text-center font-bold ${isAbsent ? 'text-rose-600' : 'text-emerald-700'}">${escapeHtml(s.attendance || 'Có mặt')}</td>
+          `;
+          sBody.appendChild(tr);
+        });
+      }
+    }
+
+    // In báo cáo (Dùng lệnh in trực tiếp của trình duyệt hỗ trợ chuẩn A4)
+    function printTourReport() {
+      window.print();
+    }
+
+    // Tải file PDF trực tiếp bằng html2pdf
+    function downloadTourReportPdf() {
+      const element = document.getElementById('printableReportArea');
+      if (!element) return;
+      const tName = (currentFullReportData && currentFullReportData.tourInfo && currentFullReportData.tourInfo.name) ? currentFullReportData.tourInfo.name.replace(/\s+/g, '_') : 'Tour';
+      const opt = {
+        margin: 10,
+        filename: `BaoCaoTongKet_${tName}_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+
+    // Hàm phụ trợ copy link an toàn trên mọi thiết bị di động và máy tính
+    function copyLinkTextSafe(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+      }
+      return new Promise((resolve, reject) => {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy') ? resolve() : reject();
+        } catch (e) {
+          reject(e);
+        } finally {
+          textArea.remove();
+        }
+      });
+    }
+
+    // Sao chép đường link file Excel / Spreadsheet lưu trữ của chương trình
+    async function shareTourReport() {
+      if (!currentFullReportData) {
+        return showToast('Chưa có dữ liệu báo cáo chương trình!', 'error');
+      }
+
+      // 1. Ưu tiên lấy link file Excel / Sheet trả về từ server
+      let linkToCopy = currentFullReportData.excelFileUrl || 
+                       currentFullReportData.spreadsheetUrl || 
+                       (currentFullReportData.tourInfo && currentFullReportData.tourInfo.driveFolderLink) || '';
+
+      // 2. Dự phòng: lấy link Drive của tour đã gắn trên tab Quản trị
+      if (!linkToCopy) {
+        const copyBtn = document.getElementById('tourCopyDriveBtn');
+        linkToCopy = copyBtn ? copyBtn.getAttribute('data-link') : '';
+      }
+
+      if (!linkToCopy) {
+        return showToast('Chưa tìm thấy link file Excel lưu trữ của tour này!', 'error');
+      }
+
+      try {
+        await copyLinkTextSafe(linkToCopy);
+        showToast('📋 Đã sao chép đường link file lưu trữ chương trình!', 'success');
+        triggerDeviceVibration();
+      } catch (err) {
+        prompt('Copy đường link file Excel lưu trữ bên dưới:', linkToCopy);
       }
     }
 
@@ -5145,9 +6037,25 @@
     window.setAdminProgramStatusFilter = setAdminProgramStatusFilter;
     window.filterAdminProgramListDisplay = filterAdminProgramListDisplay;
     window.selectAndScrollToTour = selectAndScrollToTour;
-    window.toggleAdminPersonnelField = toggleAdminPersonnelField;
+    window.addPersonnelRow = addPersonnelRow;
+    window.refreshPersonnelLabels = refreshPersonnelLabels;
+    window.renderPersonnelList = renderPersonnelList;
+    window.collectPersonnelData = collectPersonnelData;
     window.handleCreateProgram = handleCreateProgram;
     window.handleFeedbackFileChange = handleFeedbackFileChange;
+    window.clearFeedbackPhoto = clearFeedbackPhoto;
+    window.removeFeedbackImage = removeFeedbackImage;
+    window.handleEndTourAction = handleEndTourAction;
+    window.lockVehicleFormAfterEndTour = lockVehicleFormAfterEndTour;
+    window.unlockVehicleFormIfRunning = unlockVehicleFormIfRunning;
+    window.closeEndTourConfirmModal = closeEndTourConfirmModal;
+    window.executeConfirmEndTour = executeConfirmEndTour;
+    window.openFullTourReportModal = openFullTourReportModal;
+    window.closeTourFullReportModal = closeTourFullReportModal;
+    window.printTourReport = printTourReport;
+    window.downloadTourReportPdf = downloadTourReportPdf;
+    window.shareTourReport = shareTourReport;
+    window.closeEndTourSuccessModal = closeEndTourSuccessModal;
 
 
     // --- KHỞI CHẠY LẦN ĐẦU ---
