@@ -253,7 +253,7 @@
             <span id="gpsDot" class="pulse-dot"></span>
             <span id="gpsStatusText" class="font-bold text-slate-700">Đang khởi động định vị GPS...</span>
           </div>
-          <span id="gpsLastTime" class="text-[10px] text-slate-500">15s/lần</span>
+          <span id="gpsLastTime" class="text-[10px] text-slate-500">Update 15s/lần</span>
         </div>
       </div>
 
@@ -261,7 +261,7 @@
       <div id="hdvMiniMapContainer" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-1.5 p-2.5">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold text-slate-800 flex items-center gap-1">
-            <span>🗺️</span> Bản đồ vị trí các xe trong đoàn
+            <span>🗺️</span> Bản đồ vị trí các xe
           </span>
           <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
             <span class="pulse-dot"></span> Trực tiếp
@@ -539,7 +539,7 @@
         <div>
           <h3 class="text-base font-bold text-slate-900">Yêu cầu quyền truy cập Tour</h3>
           <p class="text-xs text-slate-600 mt-1.5 leading-relaxed">
-            Dữ liệu điều hành tour này chỉ dành riêng cho <b>Điều hành tour</b> hoặc <b>Phụ trách hậu cần</b> có số điện thoại được phân công trong chương trình.
+            Dữ liệu điều hành tour này chỉ dành riêng cho <b>Điều hành tour</b> và <b>Phụ trách hậu cần</b> và truy cập tự động theo đúng chương trình đã phân công.
           </p>
           <div class="mt-2 text-[11px] text-blue-700 bg-blue-50 py-1.5 px-3 rounded-lg border border-blue-200 font-semibold inline-block">
             Tài khoản hiện tại của bạn: <span id="summaryCurrentUserPhoneDisplay">-</span>
@@ -636,12 +636,12 @@
         <div class="p-2.5 bg-slate-50 border-b flex items-center justify-between">
           <div class="flex items-center gap-1.5">
             <span class="text-base">🗺️</span>
-            <h3 class="font-bold text-xs text-slate-800">Bản đồ vị trí các xe trong đoàn</h3>
+            <h3 class="font-bold text-xs text-slate-800">Bản đồ vị trí các xe</h3>
             <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-              <span class="pulse-dot"></span> 15s tự động
+              <span class="pulse-dot"></span> 15s/lần
             </span>
           </div>
-          <span id="mapVehicleCountText" class="text-[11px] text-slate-500 font-semibold">0 xe có GPS</span>
+          <span id="mapVehicleCountText" class="text-[11px] text-slate-500 font-semibold">0 xe GPS</span>
         </div>
         <div id="tourVehiclesMap" class="w-full h-80 sm:h-96 z-10"></div>
         <!-- Ghi chú màu sắc trạng thái xe dưới bản đồ: thật gọn, chữ nhỏ, cả điện thoại và máy tính đều hiển thị trong 1 hàng -->
@@ -3097,9 +3097,13 @@
 
     function initOrStartSummaryMapAutoRefresh() {
       if (!summaryMapIntervalTimer) {
+        // Nếu là Link xem BGH & Đoàn: truy vấn 1 phút (60.000ms) / lần để không nghẽn mạng
+        // Nếu là máy Điều hành / Quản trị: giữ nguyên 15 giây (15.000ms) / lần
+        const refreshInterval = window.isViewerMode ? 60000 : 15000;
+
         summaryMapIntervalTimer = setInterval(() => {
-          loadSummaryDashboard(true); // Cập nhật ngầm 15s/lần
-        }, 15000);
+          loadSummaryDashboard(true);
+        }, refreshInterval);
       }
     }
 
@@ -3574,7 +3578,7 @@
       });
 
       const countEl = document.getElementById('mapVehicleCountText');
-      if (countEl) countEl.textContent = `${validGpsList.length} / ${vehicles.length} xe có GPS`;
+      if (countEl) countEl.textContent = `${validGpsList.length} / ${vehicles.length} xe GPS`;
 
       if (validGpsList.length === 0) {
         if (isFirstInit) leafletMapInstance.setView([21.0285, 105.8542], 12);
@@ -6213,7 +6217,7 @@
         if (navHeader) {
           navHeader.innerHTML = `
             <div class="px-3 py-1 bg-blue-900 text-blue-100 rounded-lg text-xs font-bold flex items-center gap-1 shadow">
-              <span>👀</span> Chế độ xem: BGH & Đoàn
+              <span>👀</span> Chế độ xem
             </div>
           `;
         }
@@ -6221,8 +6225,14 @@
         // 3. Mở hiển thị Tab Tổng Hợp
         activateTabView('summary');
 
-        // 4. Nạp dữ liệu và khởi động định vị tự động 15s cho duy nhất tour trong link
+        // 4. Nạp dữ liệu và khởi động định vị tự động 1 phút cho duy nhất tour trong link
         if (window.viewerTourId) {
+          // Đổi nhãn hiển thị trên góc bản đồ thành 1 phút
+          const mapBadge = document.querySelector('#tourVehiclesMap')?.previousElementSibling?.querySelector('.pulse-dot')?.parentElement;
+          if (mapBadge) {
+            mapBadge.innerHTML = '<span class="pulse-dot"></span> Cập nhật 1 phút/lần';
+          }
+
           loadSummaryDashboard();
           initOrStartSummaryMapAutoRefresh();
         } else {
