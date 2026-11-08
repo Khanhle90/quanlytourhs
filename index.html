@@ -119,6 +119,34 @@
     </div>
   </header>
 
+  <!-- BANNER TỰ ĐỘNG PHÁT HIỆN MỞ TỪ ZALO -->
+  <div id="zaloInAppBanner" class="hidden bg-gradient-to-r from-amber-600 to-orange-600 text-white p-3 shadow-md border-b-2 border-orange-700 z-30">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+      <div class="flex items-start gap-2">
+        <span class="text-2xl shrink-0 leading-none">⚠️</span>
+        <div>
+          <p class="font-extrabold uppercase text-xs tracking-wide text-amber-100 flex items-center gap-1.5">
+            <span>BẠN ĐANG MỞ QUA ZALO</span>
+            <span class="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">In-App Browser</span>
+          </p>
+          <p class="text-xs text-white mt-0.5 leading-relaxed">
+            Zalo chặn tính năng <b>Cài đặt App</b> và <b>tự tắt định vị GPS</b> khi tắt màn hình. Hãy mở bằng trình duyệt máy để hoạt động tốt nhất.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+        <button type="button" onclick="window.tryOpenExternalBrowser()"
+          class="flex-1 sm:flex-initial bg-white hover:bg-amber-50 text-orange-700 font-black px-3.5 py-2 rounded-xl text-xs shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95">
+          <span>🚀</span> <span>Mở bằng Trình Duyệt</span>
+        </button>
+        <button type="button" onclick="window.showZaloGuideModal()"
+          class="bg-orange-800/80 hover:bg-orange-900 text-white font-bold px-3 py-2 rounded-xl text-xs shadow transition cursor-pointer">
+          Xem chỉ dẫn
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- TOAST THÔNG BÁO -->
   <div id="toastBox" class="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-96 z-50 hidden">
     <div id="toastContent" class="p-3 rounded-xl shadow-lg text-white font-medium text-xs flex items-center justify-between">
@@ -133,6 +161,27 @@
          TAB 1: PHÂN HỆ HƯỚNG DẪN VIÊN (HDV)
          ========================================== -->
     <section id="sectionHDV" class="space-y-3 max-w-2xl mx-auto">
+      
+      <!-- KHỐI CÀI ĐẶT APP RA MÀN HÌNH CHÍNH (1-2 CHẠM CHO NGƯỜI DÙNG) -->
+      <div id="quickInstallAppCard" class="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 text-white p-3 rounded-2xl shadow-md flex items-center justify-between gap-3 border border-blue-500/40 animate-fade-in">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-xs flex items-center justify-center text-xl shrink-0 shadow-inner">
+            📲
+          </div>
+          <div class="min-w-0">
+            <p class="font-black text-xs uppercase tracking-wide text-amber-300 flex items-center gap-1 truncate">
+              <span>VÀO TOUR NHANH 1 CHẠM</span>
+            </p>
+            <p class="text-[11px] text-blue-100 truncate mt-0.5">
+              Tạo icon ứng dụng ra màn hình chính điện thoại
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="window.triggerPwaInstall()"
+          class="bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 font-black px-3.5 py-2 rounded-xl text-xs shadow-lg flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer">
+          <span>✨</span> <span>Tạo Icon App</span>
+        </button>
+      </div>
       
       <!-- Banner Thông báo Admin -->
       <div id="adminNoticeBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-3 rounded-r-xl shadow-sm">
@@ -5046,21 +5095,167 @@
       showToast('Đã cài đặt ứng dụng lên màn hình chính thành công!', 'success');
     });
 
+    function isZaloBrowser() {
+      return /zalo/i.test(navigator.userAgent);
+    }
+
+    function showZaloGuideModal() {
+      const modal = document.getElementById('zaloGuideModal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      }
+    }
+
+    function closeZaloGuideModal() {
+      const modal = document.getElementById('zaloGuideModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function tryOpenExternalBrowser(withAutoInstall = false) {
+      let currentUrl = window.location.href;
+      if (withAutoInstall && !currentUrl.includes('pwa_prompt=1')) {
+        currentUrl += (currentUrl.includes('?') ? '&' : '?') + 'pwa_prompt=1';
+      }
+      const isAndroid = /android/i.test(navigator.userAgent);
+      if (isAndroid) {
+        const cleanUrl = currentUrl.replace(/^https?:\/\//, '');
+        // Thử intent mở trực tiếp Chrome với fallback
+        const intentChrome = "intent://" + cleanUrl + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(currentUrl) + ";end;";
+        
+        // Tạo thẻ a ẩn và kích hoạt click thật
+        const a = document.createElement('a');
+        a.href = intentChrome;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.location.href = intentChrome;
+        }, 150);
+
+        setTimeout(() => {
+          const intentView = "intent://" + cleanUrl + "#Intent;scheme=https;action=android.intent.action.VIEW;end;";
+          window.location.href = intentView;
+        }, 1200);
+      } else {
+        // Trên iPhone/iOS Zalo hiện modal chỉ dẫn bàn tay
+        showZaloGuideModal();
+      }
+    }
+
+    // Tự động tải file cấu hình WebClip (.mobileconfig) cho iPhone
+    function downloadIosWebClipProfile() {
+      const currentUrl = window.location.href;
+      const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n' +
+        '<plist version="1.0">\n' +
+        '<dict>\n' +
+        '  <key>PayloadContent</key>\n' +
+        '  <array>\n' +
+        '    <dict>\n' +
+        '      <key>FullScreen</key>\n' +
+        '      <true/>\n' +
+        '      <key>IsRemovable</key>\n' +
+        '      <true/>\n' +
+        '      <key>Label</key>\n' +
+        '      <string>Điều Hành Tour</string>\n' +
+        '      <key>PayloadDescription</key>\n' +
+        '      <string>Lối tắt màn hình chính Điều Hành Tour</string>\n' +
+        '      <key>PayloadDisplayName</key>\n' +
+        '      <string>Điều Hành Tour</string>\n' +
+        '      <key>PayloadIdentifier</key>\n' +
+        '      <string>com.dieuhanhtour.webclip</string>\n' +
+        '      <key>PayloadType</key>\n' +
+        '      <string>com.apple.webClip.managed</string>\n' +
+        '      <key>PayloadUUID</key>\n' +
+        '      <string>98E2E5B1-2E9B-4D12-9A4B-9B2F5E7B1234</string>\n' +
+        '      <key>PayloadVersion</key>\n' +
+        '      <integer>1</integer>\n' +
+        '      <key>Precomposed</key>\n' +
+        '      <true/>\n' +
+        '      <key>URL</key>\n' +
+        '      <string>' + currentUrl + '</string>\n' +
+        '    </dict>\n' +
+        '  </array>\n' +
+        '  <key>PayloadDisplayName</key>\n' +
+        '  <string>Cài đặt App Điều Hành Tour</string>\n' +
+        '  <key>PayloadIdentifier</key>\n' +
+        '  <string>com.dieuhanhtour.profile</string>\n' +
+        '  <key>PayloadRemovalDisallowed</key>\n' +
+        '  <false/>\n' +
+        '  <key>PayloadType</key>\n' +
+        '  <string>Configuration</string>\n' +
+        '  <key>PayloadUUID</key>\n' +
+        '  <string>B4E3E5B1-2E9B-4D12-9A4B-9B2F5E7B5678</string>\n' +
+        '  <key>PayloadVersion</key>\n' +
+        '  <integer>1</integer>\n' +
+        '</dict>\n' +
+        '</plist>';
+
+      const blob = new Blob([xml], { type: 'application/x-apple-as-config' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'DieuHanhTour.mobileconfig';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        showToast('Đã tải hồ sơ cấu hình! Hãy vào Cài đặt iPhone để xác nhận.', 'info');
+      }, 500);
+    }
+
     async function triggerPwaInstall() {
+      const isZalo = isZaloBrowser();
+      const isAndroid = /android/i.test(navigator.userAgent);
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+      // KỊCH BẢN 1: MỞ TRONG ZALO (TỰ ĐỘNG HÓA 1 CHẠM SANG CHROME)
+      if (isZalo) {
+        if (isAndroid) {
+          showToast('🚀 Đang chuyển sang Chrome để tạo icon ra màn hình...', 'info');
+          tryOpenExternalBrowser(true);
+          setTimeout(() => {
+            showZaloGuideModal();
+          }, 1500);
+          return;
+        } else {
+          showZaloGuideModal();
+          return;
+        }
+      }
+
+      // KỊCH BẢN 2: ĐÃ Ở CHROME / EDGE (BẬT HỘP THOẠI HỆ THỐNG NGAY LẬP TỨC)
       if (deferredPwaPrompt) {
         deferredPwaPrompt.prompt();
         const choice = await deferredPwaPrompt.userChoice;
         if (choice && choice.outcome === 'accepted') {
-          showToast('Đang tạo shortcut ứng dụng...', 'info');
+          showToast('🎉 Đang tạo icon ứng dụng ra màn hình chính...', 'success');
+          const card = document.getElementById('quickInstallAppCard');
+          if (card) card.classList.add('hidden');
         }
         deferredPwaPrompt = null;
-      } else {
+        const btn = document.getElementById('pwaInstallBtn');
+        if (btn) btn.classList.add('hidden');
+        return;
+      }
+
+      // KỊCH BẢN 3: SAFARI TRÊN IPHONE
+      if (isIOS) {
         const modal = document.getElementById('pwaIosGuideModal');
         if (modal) {
           modal.classList.remove('hidden');
           modal.classList.add('flex');
         }
+        return;
       }
+
+      // Trình duyệt khác
+      showToast('Vui lòng mở menu trình duyệt (⋮) chọn "Cài đặt ứng dụng" hoặc "Thêm vào màn hình chính"', 'info');
     }
 
     function closePwaGuideModal() {
@@ -5070,6 +5265,39 @@
         modal.classList.remove('flex');
       }
     }
+
+    // TỰ ĐỘNG BẬT HỘP THOẠI CÀI ĐẶT KHI VỪA TỪ ZALO SANG CHROME
+    function checkAutoPromptOnLoad() {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      if (isStandalone) {
+        const card = document.getElementById('quickInstallAppCard');
+        if (card) card.classList.add('hidden');
+        const btn = document.getElementById('pwaInstallBtn');
+        if (btn) btn.classList.add('hidden');
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('pwa_prompt') === '1') {
+        // Tự động kích hoạt khi beforeinstallprompt sẵn sàng
+        window.addEventListener('beforeinstallprompt', (e) => {
+          setTimeout(() => {
+            if (deferredPwaPrompt) {
+              deferredPwaPrompt.prompt();
+            }
+          }, 500);
+        });
+      }
+    }
+    window.addEventListener('DOMContentLoaded', checkAutoPromptOnLoad);
+
+    // Tự động kiểm tra Zalo khi tải trang
+    function checkZaloOnLoad() {
+      if (isZaloBrowser()) {
+        const banner = document.getElementById('zaloInAppBanner');
+        if (banner) banner.classList.remove('hidden');
+      }
+    }
+    window.addEventListener('DOMContentLoaded', checkZaloOnLoad);
 
     function populateAdminTourSelect() {
       const sel = document.getElementById('adminTourSelect');
@@ -7228,6 +7456,12 @@
     window.zoomOutHdvMap = zoomOutHdvMap;
     window.triggerPwaInstall = triggerPwaInstall;
     window.closePwaGuideModal = closePwaGuideModal;
+    window.isZaloBrowser = isZaloBrowser;
+    window.showZaloGuideModal = showZaloGuideModal;
+    window.closeZaloGuideModal = closeZaloGuideModal;
+    window.tryOpenExternalBrowser = tryOpenExternalBrowser;
+    window.downloadIosWebClipProfile = downloadIosWebClipProfile;
+    window.copyCurrentPageUrl = copyCurrentPageUrl;
     window.setAdminProgramStatusFilter = setAdminProgramStatusFilter;
     window.filterAdminProgramListDisplay = filterAdminProgramListDisplay;
     window.selectAndScrollToTour = selectAndScrollToTour;
@@ -7382,9 +7616,88 @@
     }, 30000);
   </script>
 
-  <!-- MODAL HƯỚNG DẪN CÀI ĐẶT PWA LÊN MÀN HÌNH CHÍNH (CHO IPHONE/IPAD HOẶC TRÌNH DUYỆT KHÁC) -->
+  <!-- MODAL HƯỚNG DẪN THOÁT KHỎI ZALO VÀ CÀI ĐẶT APP (1-2 CHẠM) -->
+  <div id="zaloGuideModal" class="fixed inset-0 bg-slate-900/85 backdrop-blur-xs z-50 hidden flex-col justify-between p-4 animate-fade-in">
+    <!-- Mũi tên bàn tay chỉ thẳng vào dấu 3 chấm góc phải Zalo -->
+    <div class="flex justify-end pr-2 pt-1 animate-bounce">
+      <div class="bg-amber-400 text-slate-950 font-black px-4 py-2 rounded-2xl shadow-2xl border-2 border-white flex items-center gap-2 text-xs">
+        <span class="text-sm">👆</span>
+        <span>Chạm dấu 3 chấm (...) ở đây</span>
+        <span class="text-xl leading-none font-bold">↗</span>
+      </div>
+    </div>
+
+    <!-- Hộp thoại chỉ dẫn cực kỳ trực quan & tối giản -->
+    <div class="bg-white rounded-3xl max-w-sm w-full mx-auto p-5 space-y-4 shadow-2xl border border-amber-300">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5 uppercase">
+          <span>📲</span> Tạo Icon Ứng Dụng Ra Màn Hình
+        </h3>
+        <button type="button" onclick="window.closeZaloGuideModal()" class="text-slate-400 hover:text-slate-700 font-bold text-2xl leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-700">
+        <div class="bg-amber-50 p-2.5 rounded-2xl border border-amber-200 text-center space-y-1">
+          <p class="font-extrabold text-amber-950 text-xs">
+            ⚡ Chỉ cần 2 thao tác cực kỳ đơn giản:
+          </p>
+          <p class="text-[11px] text-amber-800">
+            Hệ thống sẽ tự động bật hộp thoại để bạn tạo Icon ra màn hình chính ngay!
+          </p>
+        </div>
+
+        <!-- Hướng dẫn 2 bước bằng hình ảnh trực quan to rõ -->
+        <div class="space-y-2">
+          <div class="flex items-center gap-3 p-2.5 rounded-2xl bg-blue-50 border border-blue-200">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow">
+              1
+            </div>
+            <div class="min-w-0">
+              <p class="font-bold text-slate-900 text-xs">Bấm dấu 3 chấm (...) ở góc trên cùng</p>
+              <p class="text-[10px] text-slate-500">Nằm ở góc phải trên cùng màn hình Zalo.</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 p-2.5 rounded-2xl bg-emerald-50 border border-emerald-200">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white font-black flex items-center justify-center shrink-0 text-sm shadow">
+              2
+            </div>
+            <div class="min-w-0">
+              <p class="font-bold text-slate-900 text-xs flex items-center gap-1">
+                <span>Chọn</span> <span class="bg-white px-1.5 py-0.5 rounded border border-emerald-300 font-extrabold text-emerald-800">🌐 Mở bằng trình duyệt</span>
+              </p>
+              <p class="text-[10px] text-slate-500">Sau đó chạm "Cài đặt" là Icon hiện ra màn hình chính ngay!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Các nút bấm tự động -->
+      <div class="space-y-2 pt-1">
+        <button type="button" onclick="window.tryOpenExternalBrowser(true)"
+          class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-black py-3 rounded-2xl text-xs shadow-lg transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95">
+          <span>🚀</span> <span>TỰ ĐỘNG CHUYỂN SANG CHROME (ANDROID)</span>
+        </button>
+
+        <button type="button" onclick="window.downloadIosWebClipProfile()"
+          class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-bold py-2 rounded-xl text-[11px] border border-indigo-200 transition flex items-center justify-center gap-1 cursor-pointer">
+          <span>🍎</span> <span>Tải cấu hình cài Icon (Dành cho iPhone)</span>
+        </button>
+
+        <button type="button" onclick="window.copyCurrentPageUrl()"
+          class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-1.5 rounded-xl text-[11px] transition flex items-center justify-center gap-1 cursor-pointer">
+          <span>📋</span> <span>Sao chép liên kết</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Khoảng trống chân trang -->
+    <div></div>
+  </div>
+
+  <!-- MODAL HƯỚNG DẪN PWA CHO TRÌNH DUYỆT NGOÀI (CHROME / SAFARI) -->
   <div id="pwaIosGuideModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl border border-blue-100 animate-fade-in">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl border border-blue-100 animate-fade-in">
       <div class="flex items-center justify-between border-b pb-2">
         <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5 uppercase">
           <span>📲</span> Cài Đặt Ứng Dụng Lên Máy
@@ -7396,7 +7709,7 @@
         
         <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200 space-y-1.5">
           <p class="font-bold text-blue-950 flex items-center gap-1">
-            <span>🍎</span> Trên iPhone / iPad (Trình duyệt Safari):
+            <span>🍎</span> Trên iPhone / iPad (Safari):
           </p>
           <ol class="list-decimal list-inside space-y-1 text-[11px] text-blue-900 font-medium">
             <li>Bấm nút <b>Chia sẻ</b> (biểu tượng <span class="px-1.5 py-0.5 bg-white rounded border border-blue-300 font-bold">⎋</span> ở thanh dưới cùng Safari).</li>
@@ -7415,6 +7728,12 @@
           </ol>
         </div>
       </div>
+      <button type="button" onclick="window.closePwaGuideModal()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition cursor-pointer">
+        Đã hiểu, đóng lại
+      </button>
+    </div>
+  </div>
       <button type="button" onclick="window.closePwaGuideModal()"
         class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition cursor-pointer">
         Đã hiểu, đóng lại
