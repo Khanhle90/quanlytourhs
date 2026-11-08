@@ -3,6 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- PWA Web App Manifest & Service Worker -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#1d4ed8" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Điều Hành Tour" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%231d4ed8'/%3E%3Cpath d='M120 160h272c22 0 40 18 40 40v160c0 22-18 40-40 40h-16l-8 32h-40l-8-32H184l-8 32h-40l-8-32h-16c-22 0-40-18-40-40V200c0-22 18-40 40-40zm8 48c-8.8 0-16 7.2-16 16v64c0 8.8 7.2 16 16 16h256c8.8 0 16-7.2 16-16v-64c0-8.8-7.2-16-16-16H128zm32 128a24 24 0 100 48 24 24 0 000-48zm192 0a24 24 0 100 48 24 24 0 000-48z' fill='%23ffffff'/%3E%3C/svg%3E" />
+
   <title>Quản Lý Tour Dã Ngoại</title>
   
   <!-- Tailwind CSS CDN -->
@@ -84,9 +93,16 @@
         <h1 class="text-base font-bold tracking-wide flex items-center gap-1.5">
           <span>🚌</span> QUẢN LÝ TOUR DÃ NGOẠI
         </h1>
-        <span id="deviceLockBadge" class="hidden text-[11px] bg-emerald-500 text-white font-semibold px-2 py-0.5 rounded-full shadow">
-          🔒 Đã nhớ xe
-        </span>
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="pwaInstallBtn" onclick="window.triggerPwaInstall()"
+            class="text-[11px] bg-amber-500 hover:bg-amber-600 text-white font-extrabold px-2.5 py-1 rounded-full shadow flex items-center gap-1 transition cursor-pointer"
+            title="Cài đặt lối tắt ứng dụng lên màn hình chính điện thoại">
+            <span>📲</span> <span>Cài đặt App</span>
+          </button>
+          <span id="deviceLockBadge" class="hidden text-[11px] bg-emerald-500 text-white font-semibold px-2 py-0.5 rounded-full shadow">
+            🔒 Đã nhớ xe
+          </span>
+        </div>
       </div>
 
       <nav class="grid grid-cols-3 gap-1 bg-blue-800 p-1 rounded-lg text-xs font-semibold">
@@ -161,24 +177,48 @@
               🔄 Tải lại danh sách xe
             </button>
           </div>
-          <!-- Ô gõ tìm kiếm nhanh số xe hoặc tên lớp -->
-          <div class="space-y-1.5">
-            <div class="relative">
-              <input type="text" id="hdvVehicleSearchInput" oninput="window.filterHdvVehicleOptions()" placeholder="🔍 Gõ số xe hoặc tên lớp để tìm nhanh..."
-                class="w-full rounded-lg border border-blue-300 bg-blue-50/50 px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-            </div>
-            <div class="flex gap-2">
-              <select id="hdvVehicleSelect" onchange="window.onVehicleSelectChange()"
-                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-blue-900 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-                <option value="">-- Chọn xe / lớp phụ trách --</option>
-              </select>
-              <input type="hidden" id="hdvVehicleInput" />
+          <!-- HÀNG CHỌN XE DUY NHẤT: VỪA GÕ TÌM KIẾM GỢI Ý VỪA CHỌN TÊN XE -->
+          <div class="relative" id="hdvVehicleComboboxWrapper">
+            <div class="flex items-center gap-1.5">
+              <div class="relative flex-1">
+                <input type="text" id="hdvVehicleComboboxInput" autocomplete="off"
+                  onfocus="window.openVehicleDropdown()"
+                  oninput="window.onVehicleComboboxInput(this.value)"
+                  placeholder="🔍 Gõ số xe hoặc bấm để chọn xe / lớp..."
+                  class="w-full rounded-lg border border-blue-300 bg-white px-3 py-2 pr-16 text-xs font-bold text-blue-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none shadow-xs" />
+                
+                <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400">
+                  <button type="button" id="clearVehicleInputBtn" onclick="window.clearSelectedVehicle()" title="Xóa chọn lại"
+                    class="hidden hover:text-rose-600 font-bold text-xs p-1 leading-none rounded cursor-pointer">
+                    ✕
+                  </button>
+                  <button type="button" onclick="window.toggleVehicleDropdown()" title="Danh sách xe"
+                    class="hover:text-blue-600 font-bold text-xs p-1 leading-none cursor-pointer">
+                    ▼
+                  </button>
+                </div>
+              </div>
+
               <button type="button" id="unlockVehicleBtn" onclick="window.unlockVehicleForCurrentTour()"
-                class="hidden px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold shrink-0">
+                class="hidden px-2.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold shrink-0">
                 Đổi xe
               </button>
             </div>
+
+            <!-- MENU XỔ XUỐNG KHI CLICK HOẶC GÕ TÌM KIẾM -->
+            <div id="hdvVehicleDropdownList"
+              class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto divide-y divide-slate-100">
+              <!-- Render options động -->
+            </div>
+
+            <!-- Các thẻ ẩn đảm bảo tương thích 100% mã nguồn cũ -->
+            <select id="hdvVehicleSelect" class="hidden" onchange="window.onVehicleSelectChange()">
+              <option value="">-- Chọn xe / lớp phụ trách --</option>
+            </select>
+            <input type="hidden" id="hdvVehicleInput" />
+            <input type="hidden" id="hdvVehicleSearchInput" />
           </div>
+
           <!-- Ô nhập xe tùy chỉnh nếu chưa có trong danh sách Excel -->
           <div id="customVehicleBox" class="hidden mt-2 p-2 bg-amber-50 border border-amber-300 rounded-lg space-y-1.5">
             <label class="block text-[10px] font-bold text-amber-800 uppercase">Nhập tên xe / lớp mới:</label>
@@ -193,7 +233,7 @@
               </button>
             </div>
           </div>
-          <p class="text-[10px] text-slate-500 mt-0.5" id="vehicleSelectHint">Danh sách xe/lớp được nạp tự động do điều hành tải lên</p>
+          <p class="text-[10px] text-slate-500 mt-1" id="vehicleSelectHint">Gõ để tìm nhanh số xe, tên lớp hoặc bấm ▼ để chọn từ danh sách</p>
         </div>
 
         <div class="space-y-1.5">
@@ -222,7 +262,7 @@
         </div>
       </div>
 
-      <!-- Khối 2: Trạng thái xe & GPS tự động 15s -->
+      <!-- Khối 2: Trạng thái xe, GPS tự động & Bản đồ vị trí điểm đến -->
       <div class="bg-amber-50 p-3.5 rounded-xl shadow-sm border border-amber-300 space-y-2.5">
         <div class="flex items-center justify-between">
           <label class="text-xs font-extrabold text-amber-900 flex items-center gap-1">
@@ -233,41 +273,55 @@
 
         <div class="flex flex-col sm:flex-row gap-2">
           <select id="hdvStatusSelect" onchange="window.onStatusSelectChanged()" class="flex-1 rounded-lg border border-amber-300 bg-white px-2.5 py-2 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-amber-500 outline-none">
-  <option value="🚩 Đang xuất phát">🚩 Đang xuất phát</option>
-  <option value="🚌 Đang di chuyển">🚌 Đang di chuyển</option>
-  <option value="🏛️ Đã đến bảo tàng/di tích">🏛️ Đã đến bảo tàng/di tích</option>
-  <option value="🏨 Đã nhận phòng">🏨 Đã nhận phòng</option>
-  <option value="🔑 Đã trả phòng">🔑 Đã trả phòng</option>
-  <option value="🚌 Đang về trường">🚌 Đang về trường</option>
-</select>
+            <option value="🚌 Di chuyển">🚌 Di chuyển</option>
+            <option value="🏫 Tại trường">🏫 Tại trường</option>
+            <option value="🏛️ Bảo tàng/Di tích">🏛️ Bảo tàng/Di tích</option>
+            <option value="🏨 Khách sạn">🏨 Khách sạn</option>
+            <option value="🍽️ Nhà hàng">🍽️ Nhà hàng</option>
+          </select>
 
           <button type="button" id="btnQuickStatus" onclick="window.saveQuickStatus()"
-            class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-lg text-xs shadow shrink-0 transition">
+            class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-lg text-xs shadow shrink-0 transition cursor-pointer">
             ⚡ Cập nhật trạng thái
           </button>
         </div>
 
-        <!-- Báo trạng thái phát GPS 15s -->
-        <div id="hdvGpsIndicator" class="bg-white/90 p-2 rounded-lg border border-amber-200 flex items-center justify-between text-[11px]">
-          <div class="flex items-center gap-1.5">
-            <span id="gpsDot" class="pulse-dot"></span>
-            <span id="gpsStatusText" class="font-bold text-slate-700">Đang khởi động định vị GPS...</span>
+        <!-- Báo trạng thái phát GPS 15s VÀ NÚT BẬT/TẮT BẢN ĐỒ CÙNG HÀNG -->
+        <div id="hdvGpsIndicator" class="bg-white/90 p-2 rounded-lg border border-amber-200 flex items-center justify-between text-[11px] gap-2">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span id="gpsDot" class="pulse-dot shrink-0"></span>
+            <span id="gpsStatusText" class="font-bold text-slate-700 truncate">Đang khởi động định vị GPS...</span>
           </div>
-          <span id="gpsLastTime" class="text-[10px] text-slate-500">Update 15s/lần</span>
+          
+          <div class="flex items-center gap-2 shrink-0">
+            <span id="gpsLastTime" class="text-[10px] text-slate-500 hidden sm:inline">Update 15s/lần</span>
+            <button type="button" id="toggleHdvMapBtn" onclick="window.toggleHdvMapVisibility()"
+              class="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] shadow-xs flex items-center gap-1 transition shrink-0 cursor-pointer">
+              <span>🗺️</span> <span id="toggleHdvMapBtnText">Tắt bản đồ</span>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- BẢN ĐỒ VỊ TRÍ CÁC XE CHO HDV (CHỈ HIỆN SAU KHI LƯU TOÀN BỘ BÁO CÁO XE) -->
-      <div id="hdvMiniMapContainer" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-1.5 p-2.5">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-800 flex items-center gap-1">
-            <span>🗺️</span> Bản đồ vị trí các xe
-          </span>
-          <span class="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-            <span class="pulse-dot"></span> Trực tiếp
-          </span>
+        <!-- BẢN ĐỒ HIỂN THỊ PHÍA DƯỚI TRẠNG THÁI HOẠT ĐỘNG CỦA XE -->
+        <div id="hdvInlineMapContainer" class="bg-white rounded-xl border border-amber-200 overflow-hidden space-y-1.5 p-2 shadow-xs">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] px-1">
+            <span class="font-bold text-slate-800 flex items-center gap-1">
+              <span>📍</span> Bản đồ & Bán kính chuyển trạng thái (< 500m)
+            </span>
+            <span id="hdvProximityBadge" class="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-full border border-slate-200 self-start sm:self-auto">
+              Đang xác định vị trí xe...
+            </span>
+          </div>
+          <div id="hdvInlineMap" class="w-full h-72 rounded-lg z-10 border border-slate-200"></div>
+          <div class="flex flex-wrap items-center justify-between gap-1.5 text-[10px] text-slate-500 px-1 pt-1 border-t border-slate-100">
+            <span class="font-medium">🔵 Xe của bạn | 🔴 Vòng tròn 500m các điểm đến</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button type="button" onclick="window.zoomInHdvMap()" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded font-bold text-slate-700 text-xs shadow-xs cursor-pointer" title="Phóng to bản đồ">➕ Phóng to</button>
+              <button type="button" onclick="window.zoomOutHdvMap()" class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded font-bold text-slate-700 text-xs shadow-xs cursor-pointer" title="Thu nhỏ bản đồ">➖ Thu nhỏ</button>
+              <button type="button" onclick="window.recenterHdvInlineMap()" class="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded text-blue-700 font-bold text-xs shadow-xs cursor-pointer" title="Căn giữa về vị trí xe">🎯 Về vị trí xe</button>
+            </div>
+          </div>
         </div>
-        <div id="hdvMiniMap" class="w-full h-64 rounded-lg z-10 border border-slate-200"></div>
       </div>
 
       <!-- Khối 3: Quản lý Nhân sự & Trưởng xe -->
@@ -716,14 +770,41 @@
           </h2>
         </div>
 
-        <!-- Ô gõ tìm kiếm tour trực tiếp -->
+        <!-- HÀNG CHỌN TOUR DUY NHẤT: VỪA GÕ TÌM KIẾM GỢI Ý VỪA CHỌN TOUR -->
         <div class="space-y-1">
           <label class="block text-[11px] font-bold text-slate-700 uppercase">Chọn Tour để quản trị:</label>
-          <input type="text" id="adminTourSearchInput" oninput="window.filterAdminTourSelectOptions()" placeholder="🔍 Gõ tên chương trình để tìm kiếm nhanh..."
-            class="w-full rounded-lg border border-blue-300 bg-blue-50/50 px-3 py-1.5 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none mb-1.5" />
-          <select id="adminTourSelect" onchange="window.onAdminTourChange()" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="">-- Đang tải danh sách tour... --</option>
-          </select>
+          <div class="relative" id="adminTourComboboxWrapper">
+            <div class="relative">
+              <input type="text" id="adminTourComboboxInput" autocomplete="off"
+                onfocus="window.openAdminTourDropdown()"
+                oninput="window.onAdminTourComboboxInput(this.value)"
+                placeholder="🔍 Gõ tên chương trình để tìm kiếm hoặc bấm ▼ để chọn tour..."
+                class="w-full rounded-lg border border-blue-300 bg-white px-3 py-2 pr-16 text-xs font-bold text-blue-900 placeholder-slate-400 focus:ring-2 focus:ring-blue-500 outline-none shadow-xs" />
+              
+              <div class="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 text-slate-400">
+                <button type="button" id="clearAdminTourInputBtn" onclick="window.clearSelectedAdminTour()" title="Xóa chọn lại"
+                  class="hidden hover:text-rose-600 font-bold text-xs p-1 leading-none rounded cursor-pointer">
+                  ✕
+                </button>
+                <button type="button" onclick="window.toggleAdminTourDropdown()" title="Danh sách tour"
+                  class="hover:text-blue-600 font-bold text-xs p-1 leading-none cursor-pointer">
+                  ▼
+                </button>
+              </div>
+            </div>
+
+            <!-- DROPDOWN DANH SÁCH TOUR XỔ XUỐNG -->
+            <div id="adminTourDropdownList"
+              class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-blue-200 rounded-xl shadow-xl z-50 max-h-64 overflow-y-auto divide-y divide-slate-100">
+              <!-- Render danh sách tour động -->
+            </div>
+
+            <!-- Các thẻ ẩn giữ tương thích 100% với code hiện có -->
+            <select id="adminTourSelect" class="hidden" onchange="window.onAdminTourChange()">
+              <option value="">-- Đang tải danh sách tour... --</option>
+            </select>
+            <input type="hidden" id="adminTourSearchInput" />
+          </div>
         </div>
 
         <!-- Chi tiết thông tin tour được chọn -->
@@ -764,6 +845,85 @@
 
           <!-- Danh sách các dòng Phụ trách hậu cần (tự động tạo thêm khi bấm nút) -->
           <div id="adminLogisticsContainer" class="space-y-2 pt-1"></div>
+
+          <!-- THIẾT LẬP ĐỊNH VỊ CÁC ĐIỂM ĐẾN (TRƯỜNG, BẢO TÀNG/DI TÍCH, KHÁCH SẠN, NHÀ HÀNG) -->
+          <div class="bg-white p-3 rounded-lg border border-slate-200 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b pb-1.5">
+              <div>
+                <h3 class="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5">
+                  <span>📍</span> ĐỊNH VỊ CÁC ĐIỂM ĐẾN (BÁN KÍNH TỰ ĐỘNG 500M)
+                </h3>
+                <p class="text-[10px] text-slate-500">Lấy dữ liệu tọa độ từ Google Maps (VD: 21.0441396, 105.7856684). Xe đến gần < 500m tự chuyển trạng thái.</p>
+              </div>
+            </div>
+
+            <!-- 1. Trường học (Điểm xuất phát & tập kết) -->
+            <div class="bg-blue-50/70 p-2.5 rounded-xl border border-blue-200 space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] font-bold text-blue-900 flex items-center gap-1">
+                  <span>🏫</span> Trường học (Điểm xuất phát & Đón/Trả)
+                </label>
+                <span id="badgeDestSchool" class="text-[10px] font-semibold text-slate-500">Chưa đặt tọa độ</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                <input type="text" id="destSchoolName" placeholder="Tên trường (VD: THCS Ban Mai)..."
+                  class="sm:col-span-5 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                <input type="text" id="destSchoolCoords" oninput="window.validateCoordInput(this, 'badgeDestSchool')" placeholder="Tọa độ Google Maps: 21.0441396, 105.7856684"
+                  class="sm:col-span-7 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-mono bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+
+            <!-- 2. Bảo tàng / Di tích (Có thể thêm nhiều điểm) -->
+            <div class="bg-amber-50/70 p-2.5 rounded-xl border border-amber-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-[11px] font-bold text-amber-900 flex items-center gap-1">
+                    <span>🏛️</span> Bảo tàng / Di tích
+                  </label>
+                  <span class="text-[10px] text-amber-700">Xe cách điểm < 500m tự chuyển "Bảo tàng/Di tích"</span>
+                </div>
+                <button type="button" onclick="window.addDestinationItem('monument')"
+                  class="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer">
+                  <span>+</span> Thêm điểm
+                </button>
+              </div>
+              <div id="destMonumentList" class="space-y-1.5"></div>
+            </div>
+
+            <!-- 3. Khách sạn (Có thể thêm nhiều điểm) -->
+            <div class="bg-purple-50/70 p-2.5 rounded-xl border border-purple-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-[11px] font-bold text-purple-900 flex items-center gap-1">
+                    <span>🏨</span> Khách sạn
+                  </label>
+                  <span class="text-[10px] text-purple-700">Xe cách điểm < 500m tự chuyển "Khách sạn"</span>
+                </div>
+                <button type="button" onclick="window.addDestinationItem('hotel')"
+                  class="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer">
+                  <span>+</span> Thêm khách sạn
+                </button>
+              </div>
+              <div id="destHotelList" class="space-y-1.5"></div>
+            </div>
+
+            <!-- 4. Nhà hàng (Có thể thêm nhiều điểm) -->
+            <div class="bg-orange-50/70 p-2.5 rounded-xl border border-orange-200 space-y-2">
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-[11px] font-bold text-orange-900 flex items-center gap-1">
+                    <span>🍽️</span> Nhà hàng
+                  </label>
+                  <span class="text-[10px] text-orange-700">Xe cách điểm < 500m tự chuyển "Nhà hàng"</span>
+                </div>
+                <button type="button" onclick="window.addDestinationItem('restaurant')"
+                  class="px-2.5 py-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer">
+                  <span>+</span> Thêm nhà hàng
+                </button>
+              </div>
+              <div id="destRestaurantList" class="space-y-1.5"></div>
+            </div>
+          </div>
 
           <div class="flex justify-end pt-1">
             <button type="button" onclick="window.saveTourAdminInfo()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow">
@@ -1462,11 +1622,19 @@
       const lockedVehicle = map[progId] || '';
       const vehicleSelect = document.getElementById('hdvVehicleSelect');
       const vehicleInput = document.getElementById('hdvVehicleInput');
+      const comboboxInput = document.getElementById('hdvVehicleComboboxInput');
       const badge = document.getElementById('deviceLockBadge');
       const unlockBtn = document.getElementById('unlockVehicleBtn');
+      const clearBtn = document.getElementById('clearVehicleInputBtn');
 
       if (lockedVehicle) {
         if (vehicleInput) vehicleInput.value = lockedVehicle;
+        if (comboboxInput) {
+          comboboxInput.value = lockedVehicle;
+          comboboxInput.disabled = true;
+          comboboxInput.classList.add('bg-slate-100', 'cursor-not-allowed');
+        }
+        if (clearBtn) clearBtn.classList.add('hidden');
         if (vehicleSelect) {
           let opt = Array.from(vehicleSelect.options).find(o => o.value === lockedVehicle || normalizeVehicleKey(o.value) === normalizeVehicleKey(lockedVehicle));
           if (!opt && lockedVehicle) {
@@ -1479,7 +1647,6 @@
           }
           if (opt) vehicleSelect.value = opt.value;
           vehicleSelect.disabled = true;
-          vehicleSelect.classList.add('bg-slate-100', 'cursor-not-allowed');
         }
         if (badge) {
           badge.classList.remove('hidden');
@@ -1487,9 +1654,13 @@
         }
         if (unlockBtn) unlockBtn.classList.remove('hidden');
       } else {
+        if (comboboxInput) {
+          comboboxInput.disabled = false;
+          comboboxInput.classList.remove('bg-slate-100', 'cursor-not-allowed');
+          if (clearBtn) clearBtn.classList.toggle('hidden', !comboboxInput.value);
+        }
         if (vehicleSelect) {
           vehicleSelect.disabled = false;
-          vehicleSelect.classList.remove('bg-slate-100', 'cursor-not-allowed');
         }
         if (badge) badge.classList.add('hidden');
         if (unlockBtn) unlockBtn.classList.add('hidden');
@@ -1504,14 +1675,19 @@
       localStorage.setItem(LS_LOCKED_VEHICLES, JSON.stringify(map));
       applyLockUiState(progId);
       const vehicleSelect = document.getElementById('hdvVehicleSelect');
-      if (vehicleSelect) {
-        vehicleSelect.value = '';
-        vehicleSelect.focus();
-      }
+      if (vehicleSelect) vehicleSelect.value = '';
       const vehicleInput = document.getElementById('hdvVehicleInput');
       if (vehicleInput) vehicleInput.value = '';
+      const comboboxInput = document.getElementById('hdvVehicleComboboxInput');
+      if (comboboxInput) {
+        comboboxInput.value = '';
+        comboboxInput.focus();
+      }
+      const clearBtn = document.getElementById('clearVehicleInputBtn');
+      if (clearBtn) clearBtn.classList.add('hidden');
       resetVehicleFormFields();
       resetHdvAttendanceView();
+      openVehicleDropdown();
     }
 
     function syncHdvName() {
@@ -1658,13 +1834,17 @@
 
           if (isTrackingMoving) {
             if (dot) dot.className = 'pulse-dot';
-            if (textEl) textEl.textContent = `GPS OK (${latestGpsCoords.lat.toFixed(4)}, ${latestGpsCoords.lng.toFixed(4)})`;
-            if (timeEl) timeEl.textContent = `Lúc: ${nowStr}`;
+            if (textEl) textEl.textContent = 'GPS OK (' + latestGpsCoords.lat.toFixed(4) + ', ' + latestGpsCoords.lng.toFixed(4) + ')';
+            if (timeEl) timeEl.textContent = 'Lúc: ' + nowStr;
           } else {
             if (dot) dot.className = 'inline-block w-2 h-2 rounded-full bg-slate-400';
-            if (textEl) textEl.textContent = `Đã dừng phát (Sẵn sàng: ${latestGpsCoords.lat.toFixed(4)}, ${latestGpsCoords.lng.toFixed(4)})`;
-            if (timeEl) timeEl.textContent = `Lúc: ${nowStr}`;
+            if (textEl) textEl.textContent = 'Đã dừng phát (Sẵn sàng: ' + latestGpsCoords.lat.toFixed(4) + ', ' + latestGpsCoords.lng.toFixed(4) + ')';
+            if (timeEl) timeEl.textContent = 'Lúc: ' + nowStr;
           }
+
+          // Tự động kiểm tra khoảng cách các điểm đến và cập nhật bản đồ
+          checkAutoProximityStatus(latestGpsCoords.lat, latestGpsCoords.lng);
+          initOrUpdateHdvInlineMap();
         },
         (err) => {
           console.warn('Lỗi GPS watch:', err.message);
@@ -1707,8 +1887,8 @@
     function isMovingStatus(statusStr) {
       const s = String(statusStr || '').toLowerCase();
       // Nếu đã kết thúc tour thì không phát GPS
-      if (s.includes('kết thúc') || s.includes('về tới trường') || s.includes('về đến trường')) return false;
-      return s.includes('xuất phát') || s.includes('di chuyển') || s.includes('về trường');
+      if (s.includes('kết thúc')) return false;
+      return s.includes('di chuyển') || s.includes('xuất phát') || s.includes('về trường');
     }
 
     function checkAndToggleHdvGpsTracking(status) {
@@ -1777,11 +1957,662 @@
     // ==============================================================
     // 3. QUẢN LÝ XE & ĐIỂM DANH HỌC SINH TRỰC TIẾP (KHÔNG DÙNG AI ẢNH)
     // ==============================================================
+    // ==============================================================
+    // SEARCHABLE COMBOBOX CHỌN XE / LỚP DUY NHẤT 1 DÒNG
+    // ==============================================================
+    let isVehicleDropdownOpen = false;
+
+    function openVehicleDropdown() {
+      const list = document.getElementById('hdvVehicleDropdownList');
+      if (!list) return;
+      const input = document.getElementById('hdvVehicleComboboxInput');
+      if (input && input.disabled) return;
+      renderVehicleDropdownOptions(input ? input.value : '');
+      list.classList.remove('hidden');
+      isVehicleDropdownOpen = true;
+    }
+
+    function closeVehicleDropdown() {
+      const list = document.getElementById('hdvVehicleDropdownList');
+      if (list) list.classList.add('hidden');
+      isVehicleDropdownOpen = false;
+    }
+
+    function toggleVehicleDropdown() {
+      if (isVehicleDropdownOpen) {
+        closeVehicleDropdown();
+      } else {
+        const input = document.getElementById('hdvVehicleComboboxInput');
+        if (input) input.focus();
+        openVehicleDropdown();
+      }
+    }
+
+    function onVehicleComboboxInput(val) {
+      const clearBtn = document.getElementById('clearVehicleInputBtn');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !val);
+      }
+      openVehicleDropdown();
+      renderVehicleDropdownOptions(val);
+    }
+
+    function renderVehicleDropdownOptions(filterText) {
+      const list = document.getElementById('hdvVehicleDropdownList');
+      if (!list) return;
+      const q = String(filterText || '').trim().toLowerCase();
+      const qNoTone = removeVietnameseTones(q);
+
+      list.innerHTML = '';
+
+      const items = (currentLoadedProgramClasses && currentLoadedProgramClasses.length > 0)
+        ? currentLoadedProgramClasses
+        : [];
+
+      let matchedCount = 0;
+
+      items.forEach(c => {
+        const cName = String(c.className || '');
+        const cLower = cName.toLowerCase();
+        const cNoTone = removeVietnameseTones(cLower);
+
+        // Khớp tìm kiếm cả có dấu và không dấu
+        if (q !== '' && !cLower.includes(q) && !cNoTone.includes(qNoTone)) {
+          return;
+        }
+
+        matchedCount++;
+        const itemBtn = document.createElement('div');
+        itemBtn.className = 'px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between text-xs text-slate-800 transition active:bg-blue-100';
+        itemBtn.innerHTML = '<div class="flex items-center gap-2"><span class="text-sm">🚌</span><span class="font-bold text-blue-950">' + escapeHtml(cName) + '</span></div><span class="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">' + c.count + ' học sinh</span>';
+        itemBtn.onclick = () => selectVehicleFromCombobox(cName);
+        list.appendChild(itemBtn);
+      });
+
+      if (items.length > 0 && matchedCount === 0) {
+        const noMatch = document.createElement('div');
+        noMatch.className = 'px-3 py-3 text-center text-xs text-slate-400 italic';
+        noMatch.textContent = 'Không tìm thấy xe / lớp khớp với "' + filterText + '"';
+        list.appendChild(noMatch);
+      } else if (items.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'px-3 py-3 text-center text-xs text-amber-700 bg-amber-50/50';
+        emptyMsg.innerHTML = '⚠️ Chưa có danh sách xe từ Excel. Bạn có thể chọn nhập xe khác bên dưới.';
+        list.appendChild(emptyMsg);
+      }
+
+      // Nút nhập xe khác
+      const customBtn = document.createElement('div');
+      customBtn.className = 'px-3 py-2.5 bg-blue-50/60 hover:bg-blue-100/80 cursor-pointer flex items-center gap-2 text-xs font-bold text-blue-700 border-t border-blue-100 transition';
+      customBtn.innerHTML = '<span>➕</span> <span>Nhập xe / lớp khác...</span>';
+      customBtn.onclick = () => {
+        closeVehicleDropdown();
+        const customBox = document.getElementById('customVehicleBox');
+        if (customBox) customBox.classList.remove('hidden');
+        const customInput = document.getElementById('hdvCustomVehicleInput');
+        if (customInput) customInput.focus();
+      };
+      list.appendChild(customBtn);
+    }
+
+    function selectVehicleFromCombobox(vehicleName) {
+      const input = document.getElementById('hdvVehicleComboboxInput');
+      if (input) input.value = vehicleName;
+      const clearBtn = document.getElementById('clearVehicleInputBtn');
+      if (clearBtn) clearBtn.classList.remove('hidden');
+
+      const select = document.getElementById('hdvVehicleSelect');
+      if (select) {
+        let opt = Array.from(select.options).find(o => o.value === vehicleName);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = vehicleName;
+          opt.textContent = vehicleName;
+          select.appendChild(opt);
+        }
+        select.value = vehicleName;
+      }
+
+      closeVehicleDropdown();
+      onVehicleSelectChange();
+    }
+
+    function clearSelectedVehicle() {
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      const map = getLockedMap();
+      if (map[progId]) {
+        return showToast('Xe đang được ghi nhớ! Bấm nút "Đổi xe" để thay đổi.', 'info');
+      }
+      const input = document.getElementById('hdvVehicleComboboxInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      const clearBtn = document.getElementById('clearVehicleInputBtn');
+      if (clearBtn) clearBtn.classList.add('hidden');
+
+      const select = document.getElementById('hdvVehicleSelect');
+      if (select) select.value = '';
+      const vInput = document.getElementById('hdvVehicleInput');
+      if (vInput) vInput.value = '';
+
+      resetVehicleFormFields();
+      resetHdvAttendanceView();
+      openVehicleDropdown();
+    }
+
+    // Đóng dropdown khi click ra ngoài
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('hdvVehicleComboboxWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeVehicleDropdown();
+      }
+    });
+
+    // ==============================================================
+    // QUẢN TRỊ ĐỊNH VỊ CÁC ĐIỂM ĐẾN (TRƯỜNG, DI TÍCH, KHÁCH SẠN, NHÀ HÀNG)
+    // ==============================================================
+    function parseGoogleCoords(str) {
+      if (!str) return null;
+      const s = String(str).trim();
+      const match = s.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+      if (match) {
+        const lat = parseFloat(match[1]);
+        const lng = parseFloat(match[2]);
+        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          return { lat, lng, raw: lat + ', ' + lng };
+        }
+      }
+      return null;
+    }
+
+    function validateCoordInput(el, badgeId) {
+      const badge = document.getElementById(badgeId);
+      if (!badge) return;
+      const parsed = parseGoogleCoords(el.value);
+      if (parsed) {
+        badge.className = 'text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full';
+        badge.innerHTML = '✓ Tọa độ hợp lệ (' + parsed.lat.toFixed(4) + ', ' + parsed.lng.toFixed(4) + ')';
+      } else if (el.value.trim() === '') {
+        badge.className = 'text-[10px] font-semibold text-slate-500';
+        badge.textContent = 'Chưa đặt tọa độ';
+      } else {
+        badge.className = 'text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full';
+        badge.textContent = '⚠️ Định dạng sai (Dán dạng: 21.0441, 105.7856)';
+      }
+    }
+
+    function addDestinationItem(type, name, rawCoords) {
+      name = name || '';
+      rawCoords = rawCoords || '';
+      let containerId = '';
+      let placeholderName = '';
+      let labelIcon = '';
+      if (type === 'monument') {
+        containerId = 'destMonumentList';
+        placeholderName = 'Tên Bảo tàng / Di tích...';
+        labelIcon = '🏛️';
+      } else if (type === 'hotel') {
+        containerId = 'destHotelList';
+        placeholderName = 'Tên Khách sạn...';
+        labelIcon = '🏨';
+      } else if (type === 'restaurant') {
+        containerId = 'destRestaurantList';
+        placeholderName = 'Tên Nhà hàng...';
+        labelIcon = '🍽️';
+      }
+      const container = document.getElementById(containerId);
+      if (!container) return;
+
+      const rowId = 'dest_row_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const row = document.createElement('div');
+      row.id = rowId;
+      row.className = 'grid grid-cols-1 sm:grid-cols-12 gap-1.5 items-center bg-white p-2 rounded-lg border border-slate-200 shadow-xs';
+      
+      row.innerHTML = '<div class="sm:col-span-5 flex items-center gap-1.5">' +
+        '<span class="text-xs shrink-0">' + labelIcon + '</span>' +
+        '<input type="text" class="dest-item-name w-full rounded-md border border-slate-300 px-2 py-1 text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none" placeholder="' + placeholderName + '" value="' + escapeHtml(name) + '" />' +
+        '</div>' +
+        '<div class="sm:col-span-6">' +
+        '<input type="text" class="dest-item-coords w-full rounded-md border border-slate-300 px-2 py-1 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Tọa độ: 21.0441, 105.7856" value="' + escapeHtml(rawCoords) + '" oninput="window.checkRowCoordStatus(this)" />' +
+        '</div>' +
+        '<div class="sm:col-span-1 flex items-center justify-end gap-1">' +
+        '<button type="button" onclick="window.removeDestinationItem(\'' + rowId + '\')" title="Xóa điểm này" class="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded text-xs font-bold leading-none cursor-pointer">🗑️</button>' +
+        '</div>';
+      container.appendChild(row);
+      const coordsInput = row.querySelector('.dest-item-coords');
+      if (coordsInput) checkRowCoordStatus(coordsInput);
+    }
+
+    function removeDestinationItem(rowId) {
+      const el = document.getElementById(rowId);
+      if (el) el.remove();
+    }
+
+    function checkRowCoordStatus(inputEl) {
+      const parsed = parseGoogleCoords(inputEl.value);
+      if (parsed) {
+        inputEl.classList.remove('border-rose-400', 'bg-rose-50');
+        inputEl.classList.add('border-emerald-400', 'bg-emerald-50/30');
+      } else if (inputEl.value.trim()) {
+        inputEl.classList.remove('border-emerald-400', 'bg-emerald-50/30');
+        inputEl.classList.add('border-rose-400', 'bg-rose-50');
+      } else {
+        inputEl.classList.remove('border-emerald-400', 'bg-emerald-50/30', 'border-rose-400', 'bg-rose-50');
+      }
+    }
+
+    function collectTourDestinations() {
+      const schoolName = document.getElementById('destSchoolName')?.value.trim() || document.getElementById('tourNameEdit')?.value.trim() || 'Trường học';
+      const schoolCoordsRaw = document.getElementById('destSchoolCoords')?.value.trim() || '';
+      const schoolParsed = parseGoogleCoords(schoolCoordsRaw);
+
+      const collectList = (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return [];
+        const rows = container.querySelectorAll('.grid');
+        const list = [];
+        rows.forEach(r => {
+          const name = r.querySelector('.dest-item-name')?.value.trim() || '';
+          const coordsRaw = r.querySelector('.dest-item-coords')?.value.trim() || '';
+          const parsed = parseGoogleCoords(coordsRaw);
+          if (name || coordsRaw) {
+            list.push({
+              name: name,
+              raw: coordsRaw,
+              lat: parsed ? parsed.lat : null,
+              lng: parsed ? parsed.lng : null
+            });
+          }
+        });
+        return list;
+      };
+
+      return {
+        school: {
+          name: schoolName,
+          raw: schoolCoordsRaw,
+          lat: schoolParsed ? schoolParsed.lat : null,
+          lng: schoolParsed ? schoolParsed.lng : null
+        },
+        monuments: collectList('destMonumentList'),
+        hotels: collectList('destHotelList'),
+        restaurants: collectList('destRestaurantList')
+      };
+    }
+
+    function renderTourDestinations(dest) {
+      const sNameInput = document.getElementById('destSchoolName');
+      const sCoordsInput = document.getElementById('destSchoolCoords');
+      if (sNameInput) sNameInput.value = (dest && dest.school && dest.school.name) ? dest.school.name : (document.getElementById('tourNameEdit')?.value || '');
+      if (sCoordsInput) {
+        sCoordsInput.value = (dest && dest.school && (dest.school.raw || (dest.school.lat && (dest.school.lat + ', ' + dest.school.lng)))) || '';
+        validateCoordInput(sCoordsInput, 'badgeDestSchool');
+      }
+
+      ['destMonumentList', 'destHotelList', 'destRestaurantList'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+      });
+
+      if (dest) {
+        if (Array.isArray(dest.monuments)) {
+          dest.monuments.forEach(m => addDestinationItem('monument', m.name, m.raw || (m.lat ? (m.lat + ', ' + m.lng) : '')));
+        }
+        if (Array.isArray(dest.hotels)) {
+          dest.hotels.forEach(h => addDestinationItem('hotel', h.name, h.raw || (h.lat ? (h.lat + ', ' + h.lng) : '')));
+        }
+        if (Array.isArray(dest.restaurants)) {
+          dest.restaurants.forEach(r => addDestinationItem('restaurant', r.name, r.raw || (r.lat ? (r.lat + ', ' + r.lng) : '')));
+        }
+      }
+    }
+
+    // ==============================================================
+    // BẢN ĐỒ HDV & TÍNH KHOẢNG CÁCH 1000M TỰ ĐỘNG CHUYỂN TRẠNG THÁI
+    // ==============================================================
+    let hdvInlineMapInstance = null;
+    let hdvInlineVehicleMarker = null;
+    let hdvInlineDestLayers = null;
+    let isHdvInlineMapVisible = true;
+
+    function haversineDistanceMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    function toggleHdvMapVisibility() {
+      const container = document.getElementById('hdvInlineMapContainer');
+      const textSpan = document.getElementById('toggleHdvMapBtnText');
+      if (!container) return;
+      isHdvInlineMapVisible = !isHdvInlineMapVisible;
+      if (isHdvInlineMapVisible) {
+        container.classList.remove('hidden');
+        if (textSpan) textSpan.textContent = 'Tắt bản đồ';
+        setTimeout(() => {
+          if (hdvInlineMapInstance) hdvInlineMapInstance.invalidateSize();
+          initOrUpdateHdvInlineMap();
+        }, 200);
+      } else {
+        container.classList.add('hidden');
+        if (textSpan) textSpan.textContent = 'Bật bản đồ';
+      }
+    }
+
+    function recenterHdvInlineMap() {
+      if (!hdvInlineMapInstance) return;
+      if (latestGpsCoords) {
+        hdvInlineMapInstance.setView([latestGpsCoords.lat, latestGpsCoords.lng], 15);
+      } else {
+        initOrUpdateHdvInlineMap(true);
+      }
+    }
+
+    function getCurrentTourDestinations() {
+      const progId = document.getElementById('hdvProgramSelect')?.value;
+      if (!progId) return null;
+      const progObj = activeProgramsCache.find(p => p.id === progId);
+      return progObj ? progObj.destinations : null;
+    }
+
+    function initOrUpdateHdvInlineMap(forceRecenter) {
+      const mapDiv = document.getElementById('hdvInlineMap');
+      if (!mapDiv || !isHdvInlineMapVisible) return;
+
+      if (!hdvInlineMapInstance) {
+        hdvInlineMapInstance = L.map('hdvInlineMap', { zoomControl: true, scrollWheelZoom: true, touchZoom: true, doubleClickZoom: true, dragging: true }).setView([21.0285, 105.8542], 14);
+        L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+          subdomains: ['0', '1', '2', '3'],
+          maxZoom: 20
+        }).addTo(hdvInlineMapInstance);
+        hdvInlineDestLayers = L.layerGroup().addTo(hdvInlineMapInstance);
+      }
+
+      const dest = getCurrentTourDestinations();
+      if (hdvInlineDestLayers) hdvInlineDestLayers.clearLayers();
+
+      const allBounds = [];
+
+      // 1. Vẽ các điểm đến & Vòng tròn 1000m
+      if (dest) {
+        // Trường
+        if (dest.school && dest.school.lat && dest.school.lng) {
+          const lat = parseFloat(dest.school.lat);
+          const lng = parseFloat(dest.school.lng);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            allBounds.push([lat, lng]);
+            const sMarker = L.marker([lat, lng], {
+              icon: L.divIcon({
+                className: 'dest-marker',
+                html: '<div style="background:#2563eb; color:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:15px; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,0.3);">🏫</div>',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+              })
+            }).bindPopup('<b>🏫 Trường: ' + escapeHtml(dest.school.name || '') + '</b><br><span style="color:#2563eb; font-weight:bold;">Bán kính nhận diện: 500m</span>');
+            hdvInlineDestLayers.addLayer(sMarker);
+
+            const sCircle = L.circle([lat, lng], {
+              radius: 500,
+              color: '#2563eb',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.12,
+              weight: 2,
+              dashArray: '5, 5'
+            });
+            hdvInlineDestLayers.addLayer(sCircle);
+          }
+        }
+
+        // Bảo tàng / Di tích
+        if (Array.isArray(dest.monuments)) {
+          dest.monuments.forEach(m => {
+            const lat = parseFloat(m.lat);
+            const lng = parseFloat(m.lng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              allBounds.push([lat, lng]);
+              const mMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                  className: 'dest-marker',
+                  html: '<div style="background:#d97706; color:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:15px; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,0.3);">🏛️</div>',
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15]
+                })
+              }).bindPopup('<b>🏛️ Di tích/Bảo tàng: ' + escapeHtml(m.name || '') + '</b><br><span style="color:#d97706; font-weight:bold;">Bán kính nhận diện: 500m</span>');
+              hdvInlineDestLayers.addLayer(mMarker);
+
+              const mCircle = L.circle([lat, lng], {
+                radius: 500,
+                color: '#d97706',
+                fillColor: '#f59e0b',
+                fillOpacity: 0.12,
+                weight: 2,
+                dashArray: '5, 5'
+              });
+              hdvInlineDestLayers.addLayer(mCircle);
+            }
+          });
+        }
+
+        // Khách sạn
+        if (Array.isArray(dest.hotels)) {
+          dest.hotels.forEach(h => {
+            const lat = parseFloat(h.lat);
+            const lng = parseFloat(h.lng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              allBounds.push([lat, lng]);
+              const hMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                  className: 'dest-marker',
+                  html: '<div style="background:#7c3aed; color:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:15px; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,0.3);">🏨</div>',
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15]
+                })
+              }).bindPopup('<b>🏨 Khách sạn: ' + escapeHtml(h.name || '') + '</b><br><span style="color:#7c3aed; font-weight:bold;">Bán kính nhận diện: 500m</span>');
+              hdvInlineDestLayers.addLayer(hMarker);
+
+              const hCircle = L.circle([lat, lng], {
+                radius: 500,
+                color: '#7c3aed',
+                fillColor: '#8b5cf6',
+                fillOpacity: 0.12,
+                weight: 2,
+                dashArray: '5, 5'
+              });
+              hdvInlineDestLayers.addLayer(hCircle);
+            }
+          });
+        }
+
+        // Nhà hàng
+        if (Array.isArray(dest.restaurants)) {
+          dest.restaurants.forEach(r => {
+            const lat = parseFloat(r.lat);
+            const lng = parseFloat(r.lng);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              allBounds.push([lat, lng]);
+              const rMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                  className: 'dest-marker',
+                  html: '<div style="background:#ea580c; color:#fff; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-size:15px; border:2px solid #fff; box-shadow:0 2px 5px rgba(0,0,0,0.3);">🍽️</div>',
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15]
+                })
+              }).bindPopup('<b>🍽️ Nhà hàng: ' + escapeHtml(r.name || '') + '</b><br><span style="color:#ea580c; font-weight:bold;">Bán kính nhận diện: 500m</span>');
+              hdvInlineDestLayers.addLayer(rMarker);
+
+              const rCircle = L.circle([lat, lng], {
+                radius: 500,
+                color: '#ea580c',
+                fillColor: '#f97316',
+                fillOpacity: 0.12,
+                weight: 2,
+                dashArray: '5, 5'
+              });
+              hdvInlineDestLayers.addLayer(rCircle);
+            }
+          });
+        }
+      }
+
+      // 2. Cập nhật vị trí Xe của HDV
+      if (latestGpsCoords) {
+        const vLat = latestGpsCoords.lat;
+        const vLng = latestGpsCoords.lng;
+        allBounds.push([vLat, vLng]);
+
+        const curVehicleName = document.getElementById('hdvVehicleInput')?.value || 'Xe của bạn';
+        const curStatus = document.getElementById('hdvStatusSelect')?.value || '';
+
+        const vIcon = L.divIcon({
+          className: 'custom-teardrop-marker',
+          html: '<div style="position:relative; width:34px; height:44px; display:flex; justify-content:center;">' +
+            '<svg width="34" height="44" viewBox="0 0 34 44" fill="none">' +
+            '<path d="M17 1 C8.716 1 2 7.716 2 16 C2 27 17 43 17 43 C17 43 32 27 32 16 C32 7.716 25.284 1 17 1 Z" fill="#0284c7" stroke="#ffffff" stroke-width="2.5"/>' +
+            '<circle cx="17" cy="15.5" r="10" fill="#ffffff"/>' +
+            '<text x="17" y="16" text-anchor="middle" dominant-baseline="central" fill="#0f172a" font-size="12px" font-weight="900">🚌</text>' +
+            '</svg>' +
+            '</div>',
+          iconSize: [34, 44],
+          iconAnchor: [17, 44]
+        });
+
+        if (!hdvInlineVehicleMarker) {
+          hdvInlineVehicleMarker = L.marker([vLat, vLng], { icon: vIcon }).addTo(hdvInlineMapInstance);
+        } else {
+          hdvInlineVehicleMarker.setLatLng([vLat, vLng]);
+          hdvInlineVehicleMarker.setIcon(vIcon);
+        }
+        hdvInlineVehicleMarker.bindPopup('<b>🚌 ' + escapeHtml(curVehicleName) + '</b><br>Trạng thái: <b>' + escapeHtml(curStatus) + '</b>');
+      }
+
+      if (forceRecenter && allBounds.length > 0) {
+        hdvInlineMapInstance.fitBounds(allBounds, { padding: [40, 40], maxZoom: 16 });
+      }
+    }
+
+    // LOGIC TỰ ĐỘNG CẬP NHẬT TRẠNG THÁI THEO KHOẢNG CÁCH 1000M
+    function checkAutoProximityStatus(vLat, vLng) {
+      const dest = getCurrentTourDestinations();
+      const badge = document.getElementById('hdvProximityBadge');
+      if (!vLat || !vLng || !dest) {
+        if (badge) badge.textContent = 'Chưa thiết lập định vị các điểm đến';
+        return;
+      }
+
+      let closestPoint = null;
+      let minDistance = Infinity;
+      let targetStatus = '🚌 Di chuyển';
+
+      // 1. Kiểm tra Trường
+      if (dest.school && dest.school.lat && dest.school.lng) {
+        const d = haversineDistanceMeters(vLat, vLng, parseFloat(dest.school.lat), parseFloat(dest.school.lng));
+        if (d < minDistance) {
+          minDistance = d;
+          closestPoint = { type: 'school', name: dest.school.name || 'Trường học', distance: d };
+        }
+      }
+
+      // 2. Kiểm tra Di tích / Bảo tàng
+      if (Array.isArray(dest.monuments)) {
+        dest.monuments.forEach(m => {
+          if (m.lat && m.lng) {
+            const d = haversineDistanceMeters(vLat, vLng, parseFloat(m.lat), parseFloat(m.lng));
+            if (d < minDistance) {
+              minDistance = d;
+              closestPoint = { type: 'monument', name: m.name || 'Bảo tàng / Di tích', distance: d };
+            }
+          }
+        });
+      }
+
+      // 3. Kiểm tra Khách sạn
+      if (Array.isArray(dest.hotels)) {
+        dest.hotels.forEach(h => {
+          if (h.lat && h.lng) {
+            const d = haversineDistanceMeters(vLat, vLng, parseFloat(h.lat), parseFloat(h.lng));
+            if (d < minDistance) {
+              minDistance = d;
+              closestPoint = { type: 'hotel', name: h.name || 'Khách sạn', distance: d };
+            }
+          }
+        });
+      }
+
+      // 4. Kiểm tra Nhà hàng
+      if (Array.isArray(dest.restaurants)) {
+        dest.restaurants.forEach(r => {
+          if (r.lat && r.lng) {
+            const d = haversineDistanceMeters(vLat, vLng, parseFloat(r.lat), parseFloat(r.lng));
+            if (d < minDistance) {
+              minDistance = d;
+              closestPoint = { type: 'restaurant', name: r.name || 'Nhà hàng', distance: d };
+            }
+          }
+        });
+      }
+
+      // Đánh giá khoảng cách <= 500m
+      if (closestPoint && minDistance <= 500) {
+        if (closestPoint.type === 'school') {
+          targetStatus = '🏫 Tại trường';
+        } else if (closestPoint.type === 'monument') {
+          targetStatus = '🏛️ Bảo tàng/Di tích';
+        } else if (closestPoint.type === 'hotel') {
+          targetStatus = '🏨 Khách sạn';
+        } else if (closestPoint.type === 'restaurant') {
+          targetStatus = '🍽️ Nhà hàng';
+        }
+
+        if (badge) {
+          badge.className = 'text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300';
+          badge.textContent = 'Gần ' + closestPoint.name + ' (' + Math.round(minDistance) + 'm <= 500m)';
+        }
+      } else {
+        targetStatus = '🚌 Di chuyển';
+        if (badge) {
+          badge.className = 'text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full border border-blue-300';
+          if (closestPoint && minDistance < 50000) {
+            const km = (minDistance / 1000).toFixed(1);
+            badge.textContent = 'Cách ' + closestPoint.name + ' ' + km + 'km (> 500m: Di chuyển)';
+          } else {
+            badge.textContent = 'Cách xa các điểm > 500m (Đang di chuyển)';
+          }
+        }
+      }
+
+      // Tự động chuyển trạng thái nếu khác trạng thái hiện tại
+      const statusSelect = document.getElementById('hdvStatusSelect');
+      if (statusSelect) {
+        const curStatus = statusSelect.value;
+        const curLower = curStatus.toLowerCase();
+        // Không tự động đổi nếu xe đã kết thúc tour
+        if (curLower.includes('kết thúc')) return;
+
+        if (curStatus !== targetStatus) {
+          statusSelect.value = targetStatus;
+          showToast('📍 Vị trí xe thay đổi: Tự động chuyển thành "' + targetStatus + '"', 'info');
+          // Gửi ping trạng thái mới lên máy chủ
+          sendHdvGpsPing();
+          checkAndToggleHdvGpsTracking(targetStatus);
+        }
+      }
+    }
+
     async function loadTourVehiclesForSelect(progId) {
       const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      const comboboxInput = document.getElementById('hdvVehicleComboboxInput');
       if (!vehicleSelect) return;
 
       vehicleSelect.innerHTML = '<option value="">-- Đang nạp danh sách xe/lớp... --</option>';
+      if (comboboxInput && !comboboxInput.value) {
+        comboboxInput.placeholder = '⏳ Đang nạp danh sách xe / lớp...';
+      }
 
       try {
         const res = await callApi({ action: 'getProgramClasses', programId: progId });
@@ -1793,7 +2624,7 @@
           currentLoadedProgramClasses.forEach(c => {
             const opt = document.createElement('option');
             opt.value = c.className;
-            opt.textContent = `${c.className} (${c.count} học sinh)`;
+            opt.textContent = c.className + ' (' + c.count + ' học sinh)';
             vehicleSelect.appendChild(opt);
           });
         } else {
@@ -1809,13 +2640,18 @@
         customOpt.textContent = '➕ Nhập xe / lớp khác...';
         vehicleSelect.appendChild(customOpt);
 
+        if (comboboxInput) {
+          comboboxInput.placeholder = '🔍 Gõ số xe hoặc bấm để chọn xe / lớp...';
+        }
+        renderVehicleDropdownOptions('');
         applyLockUiState(progId);
       } catch (err) {
         console.warn('Lỗi tải danh sách lớp:', err);
-        vehicleSelect.innerHTML = `
-          <option value="">-- Chọn xe / lớp phụ trách --</option>
-          <option value="__custom__">➕ Nhập xe / lớp khác...</option>
-        `;
+        vehicleSelect.innerHTML = '<option value="">-- Chọn xe / lớp phụ trách --</option><option value="__custom__">➕ Nhập xe / lớp khác...</option>';
+        if (comboboxInput) {
+          comboboxInput.placeholder = '🔍 Gõ số xe hoặc bấm để chọn xe / lớp...';
+        }
+        renderVehicleDropdownOptions('');
         applyLockUiState(progId);
       }
     }
@@ -1866,6 +2702,7 @@
 
       const formatted = formatVehicleOrClassName(rawVal);
       const vehicleSelect = document.getElementById('hdvVehicleSelect');
+      const comboboxInput = document.getElementById('hdvVehicleComboboxInput');
       const progId = document.getElementById('hdvProgramSelect')?.value;
 
       if (vehicleSelect) {
@@ -1880,6 +2717,12 @@
         }
         vehicleSelect.value = formatted;
       }
+
+      if (comboboxInput) {
+        comboboxInput.value = formatted;
+      }
+      const clearBtn = document.getElementById('clearVehicleInputBtn');
+      if (clearBtn) clearBtn.classList.remove('hidden');
 
       const customBox = document.getElementById('customVehicleBox');
       if (customBox) customBox.classList.add('hidden');
@@ -2565,6 +3408,9 @@
       }
 
       checkAndToggleHdvGpsTracking(document.getElementById('hdvStatusSelect').value);
+      setTimeout(() => {
+        initOrUpdateHdvInlineMap(true);
+      }, 300);
     }
 
     function showAdminNoticeModal(content) {
@@ -2584,7 +3430,7 @@
       setVal('hdvVehicleInput', '');
       const vehicleSelect = document.getElementById('hdvVehicleSelect');
       if (vehicleSelect) vehicleSelect.value = '';
-      setVal('hdvStatusSelect', '🚩 Đang xuất phát');
+      setVal('hdvStatusSelect', '🚌 Di chuyển');
       setVal('teacherCountInput', '0');
       setVal('leaderNameInput', '');
       setVal('leaderPhoneInput', '');
@@ -2629,7 +3475,7 @@
           }
 
           document.getElementById('hdvVehicleInput').value = d.vehicleName || vehicleName;
-          document.getElementById('hdvStatusSelect').value = d.status || '🚩 Đang xuất phát';
+          document.getElementById('hdvStatusSelect').value = d.status || '🚌 Di chuyển';
           document.getElementById('lastSavedTime').textContent = d.updatedAt ? ('Cập nhật: ' + d.updatedAt) : '';
 
           const isHdvLocked = localStorage.getItem(LS_HDV_LOCKED) === '1';
@@ -4019,8 +4865,215 @@
       }
     }
 
+    
+    // ==============================================================
+    // SEARCHABLE COMBOBOX CHỌN TOUR QUẢN TRỊ DUY NHẤT 1 DÒNG
+    // ==============================================================
+    let isAdminTourDropdownOpen = false;
+
+    function openAdminTourDropdown() {
+      const list = document.getElementById('adminTourDropdownList');
+      if (!list) return;
+      const input = document.getElementById('adminTourComboboxInput');
+      renderAdminTourDropdownOptions(input ? input.value : '');
+      list.classList.remove('hidden');
+      isAdminTourDropdownOpen = true;
+    }
+
+    function closeAdminTourDropdown() {
+      const list = document.getElementById('adminTourDropdownList');
+      if (list) list.classList.add('hidden');
+      isAdminTourDropdownOpen = false;
+    }
+
+    function toggleAdminTourDropdown() {
+      if (isAdminTourDropdownOpen) {
+        closeAdminTourDropdown();
+      } else {
+        const input = document.getElementById('adminTourComboboxInput');
+        if (input) input.focus();
+        openAdminTourDropdown();
+      }
+    }
+
+    function onAdminTourComboboxInput(val) {
+      const clearBtn = document.getElementById('clearAdminTourInputBtn');
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !val);
+      }
+      openAdminTourDropdown();
+      renderAdminTourDropdownOptions(val);
+    }
+
+    function renderAdminTourDropdownOptions(filterText) {
+      const list = document.getElementById('adminTourDropdownList');
+      if (!list) return;
+      const q = String(filterText || '').trim().toLowerCase();
+      const qNoTone = removeVietnameseTones(q);
+
+      list.innerHTML = '';
+
+      const items = (adminProgramsCache && adminProgramsCache.length > 0)
+        ? adminProgramsCache
+        : [];
+
+      let matchedCount = 0;
+
+      items.forEach(p => {
+        const pName = String(p.name || '');
+        const pDate = String(p.date || '');
+        const pStatus = String(p.status || '');
+        const textToSearch = (pName + ' ' + pDate + ' ' + pStatus).toLowerCase();
+        const textNoTone = removeVietnameseTones(textToSearch);
+
+        if (q !== '' && !textToSearch.includes(q) && !textNoTone.includes(qNoTone)) {
+          return;
+        }
+
+        matchedCount++;
+        let statusBadgeColor = 'bg-blue-100 text-blue-800';
+        if (pStatus.includes('Đang diễn ra')) statusBadgeColor = 'bg-emerald-100 text-emerald-800';
+        else if (pStatus.includes('Đã kết thúc')) statusBadgeColor = 'bg-rose-100 text-rose-800';
+        else if (pStatus.includes('Sắp')) statusBadgeColor = 'bg-amber-100 text-amber-800';
+
+        const itemBtn = document.createElement('div');
+        itemBtn.className = 'px-3 py-2.5 hover:bg-blue-50 cursor-pointer flex items-center justify-between text-xs text-slate-800 transition active:bg-blue-100';
+        itemBtn.innerHTML = '<div class="flex items-center gap-2 min-w-0">' +
+          '<span class="text-sm shrink-0">🚌</span>' +
+          '<div class="truncate">' +
+          '<div class="font-bold text-blue-950 truncate">' + escapeHtml(pName) + '</div>' +
+          '<div class="text-[10px] text-slate-500 font-medium">Ngày: ' + escapeHtml(pDate || 'Chưa rõ') + '</div>' +
+          '</div>' +
+          '</div>' +
+          '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ' + statusBadgeColor + '">' + escapeHtml(pStatus) + '</span>';
+        itemBtn.onclick = () => selectAdminTourFromCombobox(p.id, pName);
+        list.appendChild(itemBtn);
+      });
+
+      if (items.length > 0 && matchedCount === 0) {
+        const noMatch = document.createElement('div');
+        noMatch.className = 'px-3 py-3 text-center text-xs text-slate-400 italic';
+        noMatch.textContent = 'Không tìm thấy tour khớp với "' + filterText + '"';
+        list.appendChild(noMatch);
+      } else if (items.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'px-3 py-3 text-center text-xs text-slate-500';
+        emptyMsg.textContent = 'Đang tải danh sách chương trình...';
+        list.appendChild(emptyMsg);
+      }
+    }
+
+    function selectAdminTourFromCombobox(progId, progName) {
+      const input = document.getElementById('adminTourComboboxInput');
+      if (input) input.value = progName || '';
+      const clearBtn = document.getElementById('clearAdminTourInputBtn');
+      if (clearBtn) clearBtn.classList.remove('hidden');
+
+      const select = document.getElementById('adminTourSelect');
+      if (select) {
+        select.value = progId;
+      }
+
+      closeAdminTourDropdown();
+      onAdminTourChange();
+    }
+
+    function clearSelectedAdminTour() {
+      const input = document.getElementById('adminTourComboboxInput');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+      const clearBtn = document.getElementById('clearAdminTourInputBtn');
+      if (clearBtn) clearBtn.classList.add('hidden');
+
+      const select = document.getElementById('adminTourSelect');
+      if (select) {
+        select.value = '';
+      }
+      const detailBox = document.getElementById('adminTourDetailBox');
+      if (detailBox) detailBox.classList.add('hidden');
+      openAdminTourDropdown();
+    }
+
+    // Đóng dropdown tour quản trị khi click ra ngoài
+    document.addEventListener('click', (e) => {
+      const wrapper = document.getElementById('adminTourComboboxWrapper');
+      if (wrapper && !wrapper.contains(e.target)) {
+        closeAdminTourDropdown();
+      }
+    });
+
+    // CÁC HÀM PHÓNG TO / THU NHỎ BẢN ĐỒ HDV
+    function zoomInHdvMap() {
+      if (hdvInlineMapInstance) {
+        hdvInlineMapInstance.zoomIn();
+      }
+    }
+
+    function zoomOutHdvMap() {
+      if (hdvInlineMapInstance) {
+        hdvInlineMapInstance.zoomOut();
+      }
+    }
+
+    // ==============================================================
+    // PWA: ĐĂNG KÝ SERVICE WORKER VÀ CÀI ĐẶT SHORTCUT LÊN MÀN HÌNH CHÍNH
+    // ==============================================================
+    let deferredPwaPrompt = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then((reg) => {
+          console.log('PWA Service Worker registered:', reg.scope);
+        }).catch((err) => {
+          console.warn('PWA Service Worker reg error:', err);
+        });
+      });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPwaPrompt = e;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredPwaPrompt = null;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.classList.add('hidden');
+      showToast('Đã cài đặt ứng dụng lên màn hình chính thành công!', 'success');
+    });
+
+    async function triggerPwaInstall() {
+      if (deferredPwaPrompt) {
+        deferredPwaPrompt.prompt();
+        const choice = await deferredPwaPrompt.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          showToast('Đang tạo shortcut ứng dụng...', 'info');
+        }
+        deferredPwaPrompt = null;
+      } else {
+        const modal = document.getElementById('pwaIosGuideModal');
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        }
+      }
+    }
+
+    function closePwaGuideModal() {
+      const modal = document.getElementById('pwaIosGuideModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
     function populateAdminTourSelect() {
       const sel = document.getElementById('adminTourSelect');
+      const comboboxInput = document.getElementById('adminTourComboboxInput');
       if (!sel) return;
       sel.innerHTML = '<option value="">-- Chọn tour để quản trị --</option>';
       adminProgramsCache.forEach(p => {
@@ -4029,6 +5082,18 @@
         opt.textContent = `[${p.status}] ${p.name} (${p.date || 'Chưa có ngày'})`;
         sel.appendChild(opt);
       });
+
+      renderAdminTourDropdownOptions('');
+
+      // Đồng bộ hiển thị vào ô input nếu đã chọn tour
+      if (sel.value) {
+        const cur = adminProgramsCache.find(p => p.id === sel.value);
+        if (cur && comboboxInput) {
+          comboboxInput.value = cur.name;
+          const clearBtn = document.getElementById('clearAdminTourInputBtn');
+          if (clearBtn) clearBtn.classList.remove('hidden');
+        }
+      }
     }
 
     async function onAdminTourChange() {
@@ -4058,6 +5123,7 @@
         // Nạp danh sách các dòng Điều hành và Hậu cần đã lưu
         renderPersonnelList('coordinator', tour.coordinator, tour.coordinatorPhone);
         renderPersonnelList('logistics', tour.logistics, tour.logisticsPhone);
+        renderTourDestinations(tour.destinations || null);
 
         // Folder Drive link
         const driveNameEl = document.getElementById('tourDriveFolderName');
@@ -4160,6 +5226,7 @@
       const coordinatorPhone = coordData.phones;
       const logistics = logiData.names;
       const logisticsPhone = logiData.phones;
+      const destinations = collectTourDestinations();
 
       if (!name) return showToast('Tên tour không được để trống!', 'error');
 
@@ -4174,7 +5241,8 @@
           coordinator: coordinator,
           coordinatorPhone: coordinatorPhone,
           logistics: logistics,
-          logisticsPhone: logisticsPhone
+          logisticsPhone: logisticsPhone,
+          destinations: destinations
         });
         if (!res.success) throw new Error(res.message);
         showToast(res.message, 'success');
@@ -5009,35 +6077,31 @@
     // ==============================================================
     function getStatusBadgeHtml(statusText) {
       const s = String(statusText || '').trim();
-      let colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      let colorClass = 'bg-blue-100 text-blue-800 border-blue-300';
       let shortText = s;
       let fullText = s;
 
-      if (s.includes('xuất phát')) {
-        shortText = '🚩 X.Phát';
-        fullText = '🚩 Đang xuất phát';
-        colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      } else if (s.includes('di chuyển')) {
-        shortText = '🚌 D.chuyển';
-        fullText = '🚌 Đang di chuyển';
-        colorClass = 'bg-blue-100 text-blue-800 border-blue-300';
-      } else if (s.includes('bảo tàng') || s.includes('di tích') || s.includes('Di tích')) {
+      if (s.includes('trường') && (s.includes('Tại') || s.includes('tại') || s.includes('ở') || s.includes('về tới') || s.includes('về đến'))) {
+        shortText = '🏫 Trường';
+        fullText = '🏫 Tại trường';
+        colorClass = 'bg-indigo-100 text-indigo-800 border-indigo-300';
+      } else if (s.includes('bảo tàng') || s.includes('di tích') || s.includes('Di tích') || s.includes('Bảo tàng')) {
         shortText = '🏛️ D.tích';
-        fullText = '🏛️ Đã đến bảo tàng/Di tích';
+        fullText = '🏛️ Bảo tàng/Di tích';
         colorClass = 'bg-amber-100 text-amber-800 border-amber-300';
-      } else if (s.includes('nhận phòng')) {
-        shortText = '🏨 N.phòng';
-        fullText = '🏨 Đã nhận phòng';
-        colorClass = 'bg-teal-100 text-teal-800 border-teal-300';
-      } else if (s.includes('trả phòng')) {
-        shortText = '🔑 T.phòng';
-        fullText = '🔑 Đã trả phòng';
+      } else if (s.includes('khách sạn') || s.includes('Khách sạn') || s.includes('nhận phòng') || s.includes('trả phòng')) {
+        shortText = '🏨 K.sạn';
+        fullText = '🏨 Khách sạn';
         colorClass = 'bg-purple-100 text-purple-800 border-purple-300';
-      } else if (s.includes('về trường')) {
-        shortText = '🚌 Về';
-        fullText = '🚌 Đang về trường';
+      } else if (s.includes('nhà hàng') || s.includes('Nhà hàng')) {
+        shortText = '🍽️ N.hàng';
+        fullText = '🍽️ Nhà hàng';
         colorClass = 'bg-orange-100 text-orange-800 border-orange-300';
-      } else if (s.toLowerCase().includes('kết thúc') || s.includes('về đến trường') || s.includes('về tới trường') || s.includes('tới trường') || s.toLowerCase().includes('final')) {
+      } else if (s.includes('di chuyển') || s.includes('xuất phát') || s.includes('về trường')) {
+        shortText = '🚌 D.chuyển';
+        fullText = '🚌 Di chuyển';
+        colorClass = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      } else if (s.toLowerCase().includes('kết thúc') || s.toLowerCase().includes('final')) {
         shortText = '🏁 K.Thúc';
         fullText = '🏁 Kết thúc tour';
         colorClass = 'bg-red-100 text-red-700 border-red-300';
@@ -5331,8 +6395,15 @@
 
     function selectAndScrollToTour(progId) {
       const select = document.getElementById('adminTourSelect');
+      const comboboxInput = document.getElementById('adminTourComboboxInput');
+      const clearBtn = document.getElementById('clearAdminTourInputBtn');
       if (select) {
         select.value = progId;
+        const cur = adminProgramsCache.find(p => p.id === progId);
+        if (cur && comboboxInput) {
+          comboboxInput.value = cur.name;
+        }
+        if (clearBtn) clearBtn.classList.remove('hidden');
         onAdminTourChange();
       }
       const box = document.getElementById('adminTourDetailBox');
@@ -6125,10 +7196,38 @@
     window.sendReportPrompt = sendReportPrompt;
     window.checkHdvPromptForCurrentVehicle = checkHdvPromptForCurrentVehicle;
     window.filterHdvVehicleOptions = filterHdvVehicleOptions;
+    window.openVehicleDropdown = openVehicleDropdown;
+    window.closeVehicleDropdown = closeVehicleDropdown;
+    window.toggleVehicleDropdown = toggleVehicleDropdown;
+    window.onVehicleComboboxInput = onVehicleComboboxInput;
+    window.renderVehicleDropdownOptions = renderVehicleDropdownOptions;
+    window.selectVehicleFromCombobox = selectVehicleFromCombobox;
+    window.clearSelectedVehicle = clearSelectedVehicle;
+    window.validateCoordInput = validateCoordInput;
+    window.addDestinationItem = addDestinationItem;
+    window.removeDestinationItem = removeDestinationItem;
+    window.checkRowCoordStatus = checkRowCoordStatus;
+    window.collectTourDestinations = collectTourDestinations;
+    window.renderTourDestinations = renderTourDestinations;
+    window.toggleHdvMapVisibility = toggleHdvMapVisibility;
+    window.recenterHdvInlineMap = recenterHdvInlineMap;
+    window.initOrUpdateHdvInlineMap = initOrUpdateHdvInlineMap;
+    window.checkAutoProximityStatus = checkAutoProximityStatus;
     window.filterSummaryVehiclesTable = filterSummaryVehiclesTable;
     window.focusVehicleOnMap = focusVehicleOnMap;
     window.sendNoticeFromSummary = sendNoticeFromSummary;
     window.filterAdminTourSelectOptions = filterAdminTourSelectOptions;
+    window.openAdminTourDropdown = openAdminTourDropdown;
+    window.closeAdminTourDropdown = closeAdminTourDropdown;
+    window.toggleAdminTourDropdown = toggleAdminTourDropdown;
+    window.onAdminTourComboboxInput = onAdminTourComboboxInput;
+    window.renderAdminTourDropdownOptions = renderAdminTourDropdownOptions;
+    window.selectAdminTourFromCombobox = selectAdminTourFromCombobox;
+    window.clearSelectedAdminTour = clearSelectedAdminTour;
+    window.zoomInHdvMap = zoomInHdvMap;
+    window.zoomOutHdvMap = zoomOutHdvMap;
+    window.triggerPwaInstall = triggerPwaInstall;
+    window.closePwaGuideModal = closePwaGuideModal;
     window.setAdminProgramStatusFilter = setAdminProgramStatusFilter;
     window.filterAdminProgramListDisplay = filterAdminProgramListDisplay;
     window.selectAndScrollToTour = selectAndScrollToTour;
@@ -6282,5 +7381,46 @@
       }
     }, 30000);
   </script>
+
+  <!-- MODAL HƯỚNG DẪN CÀI ĐẶT PWA LÊN MÀN HÌNH CHÍNH (CHO IPHONE/IPAD HOẶC TRÌNH DUYỆT KHÁC) -->
+  <div id="pwaIosGuideModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3.5 shadow-2xl border border-blue-100 animate-fade-in">
+      <div class="flex items-center justify-between border-b pb-2">
+        <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5 uppercase">
+          <span>📲</span> Cài Đặt Ứng Dụng Lên Máy
+        </h3>
+        <button type="button" onclick="window.closePwaGuideModal()" class="text-slate-400 hover:text-slate-700 font-bold text-xl leading-none cursor-pointer">&times;</button>
+      </div>
+      <div class="space-y-2.5 text-xs text-slate-600 leading-relaxed">
+        <p class="font-bold text-blue-900">Để tạo icon lối tắt mở nhanh trên điện thoại như một App riêng biệt:</p>
+        
+        <div class="bg-blue-50 p-2.5 rounded-xl border border-blue-200 space-y-1.5">
+          <p class="font-bold text-blue-950 flex items-center gap-1">
+            <span>🍎</span> Trên iPhone / iPad (Trình duyệt Safari):
+          </p>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-blue-900 font-medium">
+            <li>Bấm nút <b>Chia sẻ</b> (biểu tượng <span class="px-1.5 py-0.5 bg-white rounded border border-blue-300 font-bold">⎋</span> ở thanh dưới cùng Safari).</li>
+            <li>Cuộn xuống danh sách chọn <b>"Thêm vào MH chính"</b> (Add to Home Screen).</li>
+            <li>Bấm <b>"Thêm"</b> (Add) ở góc trên bên phải.</li>
+          </ol>
+        </div>
+
+        <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-200 space-y-1.5">
+          <p class="font-bold text-amber-950 flex items-center gap-1">
+            <span>🤖</span> Trên điện thoại Android (Chrome / Cốc Cốc):
+          </p>
+          <ol class="list-decimal list-inside space-y-1 text-[11px] text-amber-900 font-medium">
+            <li>Bấm vào menu <b>3 dấu chấm (⋮)</b> ở góc trên bên phải trình duyệt.</li>
+            <li>Chọn <b>"Cài đặt ứng dụng"</b> hoặc <b>"Thêm vào Màn hình chính"</b>.</li>
+          </ol>
+        </div>
+      </div>
+      <button type="button" onclick="window.closePwaGuideModal()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition cursor-pointer">
+        Đã hiểu, đóng lại
+      </button>
+    </div>
+  </div>
+
 </body>
 </html>
