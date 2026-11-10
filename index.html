@@ -76,6 +76,28 @@
     body.viewer-mode .viewer-hide {
       display: none !important;
     }
+  
+    /* Style cho in Phiếu đánh giá chất lượng chương trình (Chuẩn gọn trong 1 trang A4) */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 8mm 12mm 8mm 12mm;
+      }
+      body.printing-evaluation > *:not(#printableEvaluationArea) {
+        display: none !important;
+      }
+      body.printing-evaluation #printableEvaluationArea {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        background: #fff !important;
+        color: #000 !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+        font-size: 10pt !important;
+        line-height: 1.35 !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -500,7 +522,41 @@
             + Thêm lớp
           </button>
         </div>
-        <div id="classListContainer" class="space-y-2.5"></div>
+        <div id="classListContainer" class="space-y-2.5">
+          <div class="class-item-row bg-slate-50 p-2.5 rounded-lg border border-slate-200 space-y-2">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-1">
+              <span class="text-[11px] font-bold text-blue-800 uppercase class-row-title">Lớp thứ 1</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+                  Tên lớp <span class="text-rose-500">*</span>
+                </label>
+                <input type="text" placeholder="VD: 11C, 8D" value=""
+                  class="cls-name w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">
+                  Số Học sinh <span class="text-rose-500">*</span>
+                </label>
+                <input type="number" min="1" value="" placeholder="VD: 35" oninput="window.calculateRealtimeTotals()"
+                  class="cls-students w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-emerald-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Số Phụ huynh</label>
+                <input type="number" min="0" value="0" oninput="window.calculateRealtimeTotals()"
+                  class="cls-parents w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-orange-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Trẻ em đi kèm</label>
+                <input type="number" min="0" value="0" oninput="window.calculateRealtimeTotals()"
+                  class="cls-children w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-pink-600 focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Khối 6: Tổng quân số & Nút Lưu toàn bộ -->
@@ -523,35 +579,100 @@
         </button>
       </div>
 
-      <!-- KHỐI GỬI ẢNH FEEDBACK & NÚT KẾT THÚC TOUR -->
-      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-2.5">
-        <div class="flex items-center justify-between border-b pb-1.5">
-          <span class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1">
-            <span>📸</span> Ảnh Chụp Feedback & Kết Thúc Tour
+      <!-- KHỐI KẾT THÚC TOUR: 2 KHU ĐỘC LẬP SONG SONG -->
+      <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+        <div class="border-b pb-2 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800 uppercase flex items-center gap-1.5">
+            <span>🏁</span> Đánh Giá Chất Lượng & Kết Thúc Tour
           </span>
-          <span class="text-[10px] text-rose-500 font-semibold">* Bắt buộc ảnh feedback</span>
+          <span class="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+            * Bắt buộc có Ảnh Feedback HOẶC Phiếu ĐG của GV
+          </span>
         </div>
 
-        <input type="file" id="feedbackPhotoInput" accept="image/*" capture="environment" onchange="window.handleFeedbackPhotoSelected(this)" class="hidden" />
+        <!-- 2 KHU ĐỘC LẬP SONG SONG -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          
+          <!-- KHU 1 (BÊN TRÁI): CHỤP ẢNH FEEDBACK (CÓ KHAY XEM ẢNH & NÚT XÓA) -->
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between space-y-2">
+            <div>
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                <span class="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <span>📸</span> 1. Ảnh Chụp Feedback
+                </span>
+                <span id="feedbackPhotoStatus" class="text-[10px] text-slate-500 font-semibold italic">Chưa có ảnh</span>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-1">Chụp hoặc tải ảnh phiếu giấy (có thể chụp nhiều tờ):</p>
+            </div>
 
-        <div class="flex flex-col sm:flex-row gap-2 items-center">
-          <button type="button" onclick="document.getElementById('feedbackPhotoInput').click()"
-            class="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 font-bold px-3 py-2 rounded-lg text-xs shadow-sm flex items-center justify-center gap-1.5 transition">
-            <span>📷</span> Chụp / Chọn ảnh Feedback
-          </button>
-          <span id="feedbackPhotoStatus" class="text-xs font-semibold text-slate-500 italic">Chưa có ảnh feedback</span>
-        </div>
+            <!-- Nút chọn ảnh và Nút Xóa tất cả -->
+            <input type="file" id="feedbackFileInput" accept="image/*" capture="environment" multiple onchange="window.handleFeedbackFileChange(this)" class="hidden" />
+            <div class="flex gap-1.5 pt-1">
+              <button type="button" onclick="document.getElementById('feedbackFileInput').click()"
+                class="flex-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold px-2.5 py-2 rounded-lg text-xs shadow-xs flex items-center justify-center gap-1 transition cursor-pointer">
+                <span>📷</span> Chụp / Chọn ảnh Feedback
+              </button>
+              <button type="button" id="btnClearFeedback" onclick="window.clearFeedbackPhoto()"
+                class="hidden bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold px-2 py-2 rounded-lg text-xs transition cursor-pointer">
+                Xóa hết
+              </button>
+            </div>
 
-        <div id="feedbackPreviewBox" class="hidden relative rounded-xl overflow-hidden border border-slate-300 max-w-xs mx-auto">
-          <img id="feedbackPreviewImg" src="" alt="Ảnh Feedback" class="w-full max-h-48 object-contain bg-slate-900" />
-          <button type="button" onclick="window.clearFeedbackPhoto()" class="absolute top-2 right-2 bg-rose-600 hover:bg-rose-700 text-white font-bold w-6 h-6 rounded-full flex items-center justify-center shadow text-xs">&times;</button>
+            <!-- Khay hiển thị thumbnail các tờ ảnh kèm nút xóa trên từng tờ -->
+            <div id="feedbackPreviewBox" class="hidden pt-1">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-bold text-slate-600">Khay ảnh đã chọn (<span id="feedbackCountText">0</span> tờ):</span>
+              </div>
+              <div id="feedbackPreviewGrid" class="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 max-w-full scrollbar-thin"></div>
+            </div>
+          </div>
+
+          <!-- KHU 2 (BÊN PHẢI): GỬI LINK PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG CHO GIÁO VIÊN -->
+          <div class="bg-indigo-50/60 p-3 rounded-xl border border-indigo-200 flex flex-col justify-between space-y-2">
+            <div>
+              <div class="flex items-center justify-between pb-1.5 border-b border-indigo-100">
+                <span class="text-xs font-bold text-indigo-900 flex items-center gap-1">
+                  <span>📝</span> 2. Phiếu Đánh Giá Điện Tử
+                </span>
+                <span id="teacherEvalStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                  ⏳ Chưa hoàn thành
+                </span>
+              </div>
+              <p class="text-[10px] text-indigo-700/80 mt-1">Gửi link cho riêng GV lớp/xe để thầy/cô chấm điểm & xác nhận trên điện thoại:</p>
+            </div>
+
+            <!-- Nút Tạo & Gửi link cho GV -->
+            <div class="space-y-1.5 pt-1">
+              <button type="button" onclick="window.openShareTeacherEvaluationModal()"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold px-3 py-2 rounded-lg text-xs shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
+                <span>📤</span> Tạo & Gửi link Phiếu đánh giá
+              </button>
+
+              <!-- Khu vực hiển thị khi GV ĐÃ HOÀN THÀNH -->
+              <div id="teacherEvalCompletedBox" class="hidden bg-emerald-100/90 border border-emerald-300 p-2 rounded-lg text-emerald-900 flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1 text-[11px] font-bold text-emerald-800">
+                  <span>✅</span> <span>Giáo viên đã hoàn thành!</span>
+                </div>
+                <button type="button" onclick="window.openHdvViewEvaluationModal()"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded shadow transition cursor-pointer">
+                  👁️ Xem phiếu
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Nút Kết thúc tour (Thẻ màu đỏ) -->
-        <button type="button" id="btnEndTour" onclick="window.handleEndTourAction()" disabled
-          class="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl text-sm shadow transition">
-          ⏹️ KẾT THÚC TOUR
-        </button>
+        <div class="pt-1">
+          <button type="button" id="btnEndTour" onclick="window.handleEndTourAction()"
+            class="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-extrabold py-3 rounded-xl text-sm shadow transition cursor-pointer">
+            ⏹️ KẾT THÚC TOUR
+          </button>
+          <p id="endTourConditionNote" class="text-[10px] text-slate-500 text-center mt-1">
+            * Chỉ có thể kết thúc khi có <strong>Ảnh Feedback</strong> HOẶC <strong>Giáo viên đã xác nhận phiếu</strong>.
+          </p>
+        </div>
       </div>
     </section>
 
@@ -637,10 +758,16 @@
             </p>
           </div>
         </div>
-        <button type="button" onclick="window.openFullTourReportModal()"
-          class="bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-900 font-black px-4 py-2.5 rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition shrink-0 cursor-pointer">
-          <span>📑</span> XUẤT BÁO CÁO TỔNG KẾT & IN PDF
-        </button>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button type="button" onclick="window.openFullTourReportModal()"
+            class="bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-900 font-black px-3.5 py-2.5 rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition shrink-0 cursor-pointer">
+            <span>📑</span> XUẤT BÁO CÁO & TỔNG KẾT
+          </button>
+          <button type="button" onclick="window.openPrintTourEvaluationsSelectorModal()"
+            class="bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black px-3.5 py-2.5 rounded-xl text-xs shadow-lg flex items-center gap-1.5 transition shrink-0 cursor-pointer">
+            <span>🖨️</span> IN PHIẾU ĐÁNH GIÁ (A4)
+          </button>
+        </div>
       </div>
 
       <!-- Khung thông tin Điều hành Tour & Phụ trách Hậu cần (Nút gọi gắn riêng sau tên từng người) -->
@@ -1059,6 +1186,237 @@
         <div id="adminProgramList" class="divide-y divide-slate-200 text-xs"></div>
       </div>
     </section>
+  
+    <!-- ==========================================
+         TAB ĐẶC QUYỀN: PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG CHƯƠNG TRÌNH (DÀNH CHO GIÁO VIÊN)
+         ========================================== -->
+    <section id="sectionTeacherFeedback" class="hidden space-y-4 max-w-2xl mx-auto pb-12 animate-fade-in">
+      
+      <!-- Banner Tiêu đề Trang Trọng -->
+      <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 rounded-2xl shadow-xl text-center space-y-2 relative overflow-hidden border border-blue-400/30">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/20 text-blue-200 text-xs font-semibold uppercase tracking-wider border border-blue-400/30">
+          <span>⭐</span> Đánh Giá Chất Lượng Chuyến Đi
+        </div>
+        <h1 class="text-lg sm:text-xl font-black uppercase tracking-wide text-white">
+          PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG CHƯƠNG TRÌNH
+        </h1>
+        <p class="text-xs text-blue-200 font-medium">
+          Ý kiến quý báu của Thầy/Cô là động lực to lớn giúp chúng tôi không ngừng nâng cao chất lượng phục vụ
+        </p>
+      </div>
+
+      <!-- Khung cảnh báo khi phiếu ĐÃ ĐƯỢC XÁC NHẬN (KHÓA DỮ LIỆU ĐỐI CHIẾU) -->
+      <div id="teacherEvalLockedBanner" class="hidden bg-emerald-50 border-2 border-emerald-500 p-4 rounded-2xl shadow-md space-y-1.5">
+        <div class="flex items-center gap-2 text-emerald-800 font-black text-sm uppercase">
+          <span class="text-xl">✅</span>
+          <span>PHIẾU ĐÃ ĐƯỢC XÁC NHẬN VÀ GỬI THÀNH CÔNG</span>
+        </div>
+        <p class="text-xs text-emerald-700 leading-relaxed font-medium">
+          Thông tin phiếu đã được ghi nhận trên hệ thống và khóa bảo mật trên thiết bị này để đảm bảo tính minh bạch.
+        </p>
+        <div class="pt-1 text-[11px] font-bold text-emerald-900 flex flex-wrap items-center gap-3 border-t border-emerald-200 mt-2">
+          <span id="teacherLockedAuditDevice">📱 Máy hoàn thành phiếu: -</span>
+          <span id="teacherLockedAuditTime">⏰ Xác nhận lúc: -</span>
+        </div>
+      </div>
+
+      <!-- PHẦN I: THÔNG TIN CHUNG -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center">I</span>
+          <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide">Thông Tin Chung</h3>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="block text-slate-500 font-semibold mb-1">Tên trường (ghi rõ phân hiệu):</label>
+            <input type="text" id="tfSchoolName" readonly class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-800" />
+          </div>
+          <div>
+            <label class="block text-slate-500 font-semibold mb-1">Địa điểm:</label>
+            <input type="text" id="tfLocation" readonly class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-800" />
+          </div>
+          <div>
+            <label class="block text-slate-500 font-semibold mb-1">Thời gian:</label>
+            <input type="text" id="tfDate" readonly class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-800" />
+          </div>
+          <div>
+            <label class="block text-slate-500 font-semibold mb-1">Đơn vị tổ chức:</label>
+            <input type="text" id="tfOrganizer" readonly value="Công ty cổ phần Viện Khoa Học An toàn và Trung tâm ABA" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-blue-900" />
+          </div>
+        </div>
+      </div>
+
+      <!-- PHẦN II: THÔNG TIN ĐOÀN -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center">II</span>
+          <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide">Thông Tin Đoàn</h3>
+        </div>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">Họ và tên thầy/cô <span class="text-rose-500">*</span>:</label>
+            <input type="text" id="tfTeacherName" placeholder="Nhập họ tên thầy/cô" class="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-lg px-3 py-2 font-bold text-slate-800 outline-none" />
+          </div>
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">Số điện thoại thầy/cô <span class="text-rose-500">*</span>:</label>
+            <input type="tel" id="tfTeacherPhone" placeholder="Nhập SĐT thầy/cô" class="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-lg px-3 py-2 font-bold text-slate-800 outline-none" />
+          </div>
+          <div>
+            <label class="block text-slate-600 font-semibold mb-1">Số xe / Tên lớp:</label>
+            <input type="text" id="tfVehicleName" readonly class="w-full bg-slate-100 border border-slate-300 rounded-lg px-3 py-2 font-black text-indigo-900" />
+          </div>
+        </div>
+
+        <!-- Tổng số thành viên xe & Chi tiết từng lớp -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
+            <span class="text-xs font-bold text-slate-700">Tổng số thành viên trên xe:</span>
+            <span id="tfTotalSummaryBadge" class="text-xs font-extrabold text-blue-900 bg-blue-100 px-2 py-0.5 rounded-full">Đang tải...</span>
+          </div>
+
+          <div id="tfTotalMembersBreakdown" class="text-xs space-y-1 text-slate-700 font-medium">
+            <!-- Render: Tổng số ... học sinh / ... học sinh đăng ký ; tổng số giáo viên; PH (nếu>0); trẻ em (nếu>0) -->
+          </div>
+
+          <div class="border-t border-slate-200 pt-2">
+            <span class="text-[11px] font-bold text-slate-600 uppercase block mb-1">Số lượng cụ thể theo từng lớp:</span>
+            <div id="tfClassesBreakdown" class="space-y-1 text-xs font-medium">
+              <!-- Render: 1. Lớp 8A2 - 24 HS; ... -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHẦN III: ĐÁNH GIÁ CHẤT LƯỢNG CHƯƠNG TRÌNH -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center">III</span>
+          <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide">Đánh Giá Chất Lượng Chương Trình</h3>
+        </div>
+
+        <!-- Câu 1: Đánh giá về HDV (3 checkbox vuông, chọn nhiều) -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-800">
+            1. Đánh giá về hướng dẫn viên phụ trách lớp:
+            <span class="text-[10px] text-slate-500 font-normal italic">(Có thể tích chọn nhiều mục)</span>
+          </label>
+          <div class="space-y-2 pl-1 text-xs">
+            <label class="flex items-center gap-2.5 cursor-pointer p-2 rounded-lg hover:bg-slate-50 border border-slate-200">
+              <input type="checkbox" id="tfRatingHdv1" value="HDV vui tính thân thiện" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+              <span class="font-medium text-slate-700">HDV vui tính thân thiện</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer p-2 rounded-lg hover:bg-slate-50 border border-slate-200">
+              <input type="checkbox" id="tfRatingHdv2" value="HDV tổ chức hoạt động trên xe vui nhộn" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+              <span class="font-medium text-slate-700">HDV tổ chức hoạt động trên xe vui nhộn</span>
+            </label>
+            <label class="flex items-center gap-2.5 cursor-pointer p-2 rounded-lg hover:bg-slate-50 border border-slate-200">
+              <input type="checkbox" id="tfRatingHdv3" value="HDV tận tình chu đáo" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+              <span class="font-medium text-slate-700">HDV tận tình chu đáo</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Câu 2: Đánh giá dịch vụ tại điểm đến (3 radio tròn, chọn 1) -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-800">
+            2. Đánh giá về dịch vụ tại điểm đến:
+            <span class="text-rose-500">*</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-emerald-50 border border-slate-200 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+              <input type="radio" name="tfRatingService" value="Rất hài lòng" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+              <span class="font-medium text-slate-700">Rất hài lòng</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-blue-50 border border-slate-200 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50">
+              <input type="radio" name="tfRatingService" value="Hài lòng" class="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+              <span class="font-medium text-slate-700">Hài lòng</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-rose-50 border border-slate-200 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50/50">
+              <input type="radio" name="tfRatingService" value="Không hài lòng" class="w-4 h-4 text-rose-600 focus:ring-rose-500" />
+              <span class="font-medium text-slate-700">Không hài lòng</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Câu 3: Mức độ hài lòng nội dung chương trình (4 radio tròn, chọn 1) -->
+        <div class="space-y-2">
+          <label class="block text-xs font-bold text-slate-800">
+            3. Thầy/cô hài lòng về nội dung chương trình ở mức độ nào?
+            <span class="text-rose-500">*</span>
+          </label>
+          <div class="space-y-2 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-emerald-50 border border-slate-200 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50">
+              <input type="radio" name="tfRatingProgram" value="Rất hài lòng, rất nhiều bài học bổ ích" class="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+              <span class="font-medium text-slate-700">Rất hài lòng, rất nhiều bài học bổ ích</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-blue-50 border border-slate-200 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50/50">
+              <input type="radio" name="tfRatingProgram" value="Hài lòng, nhiều hoạt động hay" class="w-4 h-4 text-blue-600 focus:ring-blue-500" />
+              <span class="font-medium text-slate-700">Hài lòng, nhiều hoạt động hay</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-amber-50 border border-slate-200 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/50">
+              <input type="radio" name="tfRatingProgram" value="Trung bình, cần cải thiện thêm" class="w-4 h-4 text-amber-600 focus:ring-amber-500" />
+              <span class="font-medium text-slate-700">Trung bình, cần cải thiện thêm</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-rose-50 border border-slate-200 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50/50">
+              <input type="radio" name="tfRatingProgram" value="Chưa đạt kỳ vọng ban đầu" class="w-4 h-4 text-rose-600 focus:ring-rose-500" />
+              <span class="font-medium text-slate-700">Chưa đạt kỳ vọng ban đầu</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Câu 4: Góp ý chia sẻ -->
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-slate-800">
+            4. Thầy/cô có thể vui lòng chia sẻ với BTC 1 số góp ý để nâng cao chất lượng hơn nữa trong những chuyến đi sắp tới:
+          </label>
+          <textarea id="tfFeedbackComments" rows="3" placeholder="Nhập ý kiến góp ý của thầy/cô tại đây..."
+            class="w-full bg-white border border-slate-300 focus:border-blue-500 rounded-lg p-2.5 text-xs text-slate-800 outline-none"></textarea>
+        </div>
+      </div>
+
+      <!-- PHẦN IV: DANH SÁCH HỌC SINH THAM GIA HÀNH TRÌNH -->
+      <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+        <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center">IV</span>
+          <h3 class="font-bold text-slate-800 text-xs uppercase tracking-wide">Danh Sách Học Sinh Tham Gia Hành Trình</h3>
+        </div>
+
+        <!-- Lời dặn thầy cô đối chiếu -->
+        <div class="bg-blue-50 border-l-4 border-blue-600 p-2.5 rounded-r-lg text-xs text-blue-900 leading-relaxed font-medium">
+          💡 <em>Thầy cô có thể kiểm tra lại danh sách học sinh đã điểm danh, trong trường hợp có sai sót thầy cô vui lòng báo Hướng dẫn viên kiểm tra và cập nhật lại thông tin chính xác.</em>
+        </div>
+
+        <!-- Bảng danh sách học sinh -->
+        <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-72 overflow-y-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-slate-100 text-slate-700 border-b border-slate-200 font-bold sticky top-0 bg-slate-100">
+                <th class="p-2 text-center w-10 border-r border-slate-200">STT</th>
+                <th class="p-2 border-r border-slate-200">Họ và Tên</th>
+                <th class="p-2 text-center border-r border-slate-200">Lớp</th>
+                <th class="p-2 text-center">Trạng Thái Điểm Danh</th>
+              </tr>
+            </thead>
+            <tbody id="tfStudentTableBody" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="4" class="p-4 text-center text-slate-400 italic">Đang tải danh sách học sinh...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Nút Gửi Phiếu Đánh Giá -->
+      <div id="tfSubmitArea" class="pt-2">
+        <button type="button" onclick="window.openTeacherSubmitConfirmationModal()"
+          class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] text-white font-extrabold py-3.5 px-6 rounded-2xl text-sm shadow-xl shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer">
+          <span>📤</span> GỬI PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG
+        </button>
+      </div>
+
+    </section>
+
   </main>
   <!-- ==============================================================
        MODAL THÔNG BÁO KẾT THÚC TOUR THÀNH CÔNG (GIAO DIỆN HIỆN ĐẠI)
@@ -1095,10 +1453,20 @@
       </div>
 
       <!-- Nút đóng/xác nhận -->
-      <button type="button" onclick="window.closeEndTourSuccessModal()"
-        class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3 rounded-xl text-xs shadow-lg shadow-emerald-600/30 active:scale-95 transition cursor-pointer">
-        🚀 Tuyệt vời, hoàn tất!
-      </button>
+      <div class="space-y-2 pt-1">
+        <button type="button" onclick="window.openFullTourReportModal()"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <span>📊</span> Xuất Báo Cáo & Tổng Kết
+        </button>
+        <button type="button" onclick="window.printTeacherEvaluationFromCurrentVehicle()"
+          class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <span>🖨️</span> In Phiếu Đánh Giá Chất Lượng Chương Trình
+        </button>
+        <button type="button" onclick="window.closeEndTourSuccessModal()"
+          class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-600/30 active:scale-95 transition cursor-pointer">
+          🚀 Hoàn tất & Đóng
+        </button>
+      </div>
     </div>
   </div>
   <!-- ==============================================================
@@ -1784,6 +2152,7 @@
       }
 
       checkAndApplyHdvAuth();
+      initTeacherEvaluationMode();
       showToast(`Chào mừng HDV ${name}! Đã khóa cố định tài khoản trên thiết bị.`, 'success');
     }
 
@@ -3417,6 +3786,7 @@
       existingVehicleAttendanceRecord = null;
       resetHdvAttendanceView();
       renderClassRows([]);
+      updateHdvSection5UI('', null);
     }
 
     async function fetchExistingVehicleInfo(progId, vehicleName) {
@@ -3471,6 +3841,7 @@
           document.getElementById('driverPhoneInput').value = d.driverPhone || '';
 
           renderClassRows(d.classes || []);
+          updateHdvSection5UI(d.feedbackUrl, d.feedbackForm);
 
           // Cập nhật bản ghi ảnh điểm danh nếu có
           existingVehicleAttendanceRecord = d.attendance || null;
@@ -3922,6 +4293,7 @@
     }
 
     function renderSummaryDashboardTable(list) {
+      window.latestSummaryVehiclesList = list || [];
       if (!list) return;
 
       const setCard = (id, val) => {
@@ -4058,7 +4430,10 @@
               <button type="button" onclick="window.promptRenameVehicle('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" title="Quản trị: Sửa tên xe" class="viewer-hide text-slate-400 hover:text-blue-600 font-bold text-xs p-1">✏️</button>
             </td>
             <td class="py-2 px-3 cursor-pointer" onclick="window.focusVehicleOnMap('${escapeHtml(v.vehicleName)}')" title="Bấm để xem định vị của xe này trên bản đồ">
-              ${statusHtml}
+              <div class="flex items-center gap-1 flex-wrap">
+                ${statusHtml}
+                ${v.feedbackForm ? `<button type="button" onclick="event.stopPropagation(); window.openSummaryEvaluationModal('${escapeHtml(v.programId)}', '${escapeHtml(v.vehicleName)}')" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition cursor-pointer" title="Xem chi tiết Phiếu đánh giá của Giáo viên"><span>📝</span> Phiếu ĐG</button>` : ''}
+              </div>
             </td>
             <td class="py-2 px-3 text-center font-extrabold ${isReported ? 'text-emerald-700' : 'text-slate-400'} text-xs">
               ${isReported ? `<div class="flex items-center justify-center">${realStudents} ${diffBadge}</div>` : '-'}
@@ -6652,13 +7027,13 @@
         return showToast("Vui lòng chọn Tour và Xe trước khi kết thúc!", "error");
       }
 
-      // 1. BẮT BUỘC PHẢI CÓ ÍT NHẤT 1 ẢNH FEEDBACK
-      if (!currentFeedbackImages || currentFeedbackImages.length === 0) {
-        showToast("⚠️ Bắt buộc phải chụp và tải ảnh Feedback để kết thúc tour!", "error");
-        alert("⚠️ HDV BẮT BUỘC PHẢI GỬI ẢNH FEEDBACK!\n\nVui lòng chụp hoặc tải ảnh Feedback (có thể chụp nhiều tờ) trước khi bấm Kết thúc tour.");
-        const fileInput = document.getElementById("feedbackFileInput");
-        if (fileInput) fileInput.click();
-        return;
+      // 1. BẮT BUỘC PHẢI CÓ ÍT NHẤT 1 TRONG 2 ĐIỀU KIỆN: (ẢNH FEEDBACK HOẶC GIÁO VIÊN ĐÃ XÁC NHẬN PHIẾU)
+      const hasFeedbackPhotos = (currentFeedbackImages && currentFeedbackImages.length > 0) || Boolean(currentVehicleFeedbackUrl);
+      const hasTeacherEval = Boolean(currentVehicleEvaluationData && currentVehicleEvaluationData.confirmed);
+
+      if (!hasFeedbackPhotos && !hasTeacherEval) {
+        alert("⚠️ ĐIỀU KIỆN KẾT THÚC TOUR:\n\nĐể kết thúc tour, bắt buộc phải có ít nhất 1 trong 2 điều kiện:\n1. Giáo viên đã xác nhận vào link Phiếu đánh giá chất lượng chương trình, HOẶC\n2. Có ảnh chụp Feedback đính kèm.\n\nVui lòng gửi link cho giáo viên xác nhận hoặc chụp ảnh Feedback trước khi bấm Kết thúc tour!");
+        return showToast("Cần có ảnh Feedback HOẶC Giáo viên xác nhận phiếu để kết thúc tour!", "error");
       }
 
       // 2. Thu thập quân số chi tiết
@@ -6875,6 +7250,1018 @@
       if (statusSelect) {
         statusSelect.disabled = false;
       }
+    }
+
+    // ==============================================================
+    // HỆ THỐNG PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG CHƯƠNG TRÌNH (TEACHER EVALUATION)
+    // ==============================================================
+    var currentVehicleEvaluationData = null;
+    var currentVehicleFeedbackUrl = '';
+    var summaryCurrentEvalData = null;
+    var teacherEvalStudentList = [];
+    var teacherEvalAbsentList = [];
+    var teacherEvalExtraList = [];
+
+    // 1. Nhận diện thiết bị người dùng (Device Name Detection)
+    function getDeviceIdentifier() {
+      try {
+        if (navigator.userAgentData && navigator.userAgentData.model) {
+          return navigator.userAgentData.model;
+        }
+      } catch (e) {}
+      const ua = navigator.userAgent || '';
+      if (/Android/i.test(ua)) {
+        const m = ua.match(/Android[^;]+;\s*([^;)]+)\s*[;)]/i);
+        if (m && m[1]) {
+          let model = m[1].replace(/Build\/.+$/i, '').trim();
+          if (model) return model;
+        }
+        return 'Android Device';
+      }
+      if (/iPhone/i.test(ua)) return 'iPhone';
+      if (/iPad/i.test(ua)) return 'iPad';
+      if (/Windows/i.test(ua)) return 'Windows PC';
+      if (/Macintosh/i.test(ua)) return 'Mac OS';
+      return 'Thiết bị di động';
+    }
+
+    // 2. Cập nhật giao diện Khu vực Kết thúc tour của HDV (Section 5)
+    function updateHdvSection5UI(feedbackUrl, feedbackForm) {
+      currentVehicleFeedbackUrl = feedbackUrl || '';
+      currentVehicleEvaluationData = feedbackForm || null;
+
+      const progId = document.getElementById('hdvProgramSelect')?.value || '';
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value || '');
+      const vKey = progId + '__' + normalizeVehicleKey(vehicleName);
+
+      // Nếu trong localStorage máy này đã từng có phiếu đánh giá của xe này
+      if (!currentVehicleEvaluationData && progId && vehicleName) {
+        try {
+          const localEval = localStorage.getItem('TEACHER_EVAL_SAVED_' + vKey);
+          if (localEval) currentVehicleEvaluationData = JSON.parse(localEval);
+        } catch (e) {}
+      }
+
+      // a. Cập nhật trạng thái Cột 2: Phiếu đánh giá điện tử của Giáo viên
+      const statusBadge = document.getElementById('teacherEvalStatusBadge');
+      const completedBox = document.getElementById('teacherEvalCompletedBox');
+      const hasTeacherEval = Boolean(currentVehicleEvaluationData && currentVehicleEvaluationData.confirmed);
+
+      if (hasTeacherEval) {
+        if (statusBadge) {
+          statusBadge.innerHTML = '✅ Đã hoàn thành';
+          statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+        }
+        if (completedBox) completedBox.classList.remove('hidden');
+      } else {
+        if (statusBadge) {
+          statusBadge.innerHTML = '⏳ Chưa hoàn thành';
+          statusBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+        }
+        if (completedBox) completedBox.classList.add('hidden');
+      }
+
+      // b. Cập nhật trạng thái Cột 1: Ảnh feedback
+      const hasFeedbackPhotos = (currentFeedbackImages && currentFeedbackImages.length > 0) || Boolean(currentVehicleFeedbackUrl);
+      const photoStatus = document.getElementById('feedbackPhotoStatus');
+      if (photoStatus) {
+        if (currentFeedbackImages && currentFeedbackImages.length > 0) {
+          photoStatus.innerText = `Đã chọn: ${currentFeedbackImages.length} tờ`;
+          photoStatus.className = 'text-[10px] text-emerald-600 font-bold';
+        } else if (currentVehicleFeedbackUrl) {
+          const urls = currentVehicleFeedbackUrl.split(',').filter(Boolean);
+          photoStatus.innerText = `Đã lưu trên Drive (${urls.length} tờ)`;
+          photoStatus.className = 'text-[10px] text-blue-600 font-bold';
+        } else {
+          photoStatus.innerText = 'Chưa có ảnh';
+          photoStatus.className = 'text-[10px] text-slate-500 font-semibold italic';
+        }
+      }
+
+      // c. Cập nhật điều kiện kích hoạt nút KẾT THÚC TOUR (Ít nhất 1 trong 2 điều kiện)
+      const btnEnd = document.getElementById('btnEndTour');
+      const noteEl = document.getElementById('endTourConditionNote');
+      const isEnded = localStorage.getItem('TOUR_ENDED_' + vKey) === '1';
+
+      if (isEnded) {
+        if (btnEnd) {
+          btnEnd.disabled = true;
+          btnEnd.className = 'w-full bg-slate-300 text-slate-500 font-extrabold py-3 rounded-xl text-sm cursor-not-allowed pointer-events-none';
+          btnEnd.innerHTML = '✅ XE ĐÃ KẾT THÚC TOUR';
+        }
+        if (noteEl) noteEl.innerHTML = '<span class="text-emerald-600 font-bold">Xe này đã hoàn thành tour dã ngoại.</span>';
+        return;
+      }
+
+      const canEndTour = hasFeedbackPhotos || hasTeacherEval;
+      if (btnEnd) {
+        btnEnd.disabled = !canEndTour;
+        if (canEndTour) {
+          btnEnd.className = 'w-full bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-extrabold py-3 rounded-xl text-sm shadow-md transition cursor-pointer';
+          btnEnd.innerHTML = '⏹️ KẾT THÚC TOUR';
+        } else {
+          btnEnd.className = 'w-full bg-slate-200 text-slate-400 font-extrabold py-3 rounded-xl text-sm shadow-none cursor-not-allowed';
+          btnEnd.innerHTML = '⏹️ KẾT THÚC TOUR';
+        }
+      }
+
+      if (noteEl) {
+        if (canEndTour) {
+          noteEl.innerHTML = '<span class="text-emerald-700 font-bold">✓ Đã đủ điều kiện để Kết thúc tour (có ảnh Feedback hoặc Phiếu đánh giá của GV).</span>';
+        } else {
+          noteEl.innerHTML = '<span class="text-rose-500 font-semibold">* Cần có <strong>Ảnh Feedback</strong> HOẶC <strong>Giáo viên xác nhận phiếu</strong> để kết thúc tour.</span>';
+        }
+      }
+    }
+
+    // 3. HDV MỞ MODAL TẠO & CHIA SẺ LINK ĐÁNH GIÁ CHO GIÁO VIÊN
+    function openShareTeacherEvaluationModal() {
+      const progId = document.getElementById('hdvProgramSelect')?.value || '';
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value || '');
+
+      if (!progId || !vehicleName) {
+        return showToast('Vui lòng chọn Chương trình và Số xe trước khi tạo link!', 'error');
+      }
+
+      const vKey = progId + '__' + normalizeVehicleKey(vehicleName);
+      const progObj = (adminProgramsCache || []).find(p => p.id === progId);
+      const dateText = progObj ? (progObj.date || '') : new Date().toISOString().split('T')[0];
+
+      // Điền sẵn thông tin xe & ngày
+      const dateEl = document.getElementById('shareEvalDateText');
+      const vehEl = document.getElementById('shareEvalVehicleText');
+      if (dateEl) dateEl.textContent = dateText;
+      if (vehEl) vehEl.textContent = vehicleName;
+
+      // Khôi phục Tên trường & Địa điểm nếu đã lưu trước đó
+      const savedSchool = localStorage.getItem('EVAL_SCHOOL_' + vKey) || (progObj ? progObj.name : '');
+      const savedLoc = localStorage.getItem('EVAL_LOC_' + vKey) || '';
+
+      const schoolInp = document.getElementById('shareEvalSchoolInput');
+      const locInp = document.getElementById('shareEvalLocationInput');
+      if (schoolInp) schoolInp.value = savedSchool;
+      if (locInp) locInp.value = savedLoc;
+
+      // Reset ô kết quả link
+      const resBox = document.getElementById('shareEvalResultBox');
+      if (resBox) resBox.classList.add('hidden');
+
+      const modal = document.getElementById('shareTeacherEvalModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeShareTeacherEvalModal() {
+      const modal = document.getElementById('shareTeacherEvalModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Tạo link đánh giá sau khi kiểm tra đủ 2 trường bắt buộc
+    function generateTeacherEvalLinkAction() {
+      const progId = document.getElementById('hdvProgramSelect')?.value || '';
+      const vehicleName = formatVehicleOrClassName(document.getElementById('hdvVehicleInput')?.value || '');
+      const school = (document.getElementById('shareEvalSchoolInput')?.value || '').trim();
+      const location = (document.getElementById('shareEvalLocationInput')?.value || '').trim();
+
+      if (!school) {
+        alert('⚠️ BẮT BUỘC ĐIỀN TÊN TRƯỜNG!\n\nVui lòng nhập Tên trường (ghi rõ phân hiệu) để tạo link đánh giá cho Giáo viên.');
+        document.getElementById('shareEvalSchoolInput')?.focus();
+        return showToast('Vui lòng nhập Tên trường (ghi rõ phân hiệu)!', 'error');
+      }
+
+      if (!location) {
+        alert('⚠️ BẮT BUỘC ĐIỀN ĐỊA ĐIỂM!\n\nVui lòng nhập Địa điểm chuyến đi để tạo link đánh giá cho Giáo viên.');
+        document.getElementById('shareEvalLocationInput')?.focus();
+        return showToast('Vui lòng nhập Địa điểm!', 'error');
+      }
+
+      // Lưu lại để không phải gõ lại
+      const vKey = progId + '__' + normalizeVehicleKey(vehicleName);
+      localStorage.setItem('EVAL_SCHOOL_' + vKey, school);
+      localStorage.setItem('EVAL_LOC_' + vKey, location);
+
+      // Tạo URL hoàn chỉnh
+      const baseCleanUrl = window.location.origin + window.location.pathname;
+      const evalUrl = `${baseCleanUrl}?mode=feedback&progId=${encodeURIComponent(progId)}&vehicle=${encodeURIComponent(vehicleName)}&school=${encodeURIComponent(school)}&location=${encodeURIComponent(location)}`;
+
+      const linkInp = document.getElementById('shareEvalGeneratedLinkInput');
+      if (linkInp) linkInp.value = evalUrl;
+
+      const resBox = document.getElementById('shareEvalResultBox');
+      if (resBox) resBox.classList.remove('hidden');
+
+      showToast('🎉 Đã tạo đường link đánh giá thành công!', 'success');
+    }
+
+    async function copyGeneratedTeacherEvalLink() {
+      const linkInp = document.getElementById('shareEvalGeneratedLinkInput');
+      const url = linkInp ? linkInp.value : '';
+      if (!url) return;
+
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          linkInp.select();
+          document.execCommand('copy');
+        }
+        showToast('📋 Đã sao chép link Phiếu đánh giá cho Giáo viên!', 'success');
+      } catch (e) {
+        prompt('Sao chép đường link đánh giá cho Giáo viên:', url);
+      }
+    }
+
+    function shareTeacherEvalViaZalo() {
+      const linkInp = document.getElementById('shareEvalGeneratedLinkInput');
+      const url = linkInp ? linkInp.value : '';
+      const vehicleName = document.getElementById('shareEvalVehicleText')?.textContent || 'xe';
+      if (!url) return;
+
+      const msg = `Kính gửi Thầy/Cô, em gửi link Phiếu đánh giá chất lượng chương trình cho ${vehicleName}: ${url}\n\nThầy/Cô vui lòng mở link, kiểm tra danh sách học sinh và xác nhận đánh giá chuyến đi giúp em. Em xin trân trọng cảm ơn Thầy/Cô!`;
+
+      try {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(msg);
+          showToast('Đã copy nội dung gửi Zalo! Đang mở Zalo...', 'success');
+        }
+      } catch (e) {}
+
+      window.open('https://zalo.me/', '_blank');
+    }
+
+    function previewGeneratedTeacherEvalLink() {
+      const linkInp = document.getElementById('shareEvalGeneratedLinkInput');
+      const url = linkInp ? linkInp.value : '';
+      if (url) window.open(url, '_blank');
+    }
+
+    // 4. HDV XEM CHI TIẾT PHIẾU ĐÁNH GIÁ (PHẦN I, II, III; BỎ QUA PHẦN IV)
+    function openHdvViewEvaluationModal() {
+      const data = currentVehicleEvaluationData;
+      if (!data) return showToast('Chưa có thông tin phiếu đánh giá!', 'warning');
+
+      document.getElementById('hdvViewSchool').textContent = data.school || '-';
+      document.getElementById('hdvViewLocation').textContent = data.location || '-';
+      document.getElementById('hdvViewDate').textContent = data.date || '-';
+      document.getElementById('hdvViewTeacher').textContent = data.teacherName || '-';
+      document.getElementById('hdvViewTeacherPhone').textContent = data.teacherPhone || '-';
+      document.getElementById('hdvViewVehicle').textContent = data.vehicleName || '-';
+
+      document.getElementById('hdvViewAuditDevice').textContent = `📱 Máy hoàn thành phiếu: ${data.deviceName || 'Không rõ'}`;
+      document.getElementById('hdvViewAuditTime').textContent = `⏰ Xác nhận lúc: ${data.submittedAt || '-'}`;
+
+      // Quân số
+      const m = data.totalMembers || {};
+      let memText = `Tổng số: <strong>${m.students || 0}</strong> học sinh / <strong>${m.registeredStudents || m.students || 0}</strong> học sinh đăng ký, <strong>${m.teachers || 0}</strong> giáo viên`;
+      if (Number(m.parents) > 0) memText += `, <strong>${m.parents}</strong> phụ huynh`;
+      if (Number(m.children) > 0) memText += `, <strong>${m.children}</strong> trẻ em`;
+      document.getElementById('hdvViewMembersBreakdown').innerHTML = memText;
+
+      // Chi tiết lớp
+      const clsBox = document.getElementById('hdvViewClassesBreakdown');
+      if (clsBox) {
+        clsBox.innerHTML = '';
+        if (data.classesDetail && data.classesDetail.length > 0) {
+          data.classesDetail.forEach((c, idx) => {
+            let row = `${idx + 1}. Lớp <strong>${escapeHtml(c.className || '')}</strong>: ${c.students || 0} HS`;
+            if (Number(c.parents) > 0) row += `, ${c.parents} PH`;
+            if (Number(c.children) > 0) row += `, ${c.children} trẻ em`;
+            const div = document.createElement('div');
+            div.innerHTML = row;
+            clsBox.appendChild(div);
+          });
+        }
+      }
+
+      // Đánh giá Phần III
+      const r = data.ratings || {};
+      const hdvEl = document.getElementById('hdvViewRatingHdv');
+      if (hdvEl) {
+        hdvEl.innerHTML = (r.hdv && r.hdv.length > 0)
+          ? r.hdv.map(item => `<div class="flex items-center gap-1"><span>✓</span> ${escapeHtml(item)}</div>`).join('')
+          : '<span class="text-slate-400 italic">Chưa chọn</span>';
+      }
+
+      document.getElementById('hdvViewRatingService').textContent = r.destinationService || 'Chưa chọn';
+      document.getElementById('hdvViewRatingProgram').textContent = r.programContent || 'Chưa chọn';
+      document.getElementById('hdvViewFeedbackComment').textContent = r.comments || '(Không có ý kiến góp ý thêm)';
+
+      const modal = document.getElementById('hdvViewEvaluationModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeHdvViewEvaluationModal() {
+      const modal = document.getElementById('hdvViewEvaluationModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function printTeacherEvaluationFromHdvModal() {
+      if (currentVehicleEvaluationData) {
+        printTeacherEvaluationA4(currentVehicleEvaluationData);
+      }
+    }
+
+    // 5. GIAO DIỆN PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG DÀNH RIÊNG CHO GIÁO VIÊN (mode=feedback)
+    async function initTeacherEvaluationMode() {
+      const urlParams = getAppUrlParams();
+      const isFbMode = (urlParams.get('mode') === 'feedback' || urlParams.get('mode') === 'danhgia');
+      if (!isFbMode) return;
+
+      window.isFeedbackMode = true;
+      document.body.classList.add('feedback-mode');
+
+      // Ẩn tất cả phân hệ điều hành của HDV / Quản trị
+      const secHdv = document.getElementById('sectionHDV');
+      const secSum = document.getElementById('sectionSummary');
+      const secAdm = document.getElementById('sectionAdmin');
+      const navHeader = document.querySelector('header nav');
+      const botNav = document.querySelector('nav.fixed.bottom-0');
+      if (secHdv) secHdv.classList.add('hidden');
+      if (secSum) secSum.classList.add('hidden');
+      if (secAdm) secAdm.classList.add('hidden');
+      if (botNav) botNav.classList.add('hidden');
+      if (navHeader) {
+        navHeader.classList.remove('hidden');
+        navHeader.innerHTML = `
+          <div class="px-3 py-1 bg-emerald-800 text-emerald-100 rounded-lg text-xs font-bold flex items-center gap-1 shadow">
+            <span>📝</span> Phiếu Đánh Giá
+          </div>
+        `;
+      }
+
+      // Mở hiển thị giao diện giáo viên
+      const secTf = document.getElementById('sectionTeacherFeedback');
+      if (secTf) secTf.classList.remove('hidden');
+
+      const progId = urlParams.get('progId') || urlParams.get('tour') || '';
+      const vehicleName = urlParams.get('vehicle') || urlParams.get('class') || '';
+      const school = urlParams.get('school') || '';
+      const location = urlParams.get('location') || '';
+
+      // Phần I: Thông tin chung
+      const tfSchool = document.getElementById('tfSchoolName');
+      const tfLoc = document.getElementById('tfLocation');
+      const tfDate = document.getElementById('tfDate');
+      const tfVeh = document.getElementById('tfVehicleName');
+
+      if (tfSchool) tfSchool.value = school || 'Đoàn dã ngoại học sinh';
+      if (tfLoc) tfLoc.value = location || 'Điểm tham quan theo chương trình';
+      if (tfDate) tfDate.value = new Date().toISOString().split('T')[0];
+      if (tfVeh) tfVeh.value = vehicleName || 'Xe đoàn';
+
+      // Kiểm tra xem phiếu này đã xác nhận trước đó chưa (trong localStorage hoặc từ server)
+      const vKey = progId + '__' + normalizeVehicleKey(vehicleName);
+      let existingEval = null;
+      try {
+        const savedStr = localStorage.getItem('TEACHER_EVAL_SAVED_' + vKey);
+        if (savedStr) existingEval = JSON.parse(savedStr);
+      } catch (e) {}
+
+      // Tải dữ liệu xe và danh sách học sinh từ backend
+      try {
+        showToast('⏳ Đang nạp dữ liệu chương trình...', 'info');
+        const res = await callApi({ action: 'getVehicleData', programId: progId, vehicleName: vehicleName });
+        
+        let vehData = (res && res.success && res.data) ? res.data : null;
+        if (res && res.feedbackForm) existingEval = res.feedbackForm;
+
+        // Điền Phần II: Giáo viên & Số quân
+        const tNameInput = document.getElementById('tfTeacherName');
+        const tPhoneInput = document.getElementById('tfTeacherPhone');
+
+        if (existingEval) {
+          if (tNameInput) tNameInput.value = existingEval.teacherName || '';
+          if (tPhoneInput) tPhoneInput.value = existingEval.teacherPhone || '';
+        } else if (vehData) {
+          if (tNameInput) tNameInput.value = vehData.leaderName || '';
+          if (tPhoneInput) tPhoneInput.value = vehData.leaderPhone || '';
+        }
+
+        // Quân số
+        const actualStu = vehData ? (vehData.totalStudents || 0) : (existingEval?.totalMembers?.students || 0);
+        const regStu = vehData ? (vehData.excelStudentCount || actualStu) : (existingEval?.totalMembers?.registeredStudents || actualStu);
+        const teachers = vehData ? (vehData.teacherCount || 0) : (existingEval?.totalMembers?.teachers || 0);
+        const parents = vehData ? (vehData.parentCount || 0) : (existingEval?.totalMembers?.parents || 0);
+        const children = vehData ? (vehData.childCount || 0) : (existingEval?.totalMembers?.children || 0);
+
+        const badgeEl = document.getElementById('tfTotalSummaryBadge');
+        if (badgeEl) badgeEl.textContent = `Tổng: ${actualStu + teachers + parents + children} thành viên`;
+
+        const breakdownEl = document.getElementById('tfTotalMembersBreakdown');
+        if (breakdownEl) {
+          let h = `<div>• Tổng số: <strong>${actualStu}</strong> học sinh / <strong>${regStu}</strong> học sinh đăng ký</div>`;
+          h += `<div>• Giáo viên phụ trách: <strong>${teachers}</strong> thầy/cô</div>`;
+          if (parents > 0) h += `<div>• Phụ huynh đi cùng: <strong>${parents}</strong> người</div>`;
+          if (children > 0) h += `<div>• Trẻ em đi kèm: <strong>${children}</strong> bé</div>`;
+          breakdownEl.innerHTML = h;
+        }
+
+        // Chi tiết từng lớp
+        const classes = (vehData && vehData.classes && vehData.classes.length > 0)
+          ? vehData.classes
+          : (existingEval?.classesDetail || [{ className: vehicleName, students: actualStu, parents: parents, children: children }]);
+
+        window.currentLoadedClasses = classes;
+
+        const clsBreakdownEl = document.getElementById('tfClassesBreakdown');
+        if (clsBreakdownEl) {
+          clsBreakdownEl.innerHTML = '';
+          classes.forEach((c, idx) => {
+            let row = `<div>${idx + 1}. Lớp <strong>${escapeHtml(c.className || '')}</strong>: ${c.students || 0} học sinh`;
+            if (Number(c.parents) > 0) row += `, ${c.parents} phụ huynh`;
+            if (Number(c.children) > 0) row += `, ${c.children} trẻ em`;
+            row += '</div>';
+            clsBreakdownEl.innerHTML += row;
+          });
+        }
+
+        // Tải danh sách học sinh Phần IV
+        let stuList = [];
+        if (vehData && vehData.attendance && vehData.attendance.students && vehData.attendance.students.length > 0) {
+          stuList = vehData.attendance.students;
+        } else {
+          // Thử tải qua action getClassStudentList
+          try {
+            const stuRes = await callApi({ action: 'getClassStudentList', programId: progId, className: vehicleName });
+            if (stuRes && stuRes.success && stuRes.students) stuList = stuRes.students;
+          } catch (eStu) {}
+        }
+
+        window.currentFullStudentList = stuList;
+        renderTeacherStudentTable(stuList);
+
+        // Nếu đã xác nhận trước đó: Khóa toàn bộ form!
+        if (existingEval && existingEval.confirmed) {
+          lockTeacherEvaluationForm(existingEval);
+        }
+
+      } catch (err) {
+        console.warn('Lỗi tải dữ liệu cho giáo viên:', err);
+      }
+    }
+
+    // Hiển thị danh sách học sinh Phần IV
+    function renderTeacherStudentTable(list) {
+      const tbody = document.getElementById('tfStudentTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-slate-400 italic">Không có danh sách học sinh riêng biệt.</td></tr>';
+        return;
+      }
+
+      teacherEvalStudentList = list;
+      teacherEvalAbsentList = list.filter(s => s.present === false || s.status === 'absent');
+      teacherEvalExtraList = list.filter(s => s.isExtra || s.note === 'Bổ sung' || String(s.note || '').includes('thêm'));
+
+      list.forEach((s, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition';
+
+        let statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">✓ Có mặt</span>';
+        if (s.present === false || s.status === 'absent') {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">✕ Vắng mặt</span>';
+        } else if (s.isExtra || s.note === 'Bổ sung' || String(s.note || '').includes('thêm')) {
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">+ Đi thêm</span>';
+        }
+
+        tr.innerHTML = `
+          <td class="p-2 text-center text-slate-500 font-semibold border-r border-slate-100">${idx + 1}</td>
+          <td class="p-2 font-bold text-slate-800 border-r border-slate-100">${escapeHtml(s.name || s.fullName || '')}</td>
+          <td class="p-2 text-center text-slate-600 border-r border-slate-100">${escapeHtml(s.className || '')}</td>
+          <td class="p-2 text-center">${statusBadge}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 6. GIÁO VIÊN BẤM "GỬI PHIẾU" -> HIỆN POPUP XÁC NHẬN TRANG TRỌNG
+    function openTeacherSubmitConfirmationModal() {
+      const tName = (document.getElementById('tfTeacherName')?.value || '').trim();
+      const tPhone = (document.getElementById('tfTeacherPhone')?.value || '').trim();
+
+      if (!tName) {
+        alert('⚠️ Vui lòng nhập Họ và tên Thầy/Cô phụ trách lớp!');
+        document.getElementById('tfTeacherName')?.focus();
+        return showToast('Vui lòng nhập Họ và tên Thầy/Cô!', 'error');
+      }
+
+      if (!tPhone) {
+        alert('⚠️ Vui lòng nhập Số điện thoại liên hệ của Thầy/Cô!');
+        document.getElementById('tfTeacherPhone')?.focus();
+        return showToast('Vui lòng nhập Số điện thoại Thầy/Cô!', 'error');
+      }
+
+      const rService = document.querySelector('input[name="tfRatingService"]:checked')?.value;
+      if (!rService) {
+        alert('⚠️ Vui lòng đánh giá dịch vụ tại điểm đến (Câu 2)!');
+        return showToast('Vui lòng đánh giá dịch vụ tại điểm đến!', 'error');
+      }
+
+      const rProgram = document.querySelector('input[name="tfRatingProgram"]:checked')?.value;
+      if (!rProgram) {
+        alert('⚠️ Vui lòng đánh giá mức độ hài lòng về nội dung chương trình (Câu 3)!');
+        return showToast('Vui lòng chọn mức độ hài lòng về nội dung!', 'error');
+      }
+
+      // Xây dựng thông điệp xác nhận chuẩn xác theo văn bản
+      const list = window.currentFullStudentList || [];
+      const absents = list.filter(s => s.present === false || s.status === 'absent');
+      const extras = list.filter(s => s.isExtra || s.note === 'Bổ sung' || String(s.note || '').includes('thêm'));
+      
+      const actualStu = list.length > 0 ? (list.length - absents.length) : (parseInt(document.getElementById('tfTotalSummaryBadge')?.textContent) || 0);
+      const regStu = list.length > 0 ? list.length : actualStu;
+      
+      let msg = `Xin trân trọng cảm ơn thầy/cô đã đồng hành cùng BTC trong chuyến đi hôm nay.<br/><br/>
+      Trên xe hôm nay có tổng số <strong>${actualStu}</strong> học sinh / <strong>${regStu}</strong> học sinh đăng ký, <strong>1</strong> giáo viên`;
+
+      // Nếu có học sinh nghỉ
+      if (absents.length > 0) {
+        const names = absents.map(s => `<strong>${escapeHtml(s.name || s.fullName || '')}</strong> (${escapeHtml(s.className || 'Lớp')})`).join(', ');
+        msg += `.<br/><br/>Trong đó có <strong>${absents.length}</strong> học sinh nghỉ gồm: ${names}`;
+      }
+
+      // Nếu có học sinh đi thêm
+      if (extras.length > 0) {
+        const extNames = extras.map(s => `<strong>${escapeHtml(s.name || s.fullName || '')}</strong> (${escapeHtml(s.className || 'Lớp')})`).join(', ');
+        msg += `; và <strong>${extras.length}</strong> học sinh đi thêm gồm: ${extNames}`;
+      }
+
+      msg += `.<br/><br/>Kính mời thầy/cô xác nhận thông tin.`;
+
+      const txtEl = document.getElementById('teacherConfirmSummaryText');
+      if (txtEl) txtEl.innerHTML = msg;
+
+      const modal = document.getElementById('teacherConfirmSubmitModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeTeacherSubmitConfirmationModal() {
+      const modal = document.getElementById('teacherConfirmSubmitModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Giáo viên ấn nút "Xác nhận" (Thẻ xanh)
+    async function executeTeacherEvaluationSubmit() {
+      const btn = document.getElementById('btnTeacherExecuteSubmit');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Đang gửi...';
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const progId = urlParams.get('progId') || urlParams.get('tour') || '';
+      const vehicleName = urlParams.get('vehicle') || urlParams.get('class') || '';
+
+      const school = document.getElementById('tfSchoolName')?.value || '';
+      const location = document.getElementById('tfLocation')?.value || '';
+      const date = document.getElementById('tfDate')?.value || '';
+      const organizer = document.getElementById('tfOrganizer')?.value || '';
+      const teacherName = (document.getElementById('tfTeacherName')?.value || '').trim();
+      const teacherPhone = (document.getElementById('tfTeacherPhone')?.value || '').trim();
+
+      const rHdv = Array.from(document.querySelectorAll('#sectionTeacherFeedback input[id^="tfRatingHdv"]:checked')).map(c => c.value);
+      const rService = document.querySelector('input[name="tfRatingService"]:checked')?.value || '';
+      const rProgram = document.querySelector('input[name="tfRatingProgram"]:checked')?.value || '';
+      const comments = document.getElementById('tfFeedbackComments')?.value || '';
+
+      const deviceName = getDeviceIdentifier();
+      const now = new Date();
+      const submittedAt = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + now.toLocaleDateString('vi-VN');
+
+      const evalData = {
+        school: school,
+        location: location,
+        date: date,
+        organizer: organizer,
+        teacherName: teacherName,
+        teacherPhone: teacherPhone,
+        vehicleName: vehicleName,
+        totalMembers: {
+          students: (window.currentFullStudentList || []).filter(s => s.present !== false && s.status !== 'absent').length,
+          registeredStudents: (window.currentFullStudentList || []).length,
+          teachers: 1,
+          parents: 0,
+          children: 0
+        },
+        classesDetail: window.currentLoadedClasses || [],
+        absentStudents: teacherEvalAbsentList || [],
+        extraStudents: teacherEvalExtraList || [],
+        studentList: window.currentFullStudentList || [],
+        ratings: {
+          hdv: rHdv,
+          destinationService: rService,
+          programContent: rProgram,
+          comments: comments
+        },
+        deviceName: deviceName,
+        submittedAt: submittedAt,
+        confirmed: true
+      };
+
+      try {
+        // Gửi lên Apps Script lưu vào Cột 25 (Phiếu Đánh Giá JSON)
+        await callApi({
+          action: 'saveTeacherEvaluation',
+          programId: progId,
+          vehicleName: vehicleName,
+          teacherName: teacherName,
+          teacherPhone: teacherPhone,
+          evaluationData: evalData
+        });
+
+        // Khóa lưu tại máy giáo viên
+        const vKey = progId + '__' + normalizeVehicleKey(vehicleName);
+        localStorage.setItem('TEACHER_EVAL_SAVED_' + vKey, JSON.stringify(evalData));
+
+        closeTeacherSubmitConfirmationModal();
+        lockTeacherEvaluationForm(evalData);
+        alert('🎉 XÁC NHẬN THÀNH CÔNG!\n\nXin trân trọng cảm ơn Thầy/Cô đã dành thời gian đánh giá và đồng hành cùng Ban tổ chức hôm nay.');
+        showToast('Đã xác nhận và gửi phiếu thành công!', 'success');
+
+      } catch (err) {
+        alert('Lỗi lưu phiếu: ' + err.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '✓ Xác nhận';
+        }
+      }
+    }
+
+    // Khóa toàn bộ form đánh giá trên máy giáo viên để tránh sửa đổi / chối cãi
+    function lockTeacherEvaluationForm(evalData) {
+      if (!evalData) return;
+
+      // 1. Điền lại các giá trị đã xác nhận
+      if (evalData.teacherName) {
+        const el = document.getElementById('tfTeacherName');
+        if (el) { el.value = evalData.teacherName; el.disabled = true; }
+      }
+      if (evalData.teacherPhone) {
+        const el = document.getElementById('tfTeacherPhone');
+        if (el) { el.value = evalData.teacherPhone; el.disabled = true; }
+      }
+
+      // Checkbox HDV
+      const r = evalData.ratings || {};
+      if (r.hdv && Array.isArray(r.hdv)) {
+        document.querySelectorAll('#sectionTeacherFeedback input[id^="tfRatingHdv"]').forEach(cb => {
+          cb.checked = r.hdv.includes(cb.value);
+          cb.disabled = true;
+        });
+      }
+
+      // Radio Service
+      if (r.destinationService) {
+        const radio = document.querySelector(`input[name="tfRatingService"][value="${r.destinationService}"]`);
+        if (radio) radio.checked = true;
+      }
+      document.querySelectorAll('input[name="tfRatingService"]').forEach(rb => rb.disabled = true);
+
+      // Radio Program
+      if (r.programContent) {
+        const radio = document.querySelector(`input[name="tfRatingProgram"][value="${r.programContent}"]`);
+        if (radio) radio.checked = true;
+      }
+      document.querySelectorAll('input[name="tfRatingProgram"]').forEach(rb => rb.disabled = true);
+
+      // Comments
+      const commEl = document.getElementById('tfFeedbackComments');
+      if (commEl) {
+        commEl.value = r.comments || '';
+        commEl.disabled = true;
+      }
+
+      // Ẩn nút gửi phiếu
+      const submitArea = document.getElementById('tfSubmitArea');
+      if (submitArea) submitArea.classList.add('hidden');
+
+      // Mở banner xác nhận đã khóa
+      const banner = document.getElementById('teacherEvalLockedBanner');
+      if (banner) banner.classList.remove('hidden');
+
+      const devEl = document.getElementById('teacherLockedAuditDevice');
+      if (devEl) devEl.textContent = `📱 Máy hoàn thành phiếu: ${evalData.deviceName || 'Không rõ'}`;
+
+      const timeEl = document.getElementById('teacherLockedAuditTime');
+      if (timeEl) timeEl.textContent = `⏰ Xác nhận lúc: ${evalData.submittedAt || '-'}`;
+    }
+
+    // 7. TAB TỔNG HỢP: MỞ MODAL XEM CHI TIẾT & COPY LINK
+    function openSummaryEvaluationModal(progId, vehicleName) {
+      const tourObj = (adminProgramsCache || []).find(p => p.id === progId);
+      // Tìm xe trong cache tổng hợp
+      let vData = null;
+      if (window.latestSummaryVehiclesList) {
+        vData = window.latestSummaryVehiclesList.find(v => String(v.programId) === String(progId) && normalizeVehicleKey(v.vehicleName) === normalizeVehicleKey(vehicleName));
+      }
+
+      let evalData = vData ? vData.feedbackForm : null;
+      if (!evalData) {
+        try {
+          const localStr = localStorage.getItem('TEACHER_EVAL_SAVED_' + progId + '__' + normalizeVehicleKey(vehicleName));
+          if (localStr) evalData = JSON.parse(localStr);
+        } catch (e) {}
+      }
+
+      if (!evalData) {
+        return showToast('Xe này chưa có dữ liệu Phiếu đánh giá của Giáo viên!', 'warning');
+      }
+
+      summaryCurrentEvalData = evalData;
+
+      const titleEl = document.getElementById('summaryEvalModalTitle');
+      if (titleEl) titleEl.textContent = `Phiếu Đánh Giá Chất Lượng - ${vehicleName}`;
+
+      // Tạo đường link HDV đã gửi để sau này đối chiếu
+      const baseCleanUrl = window.location.origin + window.location.pathname;
+      const link = `${baseCleanUrl}?mode=feedback&progId=${encodeURIComponent(progId)}&vehicle=${encodeURIComponent(vehicleName)}&school=${encodeURIComponent(evalData.school || '')}&location=${encodeURIComponent(evalData.location || '')}`;
+      const linkInp = document.getElementById('summaryEvalLinkInput');
+      if (linkInp) linkInp.value = link;
+
+      // Thông tin kiểm toán máy và thời gian
+      document.getElementById('summaryEvalAuditDevice').textContent = `📱 Máy hoàn thành phiếu: ${evalData.deviceName || 'Không rõ'}`;
+      document.getElementById('summaryEvalAuditTime').textContent = `⏰ Xác nhận lúc: ${evalData.submittedAt || '-'}`;
+
+      // Phần I
+      document.getElementById('summaryEvalSchool').textContent = evalData.school || '-';
+      document.getElementById('summaryEvalLocation').textContent = evalData.location || '-';
+      document.getElementById('summaryEvalDate').textContent = evalData.date || '-';
+
+      // Phần II
+      document.getElementById('summaryEvalTeacher').textContent = evalData.teacherName || '-';
+      document.getElementById('summaryEvalTeacherPhone').textContent = evalData.teacherPhone || '-';
+      document.getElementById('summaryEvalVehicle').textContent = evalData.vehicleName || vehicleName;
+
+      const m = evalData.totalMembers || {};
+      let memText = `Tổng số: <strong>${m.students || 0}</strong> học sinh / <strong>${m.registeredStudents || m.students || 0}</strong> học sinh đăng ký, <strong>${m.teachers || 0}</strong> giáo viên`;
+      if (Number(m.parents) > 0) memText += `, <strong>${m.parents}</strong> phụ huynh`;
+      if (Number(m.children) > 0) memText += `, <strong>${m.children}</strong> trẻ em`;
+      document.getElementById('summaryEvalMembersBreakdown').innerHTML = memText;
+
+      const clsBox = document.getElementById('summaryEvalClassesBreakdown');
+      if (clsBox) {
+        clsBox.innerHTML = '';
+        if (evalData.classesDetail && evalData.classesDetail.length > 0) {
+          evalData.classesDetail.forEach((c, idx) => {
+            let row = `${idx + 1}. Lớp <strong>${escapeHtml(c.className || '')}</strong>: ${c.students || 0} HS`;
+            if (Number(c.parents) > 0) row += `, ${c.parents} PH`;
+            if (Number(c.children) > 0) row += `, ${c.children} trẻ em`;
+            const div = document.createElement('div');
+            div.innerHTML = row;
+            clsBox.appendChild(div);
+          });
+        }
+      }
+
+      // Phần III
+      const r = evalData.ratings || {};
+      const hdvEl = document.getElementById('summaryEvalRatingHdv');
+      if (hdvEl) {
+        hdvEl.innerHTML = (r.hdv && r.hdv.length > 0)
+          ? r.hdv.map(item => `<div class="flex items-center gap-1"><span>✓</span> ${escapeHtml(item)}</div>`).join('')
+          : '<span class="text-slate-400 italic">Chưa chọn</span>';
+      }
+      document.getElementById('summaryEvalRatingService').textContent = r.destinationService || 'Chưa chọn';
+      document.getElementById('summaryEvalRatingProgram').textContent = r.programContent || 'Chưa chọn';
+      document.getElementById('summaryEvalFeedbackComment').textContent = r.comments || '(Không có ý kiến góp ý thêm)';
+
+      // Phần IV: Danh sách học sinh
+      const tbody = document.getElementById('summaryEvalStudentTableBody');
+      if (tbody) {
+        tbody.innerHTML = '';
+        const stuList = evalData.studentList || (vData && vData.attendance ? vData.attendance.students : []);
+        if (stuList && stuList.length > 0) {
+          stuList.forEach((s, idx) => {
+            const tr = document.createElement('tr');
+            let badge = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800">Có mặt</span>';
+            if (s.present === false || s.status === 'absent') {
+              badge = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800">Vắng</span>';
+            } else if (s.isExtra || s.note === 'Bổ sung' || String(s.note || '').includes('thêm')) {
+              badge = '<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800">Đi thêm</span>';
+            }
+            tr.innerHTML = `
+              <td class="p-1.5 text-center text-slate-500">${idx + 1}</td>
+              <td class="p-1.5 font-bold text-slate-800">${escapeHtml(s.name || s.fullName || '')}</td>
+              <td class="p-1.5 text-center text-slate-600">${escapeHtml(s.className || '')}</td>
+              <td class="p-1.5 text-center">${badge}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        } else {
+          tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-slate-400 italic">Chưa có danh sách học sinh lưu trữ</td></tr>';
+        }
+      }
+
+      const modal = document.getElementById('summaryEvaluationModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeSummaryEvaluationModal() {
+      const modal = document.getElementById('summaryEvaluationModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function copySummaryEvaluationLink() {
+      const linkInp = document.getElementById('summaryEvalLinkInput');
+      const url = linkInp ? linkInp.value : '';
+      if (!url) return;
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(url);
+        } else {
+          linkInp.select();
+          document.execCommand('copy');
+        }
+        showToast('📋 Đã sao chép link điền phiếu của HDV!', 'success');
+      } catch (e) {
+        prompt('Sao chép đường link điền phiếu:', url);
+      }
+    }
+
+    function printTeacherEvaluationFromSummaryModal() {
+      if (summaryCurrentEvalData) {
+        printTeacherEvaluationA4(summaryCurrentEvalData);
+      }
+    }
+
+    // 8. TÍNH NĂNG IN PHIẾU ĐÁNH GIÁ CHUẨN GỌN TRONG 1 TRANG A4
+    // (Bao gồm Phần I, II, III; Bỏ qua Phần IV danh sách học sinh; Ghi rõ tên máy thực hiện)
+    function printTeacherEvaluationA4(data) {
+      if (!data) return showToast('Không có dữ liệu phiếu đánh giá để in!', 'error');
+
+      const printArea = document.getElementById('printableEvaluationArea');
+      if (!printArea) return;
+
+      const m = data.totalMembers || {};
+      let memText = `Tổng số: <strong>${m.students || 0}</strong> học sinh / <strong>${m.registeredStudents || m.students || 0}</strong> học sinh đăng ký, <strong>${m.teachers || 0}</strong> giáo viên`;
+      if (Number(m.parents) > 0) memText += `, <strong>${m.parents}</strong> phụ huynh`;
+      if (Number(m.children) > 0) memText += `, <strong>${m.children}</strong> trẻ em`;
+
+      let classesRows = '';
+      if (data.classesDetail && data.classesDetail.length > 0) {
+        data.classesDetail.forEach((c, idx) => {
+          let row = `${idx + 1}. Lớp <strong>${escapeHtml(c.className || '')}</strong>: ${c.students || 0} HS`;
+          if (Number(c.parents) > 0) row += `, ${c.parents} PH`;
+          if (Number(c.children) > 0) row += `, ${c.children} trẻ em`;
+          classesRows += `<div style="display:inline-block; margin-right:15px;">${row}</div>`;
+        });
+      }
+
+      const r = data.ratings || {};
+      let hdvRatingText = (r.hdv && r.hdv.length > 0)
+        ? r.hdv.map(item => `<span style="margin-right:12px; display:inline-block;">[✓] ${escapeHtml(item)}</span>`).join('')
+        : '[✓] Hoàn thành tốt nhiệm vụ phụ trách';
+
+      printArea.innerHTML = `
+        <div style="width:100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#111; line-height:1.35; padding: 0 4px;">
+          
+          <!-- Header Đơn vị tổ chức & Tiêu đề -->
+          <div style="text-align:center; border-bottom: 2px solid #1e3a8a; padding-bottom: 6px; margin-bottom: 8px;">
+            <p style="font-size: 8.5pt; font-weight: bold; text-transform: uppercase; color: #475569; margin: 0 0 2px 0;">CÔNG TY CỔ PHẦN VIỆN KHOA HỌC AN TOÀN VÀ TRUNG TÂM ABA</p>
+            <h1 style="font-size: 13.5pt; font-weight: 900; text-transform: uppercase; color: #1e3a8a; margin: 4px 0 2px 0; letter-spacing: 0.5px;">PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG CHƯƠNG TRÌNH</h1>
+            <p style="font-size: 8pt; font-style: italic; color: #64748b; margin: 0;">(Dành cho Giáo viên & Trưởng xe phụ trách)</p>
+          </div>
+
+          <!-- PHẦN I: THÔNG TIN CHUNG -->
+          <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; margin-bottom: 7px; background: #f8fafc;">
+            <div style="font-size: 9pt; font-weight: bold; color: #1e3a8a; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 4px;">
+              Phần I : Thông Tin Chung
+            </div>
+            <table style="width: 100%; font-size: 8.5pt; border-collapse: collapse;">
+              <tr>
+                <td style="width: 50%; padding: 2px 0;"><strong>Tên trường:</strong> ${escapeHtml(data.school || '-')}</td>
+                <td style="width: 50%; padding: 2px 0;"><strong>Địa điểm đến:</strong> ${escapeHtml(data.location || '-')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 2px 0;"><strong>Thời gian:</strong> ${escapeHtml(data.date || '-')}</td>
+                <td style="padding: 2px 0;"><strong>Đơn vị tổ chức:</strong> Công ty cổ phần Viện Khoa Học An toàn và Trung tâm ABA</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- PHẦN II: THÔNG TIN ĐOÀN -->
+          <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; margin-bottom: 7px; background: #f8fafc;">
+            <div style="font-size: 9pt; font-weight: bold; color: #1e3a8a; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 4px;">
+              Phần II : Thông Tin Đoàn
+            </div>
+            <table style="width: 100%; font-size: 8.5pt; border-collapse: collapse; margin-bottom: 4px;">
+              <tr>
+                <td style="width: 35%; padding: 2px 0;"><strong>Họ và tên thầy/cô:</strong> ${escapeHtml(data.teacherName || '-')}</td>
+                <td style="width: 35%; padding: 2px 0;"><strong>Số điện thoại:</strong> ${escapeHtml(data.teacherPhone || '-')}</td>
+                <td style="width: 30%; padding: 2px 0;"><strong>Số xe / Lớp:</strong> <span style="font-weight:bold; color:#1e3a8a;">${escapeHtml(data.vehicleName || '-')}</span></td>
+              </tr>
+            </table>
+            <div style="font-size: 8.5pt; padding: 2px 0; border-top: 1px dashed #e2e8f0;">
+              ${memText}
+            </div>
+            ${classesRows ? `<div style="font-size: 8.5pt; padding-top: 2px; color:#334155;">${classesRows}</div>` : ''}
+          </div>
+
+          <!-- PHẦN III: ĐÁNH GIÁ CHẤT LƯỢNG CHƯƠNG TRÌNH -->
+          <div style="border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; margin-bottom: 7px; background: #f8fafc;">
+            <div style="font-size: 9pt; font-weight: bold; color: #1e3a8a; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 3px; margin-bottom: 4px;">
+              Phần III : Đánh Giá Chất Lượng Chương Trình
+            </div>
+            <div style="font-size: 8.5pt; space-y: 4px;">
+              <div style="margin-bottom: 4px;">
+                <strong>1. Đánh giá về hướng dẫn viên phụ trách lớp:</strong>
+                <div style="margin-top: 2px; padding-left: 8px; color: #047857; font-weight: 600;">${hdvRatingText}</div>
+              </div>
+              <div style="margin-bottom: 4px;">
+                <strong>2. Đánh giá về dịch vụ tại điểm đến:</strong>
+                <span style="font-weight: bold; color: #1e3a8a; margin-left: 4px;">[✓] ${escapeHtml(r.destinationService || 'Rất hài lòng')}</span>
+              </div>
+              <div style="margin-bottom: 4px;">
+                <strong>3. Mức độ hài lòng về nội dung chương trình:</strong>
+                <span style="font-weight: bold; color: #1e3a8a; margin-left: 4px;">[✓] ${escapeHtml(r.programContent || 'Rất hài lòng, rất nhiều bài học bổ ích')}</span>
+              </div>
+              <div>
+                <strong>4. Ý kiến góp ý để nâng cao chất lượng trong những chuyến đi sắp tới:</strong>
+                <div style="margin-top: 2px; padding: 5px 8px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; font-style: italic; min-height: 24px; color: #334155;">
+                  ${escapeHtml(r.comments || 'Chương trình được tổ chức chu đáo, học sinh rất hào hứng và học hỏi được nhiều điều bổ ích. Xin cảm ơn BTC!')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chữ ký xác nhận 2 bên -->
+          <table style="width: 100%; margin-top: 10px; font-size: 8.5pt; text-align: center; border-collapse: collapse;">
+            <tr>
+              <td style="width: 50%; vertical-align: top;">
+                <p style="font-weight: bold; text-transform: uppercase; margin: 0 0 2px 0;">HƯỚNG DẪN VIÊN PHỤ TRÁCH</p>
+                <p style="font-size: 7.5pt; font-style: italic; color: #64748b; margin: 0;">(Ký và ghi rõ họ tên)</p>
+                <div style="height: 48px;"></div>
+                <p style="font-weight: bold; margin: 0;">${escapeHtml(data.hdvName || '')}</p>
+              </td>
+              <td style="width: 50%; vertical-align: top;">
+                <p style="font-weight: bold; text-transform: uppercase; margin: 0 0 2px 0;">ĐẠI DIỆN ĐOÀN / GIÁO VIÊN</p>
+                <p style="font-size: 7.5pt; font-style: italic; color: #64748b; margin: 0;">(Ký và ghi rõ họ tên)</p>
+                <div style="height: 48px;"></div>
+                <p style="font-weight: bold; margin: 0;">${escapeHtml(data.teacherName || '')}</p>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Footer kiểm toán thiết bị và thời gian hoàn thành phiếu -->
+          <div style="margin-top: 8px; padding-top: 4px; border-top: 1px dashed #94a3b8; font-size: 7.5pt; color: #475569; display: flex; justify-content: space-between; align-items: center;">
+            <span>* Máy hoàn thành phiếu: <strong>${escapeHtml(data.deviceName || 'Không rõ')}</strong></span>
+            <span>* Xác nhận lúc: <strong>${escapeHtml(data.submittedAt || '')}</strong></span>
+          </div>
+
+        </div>
+      `;
+
+      document.body.classList.add('printing-evaluation');
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-evaluation');
+      }, 1000);
+    }
+
+    function printTeacherEvaluationFromCurrentVehicle() {
+      if (currentVehicleEvaluationData) {
+        printTeacherEvaluationA4(currentVehicleEvaluationData);
+      } else {
+        showToast('Xe này chưa có phiếu đánh giá từ Giáo viên!', 'warning');
+      }
+    }
+
+    // Modal chọn xe để in phiếu đánh giá từ tab Tổng hợp
+    function openPrintTourEvaluationsSelectorModal() {
+      const list = window.latestSummaryVehiclesList || [];
+      const vehiclesWithEval = list.filter(v => v.feedbackForm);
+
+      if (vehiclesWithEval.length === 0) {
+        return alert('Chưa có xe nào có dữ liệu Phiếu đánh giá của Giáo viên trong tour này!');
+      }
+
+      const container = document.getElementById('tourEvalSelectorList');
+      if (container) {
+        container.innerHTML = '';
+        vehiclesWithEval.forEach(v => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'w-full bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-300 p-2.5 rounded-xl text-left flex items-center justify-between text-xs font-bold transition';
+          btn.innerHTML = `
+            <span>🚌 ${escapeHtml(v.vehicleName)} - ${escapeHtml(v.feedbackForm.teacherName || 'GV')}</span>
+            <span class="text-purple-600 font-bold">🖨️ In A4</span>
+          `;
+          btn.onclick = () => {
+            closePrintTourEvaluationsSelectorModal();
+            printTeacherEvaluationA4(v.feedbackForm);
+          };
+          container.appendChild(btn);
+        });
+      }
+
+      const modal = document.getElementById('tourEvaluationsSelectorModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closePrintTourEvaluationsSelectorModal() {
+      const modal = document.getElementById('tourEvaluationsSelectorModal');
+      if (modal) modal.classList.add('hidden');
     }
 
     async function openFullTourReportModal() {
@@ -7217,7 +8604,6 @@
     window.clearSelectedAdminTour = clearSelectedAdminTour;
     window.zoomInHdvMap = zoomInHdvMap;
     window.zoomOutHdvMap = zoomOutHdvMap;
-    window.copyCurrentPageUrl = copyCurrentPageUrl;
     window.setAdminProgramStatusFilter = setAdminProgramStatusFilter;
     window.filterAdminProgramListDisplay = filterAdminProgramListDisplay;
     window.selectAndScrollToTour = selectAndScrollToTour;
@@ -7233,6 +8619,28 @@
     window.lockVehicleFormAfterEndTour = lockVehicleFormAfterEndTour;
     window.unlockVehicleFormIfRunning = unlockVehicleFormIfRunning;
     window.closeEndTourConfirmModal = closeEndTourConfirmModal;
+    window.openShareTeacherEvaluationModal = openShareTeacherEvaluationModal;
+    window.closeShareTeacherEvalModal = closeShareTeacherEvalModal;
+    window.generateTeacherEvalLinkAction = generateTeacherEvalLinkAction;
+    window.copyGeneratedTeacherEvalLink = copyGeneratedTeacherEvalLink;
+    window.shareTeacherEvalViaZalo = shareTeacherEvalViaZalo;
+    window.previewGeneratedTeacherEvalLink = previewGeneratedTeacherEvalLink;
+    window.openHdvViewEvaluationModal = openHdvViewEvaluationModal;
+    window.closeHdvViewEvaluationModal = closeHdvViewEvaluationModal;
+    window.printTeacherEvaluationFromHdvModal = printTeacherEvaluationFromHdvModal;
+    window.openTeacherSubmitConfirmationModal = openTeacherSubmitConfirmationModal;
+    window.closeTeacherSubmitConfirmationModal = closeTeacherSubmitConfirmationModal;
+    window.executeTeacherEvaluationSubmit = executeTeacherEvaluationSubmit;
+    window.openSummaryEvaluationModal = openSummaryEvaluationModal;
+    window.closeSummaryEvaluationModal = closeSummaryEvaluationModal;
+    window.copySummaryEvaluationLink = copySummaryEvaluationLink;
+    window.printTeacherEvaluationFromSummaryModal = printTeacherEvaluationFromSummaryModal;
+    window.printTeacherEvaluationA4 = printTeacherEvaluationA4;
+    window.printTeacherEvaluationFromCurrentVehicle = printTeacherEvaluationFromCurrentVehicle;
+    window.openPrintTourEvaluationsSelectorModal = openPrintTourEvaluationsSelectorModal;
+    window.closePrintTourEvaluationsSelectorModal = closePrintTourEvaluationsSelectorModal;
+    window.updateHdvSection5UI = updateHdvSection5UI;
+
     window.executeConfirmEndTour = executeConfirmEndTour;
     window.openFullTourReportModal = openFullTourReportModal;
     window.closeTourFullReportModal = closeTourFullReportModal;
@@ -7242,10 +8650,21 @@
     window.closeEndTourSuccessModal = closeEndTourSuccessModal;
 
 
-    // Biến toàn cục xác định chế độ xem cho BGH & Đoàn
-    const urlParams = new URLSearchParams(window.location.search);
+    // Hàm đọc an toàn tham số URL (hỗ trợ cả web server, local file, hash URL)
+    function getAppUrlParams() {
+      let s = window.location.search || '';
+      if (!s && window.location.href.includes('?')) {
+        s = '?' + window.location.href.split('?')[1].split('#')[0];
+      }
+      return new URLSearchParams(s);
+    }
+    window.getAppUrlParams = getAppUrlParams;
+
+    // Biến toàn cục xác định chế độ xem
+    const urlParams = getAppUrlParams();
     window.isViewerMode = (urlParams.get('mode') === 'viewer' || urlParams.get('view') === 'bgh' || urlParams.get('view') === 'public');
     window.viewerTourId = urlParams.get('tour') || '';
+    window.isFeedbackMode = (urlParams.get('mode') === 'feedback' || urlParams.get('mode') === 'danhgia');
 
     // Hàm tạo và sao chép Link xem cho BGH & Đoàn
     async function copyViewerShareLink() {
@@ -7290,6 +8709,12 @@
     window.addEventListener('DOMContentLoaded', () => {
       const apiEl = document.getElementById('apiEndpointInput');
       if (apiEl) apiEl.value = getApiUrl();
+
+      // NẾU LÀ CHẾ ĐỘ PHIẾU ĐÁNH GIÁ CHẤT LƯỢNG CHO GIÁO VIÊN
+      if (window.isFeedbackMode) {
+        initTeacherEvaluationMode();
+        return;
+      }
 
       // NẾU LÀ CHẾ ĐỘ XEM BGH & ĐOÀN
       if (window.isViewerMode) {
@@ -7372,5 +8797,333 @@
     }, 30000);
   </script>
 
-  </body>
+  
+  <!-- ==============================================================
+       MODAL 1: TẠO & GỬI LINK PHIẾU ĐÁNH GIÁ (DÀNH CHO HDV)
+       ============================================================== -->
+  <div id="shareTeacherEvalModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in space-y-0">
+      <div class="bg-gradient-to-r from-indigo-700 to-blue-800 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📤</span>
+          <h3 class="text-sm font-extrabold uppercase tracking-wide">Tạo Link Phiếu Đánh Giá Cho GV</h3>
+        </div>
+        <button type="button" onclick="window.closeShareTeacherEvalModal()" class="text-white hover:text-slate-300 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 space-y-3 text-xs">
+        <p class="text-slate-600 leading-relaxed">
+          Vui lòng nhập đầy đủ <strong>Tên trường</strong> và <strong>Địa điểm</strong> để tạo đường link gửi riêng cho Giáo viên lớp/xe phụ trách:
+        </p>
+
+        <div class="space-y-1">
+          <label class="block font-bold text-slate-700">
+            Tên trường (ghi rõ phân hiệu) <span class="text-rose-500">*</span>:
+          </label>
+          <input type="text" id="shareEvalSchoolInput" placeholder="VD: THCS Ban Mai - Phân hiệu 1"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div class="space-y-1">
+          <label class="block font-bold text-slate-700">
+            Địa điểm đến <span class="text-rose-500">*</span>:
+          </label>
+          <input type="text" id="shareEvalLocationInput" placeholder="VD: Bảo tàng Lịch sử Quân sự Việt Nam"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-slate-600">
+          <div><span class="font-semibold text-slate-500 block">Thời gian:</span> <span id="shareEvalDateText" class="font-bold text-slate-800">-</span></div>
+          <div><span class="font-semibold text-slate-500 block">Xe / Lớp:</span> <span id="shareEvalVehicleText" class="font-bold text-indigo-700">-</span></div>
+          <div class="col-span-2 pt-1 border-t border-slate-200"><span class="font-semibold text-slate-500">Đơn vị tổ chức:</span> <span class="font-bold text-blue-900">Công ty cổ phần Viện Khoa Học An toàn và Trung tâm ABA</span></div>
+        </div>
+
+        <button type="button" onclick="window.generateTeacherEvalLinkAction()"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <span>🔗</span> Tạo & Lấy Link Đánh Giá
+        </button>
+
+        <!-- Khung hiển thị Link sau khi tạo thành công -->
+        <div id="shareEvalResultBox" class="hidden space-y-2 pt-2 border-t border-slate-200">
+          <label class="block font-bold text-emerald-800 text-[11px]">Đường link dành cho Giáo viên:</label>
+          <div class="flex gap-1.5 items-center">
+            <input type="text" id="shareEvalGeneratedLinkInput" readonly
+              class="flex-1 bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-slate-700 select-all" />
+            <button type="button" onclick="window.copyGeneratedTeacherEvalLink()"
+              class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow shrink-0 cursor-pointer">
+              📋 Chép link
+            </button>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button type="button" onclick="window.shareTeacherEvalViaZalo()"
+              class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 rounded-lg text-xs shadow flex items-center justify-center gap-1 cursor-pointer">
+              <span>💬</span> Gửi qua Zalo
+            </button>
+            <button type="button" onclick="window.previewGeneratedTeacherEvalLink()"
+              class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 rounded-lg text-xs shadow flex items-center justify-center gap-1 cursor-pointer">
+              <span>👁️</span> Mở xem thử
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL 2: HDV XEM PHIẾU ĐÁNH GIÁ (PHẦN I, II, III; ẨN PHẦN IV)
+       ============================================================== -->
+  <div id="hdvViewEvaluationModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in flex flex-col max-h-[90vh]">
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📄</span>
+          <h3 class="text-sm font-black uppercase tracking-wide">Chi Tiết Phiếu Đánh Giá Của Giáo Viên</h3>
+        </div>
+        <button type="button" onclick="window.closeHdvViewEvaluationModal()" class="text-white hover:text-slate-200 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs text-slate-800 overflow-y-auto flex-1">
+        <!-- Huy hiệu xác nhận -->
+        <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex items-center justify-between gap-2">
+          <div class="space-y-0.5">
+            <span class="font-black text-emerald-900 text-xs block">✅ ĐÃ ĐƯỢC GIÁO VIÊN XÁC NHẬN</span>
+            <span id="hdvViewAuditDevice" class="text-[10px] text-emerald-700 font-medium block">Máy hoàn thành phiếu: -</span>
+            <span id="hdvViewAuditTime" class="text-[10px] text-emerald-700 font-medium block">Xác nhận lúc: -</span>
+          </div>
+          <button type="button" onclick="window.printTeacherEvaluationFromHdvModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow shrink-0 flex items-center gap-1 cursor-pointer">
+            <span>🖨️</span> In A4
+          </button>
+        </div>
+
+        <!-- Phần I: Thông tin chung -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần I : Thông Tin Chung</span>
+          <p><strong>Trường:</strong> <span id="hdvViewSchool">-</span></p>
+          <p><strong>Địa điểm:</strong> <span id="hdvViewLocation">-</span></p>
+          <p><strong>Thời gian:</strong> <span id="hdvViewDate">-</span></p>
+          <p><strong>Đơn vị tổ chức:</strong> <span class="text-blue-900 font-semibold">Công ty cổ phần Viện Khoa Học An toàn và Trung tâm ABA</span></p>
+        </div>
+
+        <!-- Phần II: Thông tin đoàn -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần II : Thông Tin Đoàn</span>
+          <p><strong>Giáo viên:</strong> <span id="hdvViewTeacher">-</span></p>
+          <p><strong>SĐT:</strong> <span id="hdvViewTeacherPhone">-</span></p>
+          <p><strong>Xe / Lớp:</strong> <span id="hdvViewVehicle" class="font-bold text-indigo-700">-</span></p>
+          <div class="pt-1 text-[11px] text-slate-700" id="hdvViewMembersBreakdown"></div>
+          <div class="pt-1 text-[11px] text-slate-700" id="hdvViewClassesBreakdown"></div>
+        </div>
+
+        <!-- Phần III: Đánh giá chất lượng -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1.5">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần III : Đánh Giá Chất Lượng Chương Trình</span>
+          <div>
+            <strong>1. HDV phụ trách:</strong>
+            <div id="hdvViewRatingHdv" class="pl-2 font-medium text-emerald-800"></div>
+          </div>
+          <div>
+            <strong>2. Dịch vụ tại điểm đến:</strong>
+            <span id="hdvViewRatingService" class="font-bold text-indigo-800 ml-1"></span>
+          </div>
+          <div>
+            <strong>3. Mức độ hài lòng nội dung:</strong>
+            <span id="hdvViewRatingProgram" class="font-bold text-blue-900 ml-1"></span>
+          </div>
+          <div>
+            <strong>4. Ý kiến góp ý:</strong>
+            <p id="hdvViewFeedbackComment" class="p-2 bg-white rounded border border-slate-200 mt-1 italic text-slate-700 whitespace-pre-wrap"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button type="button" onclick="window.closeHdvViewEvaluationModal()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-5 rounded-xl text-xs cursor-pointer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL 3: XÁC NHẬN GỬI PHIẾU ĐÁNH GIÁ (DÀNH CHO GIÁO VIÊN: THẺ XANH & THẺ ĐỎ)
+       ============================================================== -->
+  <div id="teacherConfirmSubmitModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-5 py-4 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📋</span>
+          <h3 class="text-sm font-black uppercase tracking-wide">Xác Nhận Gửi Phiếu Đánh Giá</h3>
+        </div>
+        <button type="button" onclick="window.closeTeacherSubmitConfirmationModal()" class="text-white hover:text-slate-200 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <!-- Body: formatted message -->
+      <div class="p-5 space-y-3.5 text-xs text-slate-800 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-slate-800 leading-relaxed space-y-2">
+          <p id="teacherConfirmSummaryText" class="text-xs sm:text-sm font-medium leading-relaxed">
+            <!-- Render text: Xin trân trọng cảm ơn thầy/cô... -->
+          </p>
+        </div>
+
+        <p class="text-[11px] text-slate-500 italic text-center">
+          * Thầy/cô vui lòng bấm <strong>Xác nhận (thẻ xanh)</strong> để hoàn tất gửi phiếu, hoặc <strong>Từ chối (thẻ đỏ)</strong> để chỉnh sửa lại.
+        </p>
+      </div>
+
+      <!-- Footer: 2 distinct buttons (Green card & Red card) -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-center sm:justify-end gap-3 shrink-0">
+        <button type="button" onclick="window.closeTeacherSubmitConfirmationModal()"
+          class="flex-1 sm:flex-none bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold py-3 px-6 rounded-xl text-xs shadow transition cursor-pointer">
+          ✕ Từ chối
+        </button>
+        <button type="button" id="btnTeacherExecuteSubmit" onclick="window.executeTeacherEvaluationSubmit()"
+          class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-3 px-8 rounded-xl text-xs shadow-lg shadow-emerald-600/30 transition flex items-center justify-center gap-1.5 cursor-pointer">
+          <span>✓</span> Xác nhận
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL 4: TAB TỔNG HỢP XEM CHI TIẾT PHIẾU ĐÁNH GIÁ (CÓ CẢ PHẦN 4 & COPY LINK)
+       ============================================================== -->
+  <div id="summaryEvaluationModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in flex flex-col max-h-[92vh]">
+      <div class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white px-5 py-3.5 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">📑</span>
+          <h3 class="text-sm font-black uppercase tracking-wide" id="summaryEvalModalTitle">Phiếu Đánh Giá Chất Lượng Chương Trình</h3>
+        </div>
+        <button type="button" onclick="window.closeSummaryEvaluationModal()" class="text-white hover:text-slate-300 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs text-slate-800 overflow-y-auto flex-1">
+        
+        <!-- Ô sao chép link điền phiếu HDV đã gửi để sau này đối chiếu -->
+        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-1.5">
+          <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1">
+            <span>🔗</span> Link Phiếu Đánh Giá HDV Đã Gửi Cho Giáo Viên:
+          </span>
+          <div class="flex gap-1.5 items-center">
+            <input type="text" id="summaryEvalLinkInput" readonly class="flex-1 bg-white border border-indigo-300 rounded px-2.5 py-1 text-xs font-mono text-slate-800 select-all" />
+            <button type="button" onclick="window.copySummaryEvaluationLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-bold shadow shrink-0 cursor-pointer">
+              Sao chép link
+            </button>
+          </div>
+          <p class="text-[10px] text-indigo-600 italic">* Dùng để đối chiếu hoặc mở lại đúng nội dung phiếu của xe này.</p>
+        </div>
+
+        <!-- Banner thông tin thiết bị đã hoàn thành phiếu -->
+        <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+          <div class="space-y-0.5">
+            <span class="font-black text-emerald-900 text-xs block">✅ ĐÃ ĐƯỢC GIÁO VIÊN XÁC NHẬN</span>
+            <span id="summaryEvalAuditDevice" class="text-[11px] text-emerald-800 font-semibold block">📱 Máy hoàn thành phiếu: -</span>
+            <span id="summaryEvalAuditTime" class="text-[11px] text-emerald-800 font-medium block">⏰ Xác nhận lúc: -</span>
+          </div>
+          <button type="button" onclick="window.printTeacherEvaluationFromSummaryModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow flex items-center gap-1 cursor-pointer">
+            <span>🖨️</span> In Phiếu (A4)
+          </button>
+        </div>
+
+        <!-- Phần I: Thông tin chung -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần I : Thông Tin Chung</span>
+          <p><strong>Trường:</strong> <span id="summaryEvalSchool">-</span></p>
+          <p><strong>Địa điểm:</strong> <span id="summaryEvalLocation">-</span></p>
+          <p><strong>Thời gian:</strong> <span id="summaryEvalDate">-</span></p>
+          <p><strong>Đơn vị tổ chức:</strong> <span class="text-blue-900 font-semibold">Công ty cổ phần Viện Khoa Học An toàn và Trung tâm ABA</span></p>
+        </div>
+
+        <!-- Phần II: Thông tin đoàn -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần II : Thông Tin Đoàn</span>
+          <p><strong>Họ và tên thầy/cô:</strong> <span id="summaryEvalTeacher">-</span></p>
+          <p><strong>SĐT:</strong> <span id="summaryEvalTeacherPhone">-</span></p>
+          <p><strong>Xe / Lớp:</strong> <span id="summaryEvalVehicle" class="font-bold text-indigo-700">-</span></p>
+          <div class="pt-1 text-[11px] text-slate-700" id="summaryEvalMembersBreakdown"></div>
+          <div class="pt-1 text-[11px] text-slate-700" id="summaryEvalClassesBreakdown"></div>
+        </div>
+
+        <!-- Phần III: Đánh giá chất lượng -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1.5">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần III : Đánh Giá Chất Lượng Chương Trình</span>
+          <div>
+            <strong>1. HDV phụ trách lớp:</strong>
+            <div id="summaryEvalRatingHdv" class="pl-2 font-medium text-emerald-800"></div>
+          </div>
+          <div>
+            <strong>2. Dịch vụ tại điểm đến:</strong>
+            <span id="summaryEvalRatingService" class="font-bold text-indigo-800 ml-1"></span>
+          </div>
+          <div>
+            <strong>3. Mức độ hài lòng nội dung chương trình:</strong>
+            <span id="summaryEvalRatingProgram" class="font-bold text-blue-900 ml-1"></span>
+          </div>
+          <div>
+            <strong>4. Góp ý nâng cao chất lượng:</strong>
+            <p id="summaryEvalFeedbackComment" class="p-2 bg-white rounded border border-slate-200 mt-1 italic text-slate-700 whitespace-pre-wrap"></p>
+          </div>
+        </div>
+
+        <!-- Phần IV: Danh sách học sinh tham gia hành trình (có đầy đủ trên tab Tổng hợp) -->
+        <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2">
+          <span class="font-bold text-slate-700 uppercase text-[11px] block border-b pb-1">Phần IV : Danh Sách Học Sinh Tham Gia Hành Trình</span>
+          <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-48 overflow-y-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-200 text-slate-800 border-b border-slate-300 font-bold sticky top-0">
+                  <th class="p-1.5 text-center w-8">STT</th>
+                  <th class="p-1.5">Họ và Tên</th>
+                  <th class="p-1.5 text-center">Lớp</th>
+                  <th class="p-1.5 text-center">Điểm danh</th>
+                </tr>
+              </thead>
+              <tbody id="summaryEvalStudentTableBody" class="divide-y divide-slate-100 bg-white">
+                <tr><td colspan="4" class="p-2 text-center text-slate-400">Chưa có danh sách</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center">
+        <button type="button" onclick="window.printTeacherEvaluationFromSummaryModal()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1 cursor-pointer">
+          <span>🖨️</span> In Phiếu Đánh Giá (A4)
+        </button>
+        <button type="button" onclick="window.closeSummaryEvaluationModal()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-5 rounded-xl text-xs cursor-pointer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       MODAL 5: CHỌN XE ĐỂ IN PHIẾU ĐÁNH GIÁ A4 (TỪ BANNER TỔNG HỢP)
+       ============================================================== -->
+  <div id="tourEvaluationsSelectorModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in space-y-0">
+      <div class="bg-gradient-to-r from-purple-700 to-indigo-800 text-white px-5 py-3.5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🖨️</span>
+          <h3 class="text-sm font-extrabold uppercase tracking-wide">In Phiếu Đánh Giá (A4)</h3>
+        </div>
+        <button type="button" onclick="window.closePrintTourEvaluationsSelectorModal()" class="text-white hover:text-slate-300 text-2xl font-bold leading-none cursor-pointer">&times;</button>
+      </div>
+      <div class="p-5 space-y-3 text-xs">
+        <p class="text-slate-600">Chọn xe đã có phiếu đánh giá của Giáo viên để in phiếu A4 chuẩn:</p>
+        <div id="tourEvalSelectorList" class="space-y-1.5 max-h-60 overflow-y-auto">
+          <!-- Render danh sách xe -->
+        </div>
+      </div>
+      <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button type="button" onclick="window.closePrintTourEvaluationsSelectorModal()" class="bg-slate-700 hover:bg-slate-800 text-white font-bold py-2 px-4 rounded-xl text-xs cursor-pointer">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================
+       KHUNG CHỨA IN A4 (ẨN KHI XEM, CHỈ HIỆN KHI BẤM IN TRÌNH DUYỆT)
+       ============================================================== -->
+  <div id="printableEvaluationArea" class="hidden"></div>
+
+</body>
 </html>
